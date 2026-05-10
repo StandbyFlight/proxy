@@ -1,9 +1,15 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { colors } from '../../lib/theme'
+import { supabase } from '../../lib/supabase'
 
 export default function HomeScreen() {
   const router = useRouter()
+
+  async function signOut() {
+    await supabase.auth.signOut()
+    router.replace('/(auth)')
+  }
 
   return (
     <View style={styles.container}>
@@ -13,10 +19,14 @@ export default function HomeScreen() {
           <Text style={styles.statusText}>Looking for someone on your flight.</Text>
           <Text style={styles.statusSub}>We'll let you know when we find a match.</Text>
         </View>
-        <TouchableOpacity onPress={() => router.replace('/(app)/flight')}>
+        <TouchableOpacity onPress={() => router.push('/(app)/flight')}>
           <Text style={styles.link}>Change flight</Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity style={styles.signOut} onPress={signOut}>
+        <Text style={styles.signOutText}>Sign out</Text>
+      </TouchableOpacity>
     </View>
   )
 }
@@ -29,4 +39,6 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 22, fontWeight: '600', color: colors.text, letterSpacing: -0.3 },
   statusSub: { fontSize: 16, color: colors.subtle },
   link: { fontSize: 15, color: colors.subtle, textDecorationLine: 'underline' },
+  signOut: { paddingBottom: 48, alignItems: 'center' },
+  signOutText: { fontSize: 14, color: colors.subtle },
 })
