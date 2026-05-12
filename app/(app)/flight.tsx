@@ -7,29 +7,31 @@ import { useRouter } from 'expo-router'
 import { colors } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
 
-const AERODATABOX_KEY = process.env.EXPO_PUBLIC_AERODATABOX_KEY!
+const AVIATIONSTACK_KEY = process.env.EXPO_PUBLIC_AVIATIONSTACK_KEY!
 
 async function lookupFlight(flightNumber: string) {
-  const today = new Date().toISOString().split('T')[0]
-  const res = await fetch(
-    `https://aerodatabox.p.rapidapi.com/flights/number/${flightNumber}/${today}`,
-    {
-      headers: {
-        'X-RapidAPI-Key': AERODATABOX_KEY,
-        'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com',
-      },
-    }
-  )
+  const url = `https://api.aviationstack.com/v1/flights?access_key=${AVIATIONSTACK_KEY}&flight_iata=${flightNumber}`
 
-  if (res.status === 404) throw new Error('Flight not found — double-check the number (e.g. AA1234)')
-  if (!res.ok) throw new Error('Could not reach flight data. Try again.')
+  const res = await fetch(url)
 
-  const data = await res.json()
-  if (!Array.isArray(data) || data.length === 0) {
+  if (res.status === 529) throw new Error('Flight data service is overloaded. Try again in a moment.')
+  if (!res.ok) throw new Error(`Could not reach flight data (${res.status}). Try again.`)
+
+  const json = await res.json()
+
+  // AviationStack returns API-level errors inside a 200 response
+  if (json.error) {
+    const code = json.error.code
+    if (code === 104) throw new Error('Monthly flight lookup limit reached.')
+    if (code === 106) throw new Error('API plan does not support HTTPS — using HTTP.')
+    throw new Error(json.error.message ?? 'Flight data error.')
+  }
+
+  if (!json.data || json.data.length === 0) {
     throw new Error('Flight not found — double-check the number (e.g. AA1234)')
   }
 
-  return data[0]
+  return json.data[0]
 }
 
 export default function FlightScreen() {
@@ -49,9 +51,6 @@ export default function FlightScreen() {
       const f = await lookupFlight(normalized)
       const today = new Date().toISOString().split('T')[0]
 
-      const toUtcIso = (t?: string) =>
-        t ? `${t.endsWith('Z') ? t : t + 'Z'}` : null
-
       const { data: flightRow, error: upsertErr } = await supabase
         .from('flights')
         .upsert({
@@ -59,19 +58,16 @@ export default function FlightScreen() {
           departure_date: today,
           airline_name: f.airline?.name ?? null,
           airline_iata: f.airline?.iata ?? null,
-          origin_iata: f.departure?.airport?.iata ?? null,
-          origin_name: f.departure?.airport?.name ?? null,
-          origin_city: f.departure?.airport?.municipalityName ?? null,
-          destination_iata: f.arrival?.airport?.iata ?? null,
-          destination_name: f.arrival?.airport?.name ?? null,
-          destination_city: f.arrival?.airport?.municipalityName ?? null,
-          departure_scheduled: toUtcIso(f.departure?.scheduledTime?.utc),
-          arrival_scheduled: toUtcIso(f.arrival?.scheduledTime?.utc),
+          origin_iata: f.departure?.iata ?? null,
+          origin_name: f.departure?.airport ?? null,
+          destination_iata: f.arrival?.iata ?? null,
+          destination_name: f.arrival?.airport ?? null,
+          departure_scheduled: f.departure?.scheduled ?? null,
+          arrival_scheduled: f.arrival?.scheduled ?? null,
           departure_gate: f.departure?.gate ?? null,
           departure_terminal: f.departure?.terminal ?? null,
           arrival_gate: f.arrival?.gate ?? null,
-          status: f.status ?? null,
-          icao24: f.aircraft?.modeS ?? null,
+          status: f.flight_status ?? null,
           last_enriched_at: new Date().toISOString(),
         }, { onConflict: 'flight_iata,departure_date' })
         .select('id')
@@ -84,10 +80,10 @@ export default function FlightScreen() {
         params: {
           flight_id: flightRow.id,
           flight_iata: normalized,
-          origin_iata: f.departure?.airport?.iata ?? '',
-          destination_iata: f.arrival?.airport?.iata ?? '',
-          destination_city: f.arrival?.airport?.municipalityName ?? '',
-          departure_time: f.departure?.scheduledTime?.local ?? '',
+          origin_iata: f.departure?.iata ?? '',
+          destination_iata: f.arrival?.iata ?? '',
+          destination_city: f.arrival?.airport ?? '',
+          departure_time: f.departure?.scheduled ?? '',
           gate: f.departure?.gate ?? '',
           terminal: f.departure?.terminal ?? '',
         },
@@ -145,6 +141,8 @@ export default function FlightScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   inner: { flex: 1, paddingHorizontal: 28, justifyContent: 'center', gap: 16 },
+  back: { paddingTop: 60, paddingBottom: 8 },
+  backText: { fontSize: 15, color: colors.subtle },
   heading: { fontSize: 28, fontWeight: '700', color: colors.text, letterSpacing: -0.5 },
   sub: { fontSize: 16, color: colors.subtle, marginTop: -8, marginBottom: 8 },
   flightInput: {
@@ -160,8 +158,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.surface,
   },
-  back: { paddingTop: 60, paddingBottom: 8 },
-  backText: { fontSize: 15, color: colors.subtle },
   hint: { fontSize: 13, color: colors.subtle, textAlign: 'center' },
   error: { fontSize: 14, color: colors.error, textAlign: 'center' },
   button: {

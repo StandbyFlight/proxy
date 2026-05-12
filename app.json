@@ -15,7 +15,16 @@
     },
     "ios": {
       "bundleIdentifier": "com.sutharsika.proxyapp",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSExceptionDomains": {
+            "api.aviationstack.com": {
+              "NSExceptionAllowsInsecureHTTPLoads": true
+            }
+          }
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {

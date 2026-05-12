@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { colors } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
+import { getAblyClient, flightChannelName } from '../../lib/ably'
 
 const INTENTS = [
   { key: 'professional', label: 'Professional', desc: 'Career-adjacent connections' },
@@ -67,6 +68,18 @@ export default function IntentScreen() {
       })
 
       if (sessionErr) throw sessionErr
+
+      const departureDate = params.departure_time
+        ? params.departure_time.split('T')[0]
+        : new Date().toISOString().split('T')[0]
+
+      const ably = getAblyClient(session.user.id)
+      const channel = ably.channels.get(flightChannelName(params.flight_iata, departureDate))
+      await channel.presence.enter({
+        intent: intent!,
+        travel_purpose: purpose ?? null,
+        checked_in_at: new Date().toISOString(),
+      })
 
       router.replace('/(app)/')
     } catch (err: any) {
