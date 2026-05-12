@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView,
+  StyleSheet, ScrollView, ActivityIndicator,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { colors } from '../../lib/theme'
+import { supabase } from '../../lib/supabase'
 
 const SLOTS = [
   { key: 'before', label: 'Before boarding', desc: 'Near your gate, ~45 min before departure' },
@@ -12,11 +13,45 @@ const SLOTS = [
 ]
 
 export default function MeetupScreen() {
+  const { match_id } = useLocalSearchParams<{ match_id: string }>()
   const [wearing, setWearing] = useState('')
   const [slot, setSlot] = useState<string | null>(null)
+  const [iAmA, setIAmA] = useState<boolean | null>(null)
+  const [saving, setSaving] = useState(false)
   const router = useRouter()
 
   const canConfirm = wearing.trim().length > 0 && slot !== null
+
+  useEffect(() => {
+    async function loadSide() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
+      const { data: match } = await supabase
+        .from('matches')
+        .select('session_id_a, session_a:sessions!session_id_a(user_id)')
+        .eq('id', match_id)
+        .single()
+
+      if (!match) return
+      const sessionA = Array.isArray(match.session_a) ? match.session_a[0] : match.session_a
+      setIAmA(sessionA?.user_id === session.user.id)
+    }
+    loadSide()
+  }, [match_id])
+
+  async function confirm() {
+    if (!canConfirm || iAmA === null) return
+    setSaving(true)
+
+    const update = iAmA
+      ? { wearing_a: wearing.trim() }
+      : { wearing_b: wearing.trim() }
+
+    await supabase.from('matches').update(update).eq('id', match_id)
+
+    router.replace({ pathname: '/(app)/post-meetup', params: { match_id } })
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.inner}>
@@ -54,11 +89,14 @@ export default function MeetupScreen() {
       </View>
 
       <TouchableOpacity
-        style={[styles.button, !canConfirm && styles.buttonDisabled]}
-        onPress={() => router.replace('/(app)/')}
-        disabled={!canConfirm}
+        style={[styles.button, (!canConfirm || saving) && styles.buttonDisabled]}
+        onPress={confirm}
+        disabled={!canConfirm || saving}
       >
-        <Text style={styles.buttonText}>Confirm meetup</Text>
+        {saving
+          ? <ActivityIndicator color={colors.bg} />
+          : <Text style={styles.buttonText}>Confirm meetup</Text>
+        }
       </TouchableOpacity>
     </ScrollView>
   )
