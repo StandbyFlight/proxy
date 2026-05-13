@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>STANDBY — an app for the in-between</title>
+  <meta name="description" content="Two strangers. Same airport. One reason to meet, before either of you boards." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">Standby</div>
+      <div class="topbar-right"><a href="#request">request access</a></div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-overline">
+      <span>Now Boarding</span>
+      <span class="sep"></span>
+      <span class="clock" id="clock">— — : — —</span>
+      <span class="sep"></span>
+      <span>Live</span>
+    </div>
+
+    <div class="hero-board-wrap">
+      <div id="hero-board" style="display:flex; justify-content:center;"></div>
+    </div>
+
+    <h1 class="hero-tag">
+      Briefly <em>between</em> two&nbsp;lives.
+    </h1>
+    <p class="hero-sub">
+      An app for solo travelers at airports. One match, one true thing
+      in common, one chance to step out from behind the screen — before
+      either of you boards.
+    </p>
+  </section>
+
+  <section class="section">
+    <div class="section-inner">
+      <div class="eyebrow"><span class="num">01</span><span>a note from the makers</span></div>
+      <div class="essay">
+        <p class="lede">
+          An airport is one of the rare places where everyone
+          is between two lives.
+        </p>
+        <p>
+          Strangers, briefly equal, briefly stationary, all heading
+          somewhere else. You have ninety minutes — a slow coffee,
+          a book in your bag, three walks past the same five gates.
+          Most of it ends up disappearing into a phone.
+        </p>
+        <p class="pull">
+          We thought there ought to be another option for the in-between.
+        </p>
+        <p>
+          So we made a small app. It does one thing. It finds one
+          other person, in your terminal, who would also rather not
+          spend the next hour staring at a screen — and it tells you
+          one true thing the two of you have in common. You decide
+          whether to meet, in person, before you board.
+        </p>
+        <p>
+          No feed. No swiping. No profile to scroll through. If
+          neither of you wants to step out, nothing happens. The
+          person on the other end never knows.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-inner">
+      <div class="eyebrow"><span class="num">02</span><span>how it works</span></div>
+      <div class="essay">
+        <p class="lede">One match. One reason. One&nbsp;terminal.</p>
+      </div>
+      <ol class="steps">
+        <li>
+          <p>
+            You tap <em>standby</em> when you're at your gate.
+            <span>Nothing visible to anyone yet — just a quiet signal that you're open.</span>
+          </p>
+        </li>
+        <li>
+          <p>
+            We look for one other person, in your terminal, on standby too.
+            <span>Same airport, different destination. Always one match at a time.</span>
+          </p>
+        </li>
+        <li>
+          <p>
+            We surface a single specific reason to meet.
+            <span>Not a profile. Not a feed. One sentence — a fact you already share.</span>
+          </p>
+        </li>
+        <li>
+          <p>
+            A spot in the terminal. Two time windows.
+            <span>You either step out, or you don't. Then you board.</span>
+          </p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-inner">
+      <div class="eyebrow"><span class="num">03</span><span>specimens</span></div>
+      <div class="essay">
+        <p class="lede">
+          A few of the sentences we've been thinking&nbsp;about.
+        </p>
+        <p style="font-style:italic; font-size: 19px; line-height: 1.7; color: var(--ink); margin-top: 10px;">
+          you both highlighted the same passage in&nbsp;<em>Pilgrim at Tinker Creek</em>.<br><br>
+          you both went to schools with under fifty&nbsp;students.<br><br>
+          you both ordered an oat flat white at gate&nbsp;seven this morning.<br><br>
+          you are both flying to a wedding you didn't expect to be invited&nbsp;to.<br><br>
+          you have both quit the same job in the same&nbsp;year.
+        </p>
+        <p style="font-family: var(--mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); margin-top: 18px;">
+          illustrative — the real ones are stranger.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="live">
+    <div class="live-inner">
+      <div class="live-eyebrow">live · five-minute delay · anonymized</div>
+      <h2 class="live-head">
+        Right now, in some terminal somewhere —
+      </h2>
+      <div id="live-board" style="margin: 12px 0 16px;"></div>
+      <p class="live-foot">— rolling, twenty-four hours a day</p>
+    </div>
+  </section>
+
+  <section class="signup" id="request">
+    <div class="signup-inner">
+      <div class="eyebrow"><span class="num">04</span><span>get in line</span></div>
+      <h2>
+        Standby is <em>invite-only</em>. For now.
+      </h2>
+      <p>
+        We are opening one airport at a time, in small groups,
+        on purpose. Tell us where you fly through most. When
+        your terminal opens up, we'll send a single code.
+      </p>
+      <form class="signup-form" onsubmit="event.preventDefault(); requestAccess(this);">
+        <input
+          type="email"
+          required
+          placeholder="your email — we won't write you twice"
+          aria-label="email"
+        />
+        <button type="submit">
+          join the wait <span class="arrow">→</span>
+        </button>
+      </form>
+      <p class="signup-foot">
+        we'll write back. from a person.
+      </p>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="foot-inner">
+      <div class="crest">Standby · in transit · 2026</div>
+      <div class="meta">
+        <span>not a dating app</span>
+        <span>not a feed</span>
+        <span>not a profile</span>
+        <span>a small project</span>
+      </div>
+      <p class="made">
+        Made with care by a small studio that would rather you
+        looked up. <a href="match.html" style="border-bottom: 1px solid var(--ink-soft); padding-bottom: 1px;">preview a match</a>.
+      </p>
+    </div>
+  </footer>
+
+  <script src="solari.js"></script>
+  <script>
+    // ─── Live clock ───
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+    function tickClock() {
+      const d = new Date();
+      const h = pad(d.getUTCHours());
+      const m = pad(d.getUTCMinutes());
+      document.getElementById('clock').textContent = h + ':' + m + ' GMT';
+    }
+    tickClock();
+    setInterval(tickClock, 1000 * 30);
+
+    // ─── Hero board ───
+    const heroEl = document.getElementById('hero-board');
+    const heroBoard = new SolariBoard(heroEl, { rows: 2, cols: 14 });
+
+    const HERO_FRAGMENTS = [
+      ['TWO STRANGERS', 'ONE AIRPORT'],
+      ['BOTH HEADED TO', 'BERLIN'],
+      ['YOU BOTH READ', 'JOAN DIDION'],
+      ['ONE TRUE THING', 'IN COMMON'],
+      ['BOTH KEPT A', 'FIELD NOTEBOOK'],
+      ['SAME TERMINAL', 'SAME 90 MIN'],
+      ['STANDING BY', 'AT GATE B22'],
+      ['NOT A DATING', 'APP. NOT A FEED'],
+      ['ONE MATCH', 'BEFORE YOU FLY'],
+      ['MET', 'AT JFK 14·22'],
+    ];
+
+    let heroIdx = 0;
+    let heroRunning = true;
+    let heroLoopActive = false;
+    async function cycleHero() {
+      if (heroLoopActive) return;
+      heroLoopActive = true;
+      while (heroRunning) {
+        const f = HERO_FRAGMENTS[heroIdx % HERO_FRAGMENTS.length];
+        await heroBoard.setText(f);
+        await new Promise(r => setTimeout(r, 2400));
+        heroIdx++;
+      }
+      heroLoopActive = false;
+    }
+    // Kick off after a small beat so the page can paint.
+    setTimeout(cycleHero, 400);
+
+    // Pause when the tab is hidden (saves CPU and keeps cycle synced)
+    document.addEventListener('visibilitychange', () => {
+      heroRunning = !document.hidden;
+      if (heroRunning) cycleHero();
+    });
+
+    // Click hero board to skip to next fragment
+    heroEl.addEventListener('click', () => { heroIdx++; });
+
+    // ─── Live board ───
+    const liveEl = document.getElementById('live-board');
+    const liveBoard = new SolariBoard(liveEl, { rows: 5, cols: 18, size: 'small' });
+
+    const AIRPORTS = ['JFK','LHR','SFO','HND','ATL','CDG','SEA','BOS','LAX','DEN','AMS','SYD','YYZ','GRU','ICN','SIN'];
+    const STATUSES = ['MATCHED', 'DECLINED', 'STANDBY', 'STANDBY', 'MATCHED']; // bias toward more matches and standbys
+    function randTime() {
+      const h = Math.floor(Math.random() * 24);
+      const m = Math.floor(Math.random() * 60);
+      return pad(h) + ':' + pad(m);
+    }
+    function makeRow() {
+      const a = AIRPORTS[Math.floor(Math.random() * AIRPORTS.length)];
+      const t = randTime();
+      const s = STATUSES[Math.floor(Math.random() * STATUSES.length)];
+      // exactly 18 chars: code(3) + 1 + status.padEnd(8) + 1 + time(5)
+      return a + ' ' + s.padEnd(8) + ' ' + t;
+    }
+
+    // Seed
+    const initialLive = [
+      'JFK MATCHED  14:22',
+      'LHR DECLINED 19:51',
+      'SFO STANDBY  09:08',
+      'HND MATCHED  02:33',
+      'ATL STANDBY  16:14',
+    ];
+    setTimeout(() => liveBoard.setText(initialLive, { align: 'left', stagger: 10 }), 1400);
+
+    // Periodic single-row updates — only the one row that changed flips.
+    setInterval(() => {
+      if (document.hidden) return;
+      const rowIdx = Math.floor(Math.random() * 5);
+      const newRow = makeRow();
+      for (let c = 0; c < 18; c++) {
+        const ch = newRow[c] || ' ';
+        setTimeout(() => liveBoard.cells[rowIdx][c].flipTo(ch), c * 14 + Math.random() * 120);
+      }
+    }, 3800);
+
+    // ─── Sign-up handler (concept, not wired) ───
+    function requestAccess(form) {
+      const input = form.querySelector('input');
+      const btn = form.querySelector('button');
+      btn.innerHTML = 'on the list <span class="arrow">·</span>';
+      btn.disabled = true;
+      input.disabled = true;
+      input.style.opacity = '0.5';
+    }
+  </script>
+</body>
+</html>

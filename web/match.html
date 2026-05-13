@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=390, initial-scale=1, viewport-fit=cover" />
+  <title>Standby — a match</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Phone-only sizing for the match-reveal board.
+       16 columns × 3 rows, cells small enough to live inside a 390px phone. */
+    .phone-board .flap-cell { --cell-w: 19px; --cell-h: 30px; }
+    .phone-board .board-row { gap: 2px; }
+    .phone-board .board { gap: 4px; }
+  </style>
+</head>
+<body class="match">
+
+  <main class="phone">
+
+    <header class="phone-top">
+      <div class="left">Standby</div>
+      <div class="right" id="local-time">15:42</div>
+    </header>
+
+    <div class="phone-location">
+      <span>LHR · Terminal 5</span>
+      <span class="dotline"></span>
+      <span>Gate B22</span>
+    </div>
+
+    <div class="phone-pretitle" id="pretitle">— one match found —</div>
+
+    <div class="phone-board">
+      <div id="match-board"></div>
+    </div>
+
+    <p class="phone-status" id="status">
+      <span class="small">a thing you both share</span>
+      That copy of Annie Dillard you both keep travelling&nbsp;with.
+    </p>
+
+    <section class="phone-reveal" id="reveal-name">
+      <div class="phone-name">Mira<span class="ampersand">·</span></div>
+      <div class="phone-bio">flying to Athens — 17:35 from B14</div>
+    </section>
+
+    <section class="phone-detail" id="reveal-detail">
+      <div class="label">a suggested meeting spot</div>
+      <div class="where">
+        Caffè Nero
+        <em>level 1 · near gate B22 · 6 min walk</em>
+      </div>
+    </section>
+
+    <section class="phone-when" id="reveal-when">
+      <div class="label">when</div>
+      <div class="slots">
+        <button class="slot" data-when="15" data-target-line1="SEE YOU IN" data-target-line2="15 MINUTES" data-target-line3="AT CAFFE NERO">
+          <span class="when">15 min</span>
+          <span class="span">15·57 → 16·15</span>
+        </button>
+        <button class="slot" data-when="45" data-target-line1="SEE YOU IN" data-target-line2="45 MINUTES" data-target-line3="AT CAFFE NERO">
+          <span class="when">45 min</span>
+          <span class="span">16·27 → 16·45</span>
+        </button>
+      </div>
+    </section>
+
+    <footer class="phone-out" id="reveal-out">
+      <button class="step-out" id="stepOut">step out</button>
+      <div class="timer">
+        respond by
+        <span class="countdown" id="countdown">04:32</span>
+      </div>
+    </footer>
+
+  </main>
+
+  <script src="solari.js"></script>
+  <script>
+    // ─── Local clock ───
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+    function tick() {
+      const d = new Date();
+      document.getElementById('local-time').textContent =
+        pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    tick();
+    setInterval(tick, 1000 * 30);
+
+    // ─── Countdown ───
+    let secondsLeft = 4 * 60 + 32;
+    function tickDown() {
+      if (secondsLeft <= 0) return;
+      secondsLeft--;
+      const m = Math.floor(secondsLeft / 60);
+      const s = secondsLeft % 60;
+      const el = document.getElementById('countdown');
+      if (el) el.textContent = pad(m) + ':' + pad(s);
+    }
+    setInterval(tickDown, 1000);
+
+    // ─── Match reveal board ───
+    const boardWrap = document.getElementById('match-board');
+    const board = new SolariBoard(boardWrap, { rows: 3, cols: 16 });
+
+    // The reveal sequence, paced deliberately.
+    async function reveal() {
+      // 1. small beat
+      await wait(400);
+
+      // 2. show the pretitle
+      document.getElementById('pretitle').classList.add('shown');
+      await wait(900);
+
+      // 3. flip the board into the connection sentence
+      await board.setText([
+        'YOU BOTH KEEP A',
+        'COPY OF PILGRIM',
+        'AT TINKER CREEK',
+      ], { stagger: 16, startVariance: 220 });
+
+      // 4. a quiet pause to let it land
+      await wait(500);
+
+      // 5. the status sentence below the board
+      document.getElementById('status').classList.add('shown');
+      await wait(800);
+
+      // 6. the name
+      document.getElementById('reveal-name').classList.add('shown');
+      await wait(700);
+
+      // 7. the meeting spot
+      document.getElementById('reveal-detail').classList.add('shown');
+      await wait(700);
+
+      // 8. when
+      document.getElementById('reveal-when').classList.add('shown');
+      await wait(600);
+
+      // 9. step out / timer footer
+      document.getElementById('reveal-out').classList.add('shown');
+    }
+
+    function wait(ms) {
+      return new Promise(r => setTimeout(r, ms));
+    }
+
+    // Kick off
+    document.addEventListener('DOMContentLoaded', () => {
+      reveal();
+    });
+
+    // ─── Slot selection — board re-flips to confirmation ───
+    document.querySelectorAll('.slot').forEach(slot => {
+      slot.addEventListener('click', async () => {
+        document.querySelectorAll('.slot').forEach(s => s.style.opacity = '0.35');
+        slot.style.opacity = '1';
+        slot.style.outline = '1px solid var(--char-amber)';
+
+        const l1 = slot.dataset.targetLine1;
+        const l2 = slot.dataset.targetLine2;
+        const l3 = slot.dataset.targetLine3;
+
+        await board.setText([l1, l2, l3], { stagger: 18, startVariance: 240 });
+
+        // Quietly replace the status line
+        const status = document.getElementById('status');
+        status.innerHTML =
+          '<span class="small">confirmed · she will know in a moment</span>' +
+          'See you at Caffè Nero in&nbsp;' + slot.dataset.when + '&nbsp;minutes.';
+        status.style.opacity = '1';
+      });
+    });
+
+    // ─── Step out — graceful decline ───
+    document.getElementById('stepOut').addEventListener('click', async () => {
+      document.querySelectorAll('.slot').forEach(s => s.style.opacity = '0.3');
+      document.getElementById('stepOut').style.opacity = '0.4';
+
+      await board.setText([
+        'STEPPED OUT',
+        ' SAFE FLIGHT',
+        '         -',
+      ], { stagger: 14, startVariance: 200 });
+
+      const status = document.getElementById('status');
+      status.innerHTML =
+        '<span class="small">no one is told</span>' +
+        'You stepped out. She never&nbsp;knew.';
+    });
+
+    // Tap the board to re-trigger the reveal (for the demo)
+    let lastClick = 0;
+    boardWrap.addEventListener('dblclick', () => {
+      // No-op for now; left for future
+    });
+  </script>
+</body>
+</html>
