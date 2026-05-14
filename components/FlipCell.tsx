@@ -4,9 +4,9 @@ import { colors } from '../lib/theme'
 
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 const BOARD_FONT = Platform.select({
-  ios: 'AvenirNext-Medium',
-  android: 'sans-serif',
-  default: 'Avenir Next, Avenir, Helvetica, Arial, sans-serif',
+  ios: 'Menlo Regular',
+  android: 'monospace',
+  default: 'Menlo Regular, Consolas, monospace',
 })
 
 export function FlipCell({
