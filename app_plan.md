@@ -34,20 +34,28 @@
 
 ## 1. Vision & Philosophy
 
-**The core insight:** Airports concentrate high-value, often interesting people with idle time and no productive way to interact. People going to the same conference, the same city, or just through the same terminal at the same time recognize the same ambient possibility year after year. There's no infrastructure to prompt the connection.
+**The core insight:** Airports are **liminal**. They are transitional spaces — neither home nor destination — where people are temporarily unmoored from their routines, their roles, and the contexts that normally define them. A CEO and a college student are both, in this moment, just waiting for a flight. Status flattens. Everyone is **"available"** in a way they wouldn't be in their normal life — not because they're lonely, but because they're off-duty. The usual reasons people don't talk to strangers — they're in a hurry, they're at work, they have somewhere to be — temporarily don't apply.
+
+That openness goes to waste. Airports concentrate enormous latent richness — people from every industry, every part of the country, every kind of life, all in one terminal with hours of idle time — and there's no infrastructure to act on it. Everyone has their headphones in. Nobody talks. The CEO scrolls through email she'll re-read in the air. The student rewatches a show on their laptop. They never know they were five gates apart.
+
+**STANDBY is built on the premise that this is a missed moment.** Not because anyone is lonely. Because there is real value — practical, intellectual, human — in pausing to learn from a stranger when the conditions for it are this rare: shared time, shared place, shared in-betweenness, and a story you would otherwise never hear. The product is for travelers who already feel this and want a low-friction way to act on it.
 
 **What this app is:**
-- A tool for spontaneous, real-world connection between travelers
-- Proximity-based and context-driven (same airport, overlapping departure window, reachable terminal)
-- Flight-aware, but not flight-bound — flight data defines availability and logistics, not the whole match pool
-- Warm, human, anti-digital in feel — the goal is to get people off their phones
+- A tool for **spontaneous, mutual curiosity** between travelers — the app finds one good reason for two strangers to sit down across from each other, both opt in, they meet.
+- **Proximity- and time-bound** — same airport, overlapping departure window, reachable terminal. Tied to the liminal moment itself, not to any persistent social graph. When the flight leaves, the moment closes.
+- **Egalitarian by setting** — the gate is the great leveler. The app trusts that and does not surface job titles, follower counts, or trust scores to other users. Importance outside the airport does not exist inside it.
+- **Story-first** — every traveler is carrying a story worth hearing briefly. The matching algorithm's only job is to find the single most tellable entry point ([§4.2](#42-optimization-target)).
+- **Warm, human, anti-digital in feel** — the product exists to get people *off their phones*, briefly, to look at someone real.
 
 **What this app is NOT:**
-- A dating app — the design, language, and UX must make this unambiguous
-- A networking tool — it shouldn't feel cold, transactional, or LinkedIn-esque
-- A social network — no feed, no followers, no persistent social graph
+- **Not a dating app.** The design, language, and UX must make this unambiguous.
+- **Not a networking tool.** It is not LinkedIn-with-flight-data. The premise is "what can I learn from this person," not "what can this person do for me."
+- **Not a fix for loneliness.** STANDBY is for travelers who are *interested in other people*, not travelers who are sad about being alone. If positioning or copy ever drifts toward the latter, course-correct immediately.
+- **Not a social network.** No feed, no followers, no persistent connection graph. The unit is the moment, not the relationship.
 
-**The philosophy in one sentence:** The app does the work so the conversation doesn't have to start from scratch.
+**The philosophy in one sentence:** *The airport is a room full of stories you would otherwise never hear. The app's job is to hand you one good reason to stop and listen.*
+
+> **Operationally:** the app does the work — finds the shared signal, makes the introduction tellable, suggests where and when to meet — so the conversation does not have to start from scratch.
 
 ---
 
