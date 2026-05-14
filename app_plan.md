@@ -34,11 +34,12 @@
 
 ## 1. Vision & Philosophy
 
-**The core insight:** Airports concentrate high-value, often interesting people with idle time and no productive way to interact. People going to the same conference recognize the same faces on the same flights year after year. There's no infrastructure to prompt the connection.
+**The core insight:** Airports concentrate high-value, often interesting people with idle time and no productive way to interact. People going to the same conference, the same city, or just through the same terminal at the same time recognize the same ambient possibility year after year. There's no infrastructure to prompt the connection.
 
 **What this app is:**
 - A tool for spontaneous, real-world connection between travelers
-- Proximity-based and context-driven (same airport, same flight window, same destination)
+- Proximity-based and context-driven (same airport, overlapping departure window, reachable terminal)
+- Flight-aware, but not flight-bound — flight data defines availability and logistics, not the whole match pool
 - Warm, human, anti-digital in feel — the goal is to get people off their phones
 
 **What this app is NOT:**
@@ -70,7 +71,7 @@ Signal availability ("I'm open to meeting someone")
 App matches you with one person
         ↓
 App presents: "Here's your point of connection"
-  — shared destination, same conference, overlapping interests, etc.
+  — same conference, overlapping interests, shared background, complementary travel context, etc.
         ↓
 User accepts or declines (max 3 declines per airport session)
         ↓
@@ -126,7 +127,9 @@ Followed by travel purpose:
 
 ### 3.3 Matching
 - One match surfaced at a time (no swiping, no browsing, no list)
-- Up to 3 declines per airport session; after that, the user can't make a connection on that flight
+- Candidate pool is airport-native: same origin airport, departure within roughly ±90 min, and reachable terminal
+- Same flight or same destination can be useful signals, but they are not required filters
+- Up to 3 declines per airport session; after that, the user can't make a connection for that session
 - App presents one curated **point of connection** — not a profile dump, just the strongest shared signal in natural language
 - Mutual confirmation required before any identity is revealed
 - See [Section 4](#4-matching-logic) for full detail
@@ -154,44 +157,65 @@ Followed by travel purpose:
 
 ## 4. Matching Logic
 
-> **TBD.** The matching algorithm needs a real brainstorm pass before implementation. The signals and weights below are a strawman — the *mechanism* for combining them is the open question.
+> See `matching_algorithm.md` for the buildable v0 spec. This section captures the product-level contract.
 
-### 4.1 Input Signals (weighted strawman)
+### 4.1 Pool Definition
 
-| Signal | Source | Weight |
+The MVP pool is deliberately broader than "same flight" or "same destination."
+
+Eligible candidates are:
+- At the same origin airport
+- Departing within roughly ±90 minutes
+- In a reachable terminal, using a small hardcoded reachability map for major airports
+- Intent-compatible for the current session
+- Not already declined by this user in the current session
+
+Same destination, same flight, or same event may become strong match signals, but they should not define the pool. The broader pool is essential: it turns airports from sparse flight-by-flight silos into living rooms of nearby people with overlapping time.
+
+### 4.2 Optimization Target
+
+The matcher optimizes for **tellability**, not raw similarity.
+
+The app does not ask, "Who is mathematically most similar to this user?" It asks, "What is the strongest single reason we can give these two people to sit down across from each other?"
+
+That means the match score is the best individual shared signal, not the sum of all overlap. One highly specific, explainable signal beats a pile of vague similarities.
+
+### 4.3 Signal Types
+
+| Signal | Source | Role |
 |---|---|---|
-| Same destination airport | Boarding pass | High |
-| Same conference / event | User input + optional verification | Very High |
-| Same industry / professional field | LinkedIn OAuth or self-reported | High (if Professional intent) |
-| Same company type / career stage | Self-reported | Medium |
-| Shared interests / hobbies | Spotify, Goodreads, Beli, Letterboxd, self-reported | High (if Social intent) |
-| Similar travel style | Self-reported | Medium (if Social intent) |
-| Who they follow on Twitter/X | Twitter OAuth (optional) | Medium |
-| School / alumni connection | Self-reported | Medium |
-| Both going solo | Inferred | Medium |
+| Same event / conference | User input + optional verification | Very strong tellable signal |
+| Same school / hometown | Self-reported | Strong shared-background signal |
+| Same industry / company / career stage | Self-reported or professional integration | Strong for "same world" sessions |
+| Shared artists / books / films / follows | Spotify, Goodreads, Letterboxd, Twitter/X, self-reported | Strong for social sessions |
+| Same base city | Profile | Useful concrete signal |
+| Same destination city / country | Boarding pass or flight enrichment | Useful signal, not a filter |
+| Similar travel style | Self-reported | Medium signal |
+| Asymmetry signals | Self-reported numeric fields | Strong when the difference is the story |
 
-### 4.2 Connection Type × Travel Purpose Matrix
+### 4.4 Algorithm
 
-| Intent | Travel Purpose | Matching Priority |
-|---|---|---|
-| Professional | Conference | Same conference > same industry > same destination |
-| Professional | Work trip | Same industry > same company type > same destination |
-| Social | Solo travel | Similar travel style > shared interests > same destination |
-| Social | Business trip | Ignore trip purpose → weight interests + personality |
-| Open to anything | Any | Balanced blend of all signals |
+Two stages:
 
-### 4.3 Algorithm — TBD
+1. **Hard filters** produce the eligible airport/time/terminal pool.
+2. **Tellability scoring** enumerates the shared signals for each candidate and scores each signal by specificity, pool rarity, concreteness, asymmetry, and session intent fit.
 
-Approaches to consider:
-1. **Rule-based / weighted sum** — score each candidate by linear combination of weights above; pick the top.
-2. **Templated point-of-connection** — same scoring, but the highest-weighted shared signal becomes a templated phrase ("You're both heading to Consensus in Austin"). Cheap, deterministic.
-3. **LLM-generated point of connection** — feed shared signals into an LLM and have it write the phrase. Warmer language, costs per match, needs guardrails.
-4. **Hybrid** — rule-based picks the *signal*, LLM writes the *phrasing*.
-5. **Weighted graph / embedding-based** — represent users and shared contexts as a graph; rank by graph proximity. Probably overkill for MVP but worth thinking about for v2.
+For each candidate:
 
-**Decision deferred.** Implement a placeholder ranker (option 1 + 2) that's easy to swap out, log all candidate scores so we can replay future algorithms against historical data.
+```
+signal.score = specificity_tier
+             + pool_rarity_bonus
+             + concreteness_bonus
+             + asymmetry_bonus
+             + intent_match_bonus
 
-### 4.4 Presentation
+candidate.best_signal = max(signals, key=score)
+candidate.match_score = candidate.best_signal.score
+```
+
+Above the quality threshold, the user gets a high-confidence match. If no candidate clears the bar after the pool has stabilized, the user may get a visually distinct curiosity card. If the pool is still thin or changing, the app keeps looking and pings later.
+
+### 4.5 Presentation
 
 Whatever the algorithm, the surface contract is fixed: **one** curated point of connection in natural language. No profile reveal. One reason. The rest is up to them.
 
@@ -288,7 +312,7 @@ Users can connect any combination of these to enrich matching quality. Nothing i
 - Cron Edge Function every 5 min
 - Re-query AeroDataBox for `flights WHERE status = 'active'`
 - Diff old vs new gate / status
-- If gate changed → push + SMS to all users on that flight with active matches
+- If gate changed → push + SMS to affected users with active matches or confirmed meetups tied to that flight
 - If cancelled → dissolve match queue, notify users
 - Migrate to FlightAware AeroAPI webhooks at ~500+ DAU when polling latency / cost matter
 
@@ -335,9 +359,9 @@ Once mutual match is confirmed:
 ### 9.1 Channels
 
 ```
-Per-flight context channel:  flight:{flight_iata}:{departure_date_iso}
-                             e.g. flight:AA1234:2025-05-12
-                             Used for presence + new-match push trigger
+Per-airport pool channel:    airport:{origin_iata}:{departure_date_iso}:{hour_bucket}
+                             e.g. airport:JFK:2025-05-12:14
+                             Used for presence + new-match push trigger across the broadened pool
 
 Per-match channel:           match:{match_id}
                              Used for messaging + state changes
@@ -348,9 +372,9 @@ Per-match channel:           match:{match_id}
 
 ```
 User signals availability ("I'm open to meeting someone")
-  → subscribe to flight:{...}
+  → subscribe to airport:{origin_iata}:{date}:{hour_bucket}
   → enter presence with payload:
-      { user_id, session_id, checked_in_at, intent, travel_purpose }
+      { user_id, session_id, checked_in_at, departure_time, terminal, intent, travel_purpose }
 
 Ably Reactor webhook fires on presence.enter
   → POST to Edge Function: generate-next-match
@@ -628,8 +652,8 @@ CREATE INDEX ON messages (match_id, sent_at);
 
 | Event | Message |
 |---|---|
-| Match found | "We found someone for you on AA1234" |
-| Someone accepted you | "Someone on AA1234 wants to meet" |
+| Match found | "We found someone near you at JFK" |
+| Someone accepted you | "Someone nearby wants to meet" |
 | Mutual match | "It's a match — pick a time to meet" |
 | Meetup confirmed | "Meeting confirmed: 3:45 PM near Gate B22" |
 | 30 min before meetup | "You're meeting Alex in 30 minutes" |
@@ -751,18 +775,18 @@ CREATE POLICY "own integrations" ON user_integrations
 | Flight cancelled | Match dissolved, user notified, re-prompt to add new flight |
 | 0 candidates in pool | "No travelers yet — check back closer to departure" |
 | Pool exhausted before 3 declines | Session stays open; new candidate surfaces if someone joins |
-| User hits 3 declines | Session locked: "You're done for this flight. Catch us next trip." |
+| User hits 3 declines | Session locked: "You're done for this session. Catch us next trip." |
 | Boarding pass scan fails | Fallback to manual flight number input |
 | Network offline on accept | Optimistic UI, queued action, retry on reconnect |
 | Meetup time already passed when scheduling | Show only future-valid slots; if none, skip directly to messaging |
-| Duplicate flight entry (same user, same flight) | Upsert; do not create a second session |
+| Duplicate active flight entry for a user | Upsert; do not create a second session |
 | User declines `contact_exchange` | Default; do not surface partner's contact even if they opted in |
 
 ---
 
 ## 20. What Not to Build Yet
 
-- Events as a separate match context (flights only at MVP — events are a v2 expansion)
+- Events as a separate match context (event membership is a signal in the airport pool at MVP, not a standalone product surface)
 - Group mode (3–5 travelers, roundtable formation)
 - ML / vector embeddings for matching (rule-based + light LLM on phrasing is enough)
 - Calendar integration for meeting scheduling
@@ -805,7 +829,7 @@ Build these only after answering: **"Will strangers actually meet through this?"
 
 ### Still To Decide
 - [ ] App name
-- [ ] Matching algorithm — see [Section 4.3](#43-algorithm--tbd)
+- [ ] Tune matching thresholds and weights — see [Section 4.4](#44-algorithm) and `matching_algorithm.md`
 - [ ] AI provider for icebreaker / point-of-connection phrasing (Claude vs GPT-4o-mini vs Gemini — pricing eval)
 - [ ] Conference verification flow (email forward? honor system for MVP?)
 - [ ] Map / terminal data source for meet-up spot suggestions
