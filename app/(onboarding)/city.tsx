@@ -1,20 +1,41 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
-  View, Text, TextInput, Pressable, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform,
+  View, Text, Pressable, StyleSheet, FlatList,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { colors } from '../../lib/theme'
+import { type, fonts } from '../../lib/typography'
+import { OnboardingChrome } from '../../components/OnboardingChrome'
+import { InputFlipBoard } from '../../components/InputFlipBoard'
+import { searchCities, CityEntry } from '../../lib/cities'
+
+// City name typically fits in <= 14 chars (longest in our list is "San Francisco" = 13).
+const CITY_SLOTS = 14
+const CELL_HEIGHT = 36
+const CELL_WIDTH = 28
 
 export default function City() {
   const router = useRouter()
-  const [city, setCity] = useState('')
+  const [query, setQuery] = useState('')
+  const [picked, setPicked] = useState<CityEntry | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const trimmed = city.trim()
-  const valid = trimmed.length > 0
+  // Board reflects either the picked city or the user's raw typed query.
+  const boardValue = (picked?.name ?? query).toUpperCase()
+
+  const suggestions = useMemo(
+    () => (picked ? [] : searchCities(query, 6)),
+    [query, picked],
+  )
+
+  const valid = !!picked || query.trim().length >= 2
+
+  function pick(c: CityEntry) {
+    setPicked(c)
+    setQuery(c.name)
+  }
 
   async function next() {
     if (!valid) return
@@ -26,9 +47,10 @@ export default function City() {
       router.replace('/(auth)')
       return
     }
+    const cityName = picked?.name ?? query.trim()
     const { error } = await supabase
       .from('users')
-      .update({ base_city: trimmed })
+      .update({ base_city: cityName })
       .eq('id', session.user.id)
     setLoading(false)
     if (error) { setError(error.message); return }
@@ -36,60 +58,115 @@ export default function City() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <OnboardingChrome
+      eyebrow="Origin · 03 / 04"
+      step={3}
+      total={4}
+      title="Where do you call home?"
+      subtitle="The city you fly out of more than any other."
+      onContinue={next}
+      continueDisabled={!valid}
+      continueLoading={loading}
+      error={error}
     >
-      <View style={styles.inner}>
-        <Text style={styles.prompt}>Where are you based?</Text>
-        <Text style={styles.sub}>The city you call home — sometimes it's the connection.</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="New York"
-          placeholderTextColor={colors.subtle}
-          value={city}
-          onChangeText={setCity}
-          autoFocus
-          autoCapitalize="words"
-          autoCorrect={false}
-          selectionColor={colors.accent}
-          returnKeyType="next"
-          onSubmitEditing={next}
+      <View style={styles.boardWrap}>
+        <InputFlipBoard
+          value={boardValue}
+          length={CITY_SLOTS}
+          onChangeText={(t) => {
+            setPicked(null)
+            setQuery(t)
+          }}
+          cellSize={CELL_HEIGHT}
+          cellWidth={CELL_WIDTH}
+          gap={3}
+          autoCapitalize="characters"
+          filter={(t) => t.replace(/[^a-zA-Z .]/g, '')}
         />
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            !valid && styles.buttonDisabled,
-            pressed && valid && styles.buttonPressed,
-          ]}
-          onPress={next}
-          disabled={loading || !valid}
-        >
-          {loading
-            ? <ActivityIndicator color={colors.bg} />
-            : <Text style={styles.buttonText}>Continue</Text>}
-        </Pressable>
+        <Text style={styles.hint}>Tap to edit</Text>
       </View>
-    </KeyboardAvoidingView>
+
+      {suggestions.length > 0 ? (
+        <View style={styles.suggestionsWrap}>
+          <FlatList
+            data={suggestions}
+            keyExtractor={(item) => `${item.name}-${item.state}`}
+            keyboardShouldPersistTaps="handled"
+            scrollEnabled={false}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => pick(item)}
+                style={({ pressed }) => [
+                  styles.suggestion,
+                  pressed && { opacity: 0.55 },
+                ]}
+              >
+                <Text style={styles.suggestionLeft} numberOfLines={1}>
+                  {item.name}, {item.state}
+                </Text>
+                <Text style={styles.suggestionRight} numberOfLines={1}>
+                  {item.airports.join(' · ')}
+                </Text>
+              </Pressable>
+            )}
+          />
+        </View>
+      ) : null}
+
+      {picked ? (
+        <View style={styles.pickedRow}>
+          <Text style={styles.pickedLabel}>Serving </Text>
+          <Text style={styles.pickedAirports}>{picked.airports.join(' · ')}</Text>
+        </View>
+      ) : null}
+    </OnboardingChrome>
   )
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  inner: { flex: 1, paddingHorizontal: 24, paddingTop: 56, gap: 18 },
-  prompt: { fontSize: 32, fontWeight: '600', color: colors.text, letterSpacing: -0.6, lineHeight: 38 },
-  sub: { fontSize: 15, color: colors.subtle, lineHeight: 22, marginTop: -10, marginBottom: 8 },
-  input: {
-    borderBottomWidth: 1, borderBottomColor: colors.text,
-    paddingVertical: 14, fontSize: 22, color: colors.text, letterSpacing: 0.4,
+  boardWrap: { gap: 12, alignItems: 'flex-start' },
+  hint: {
+    ...type.hint,
+    color: colors.subtle,
   },
-  button: { backgroundColor: colors.accent, paddingVertical: 16, alignItems: 'center', marginTop: 12 },
-  buttonPressed: { opacity: 0.85 },
-  buttonDisabled: { backgroundColor: colors.text, opacity: 0.18 },
-  buttonText: { color: colors.bg, fontSize: 16, fontWeight: '600', letterSpacing: 0.4, textTransform: 'uppercase' },
-  error: { fontSize: 14, color: colors.error, marginTop: -4 },
+  suggestionsWrap: { marginTop: 22 },
+  suggestion: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    gap: 12,
+  },
+  suggestionLeft: {
+    ...type.bodyItalic,
+    color: colors.text,
+    flexShrink: 1,
+  },
+  suggestionRight: {
+    fontFamily: fonts.mono,
+    fontSize: 13,
+    color: colors.subtle,
+    letterSpacing: 1.2,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: 'rgba(10,10,10,0.06)',
+  },
+  pickedRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: 22,
+  },
+  pickedLabel: {
+    ...type.bodyItalic,
+    fontSize: 14,
+    color: colors.subtle,
+  },
+  pickedAirports: {
+    fontFamily: fonts.mono,
+    fontSize: 13,
+    color: colors.text,
+    letterSpacing: 1.4,
+  },
 })

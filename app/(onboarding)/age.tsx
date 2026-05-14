@@ -1,20 +1,25 @@
 import { useState } from 'react'
-import {
-  View, Text, TextInput, Pressable, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform,
-} from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { colors } from '../../lib/theme'
+import { type } from '../../lib/typography'
+import { OnboardingChrome } from '../../components/OnboardingChrome'
+import { DigitFlipCell } from '../../components/DigitFlipCell'
+
+// Two-digit age. Default lands at 22 — typical college-age user, easy to swipe from.
+const DEFAULT_TENS = 2
+const DEFAULT_ONES = 2
 
 export default function Age() {
   const router = useRouter()
-  const [age, setAge] = useState('')
+  const [tens, setTens] = useState(DEFAULT_TENS)
+  const [ones, setOnes] = useState(DEFAULT_ONES)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const num = parseInt(age, 10)
-  const valid = !isNaN(num) && num >= 13 && num <= 120
+  const num = tens * 10 + ones
+  const valid = num >= 13 && num <= 99
 
   async function next() {
     if (!valid) return
@@ -36,60 +41,42 @@ export default function Age() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <OnboardingChrome
+      eyebrow="Age · 02 / 04"
+      step={2}
+      total={4}
+      title="And how old are you?"
+      subtitle="Helps us match you with someone in the same chapter of life."
+      onContinue={next}
+      continueDisabled={!valid}
+      continueLoading={loading}
+      error={error}
     >
-      <View style={styles.inner}>
-        <Text style={styles.prompt}>How old are you?</Text>
-        <Text style={styles.sub}>Used to find you people in similar life stages — never shown directly.</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="24"
-          placeholderTextColor={colors.subtle}
-          keyboardType="number-pad"
-          value={age}
-          onChangeText={t => setAge(t.replace(/\D/g, '').slice(0, 3))}
-          autoFocus
-          maxLength={3}
-          selectionColor={colors.accent}
-          returnKeyType="next"
-          onSubmitEditing={next}
-        />
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            !valid && styles.buttonDisabled,
-            pressed && valid && styles.buttonPressed,
-          ]}
-          onPress={next}
-          disabled={loading || !valid}
-        >
-          {loading
-            ? <ActivityIndicator color={colors.bg} />
-            : <Text style={styles.buttonText}>Continue</Text>}
-        </Pressable>
+      <View style={styles.boardWrap}>
+        <View style={styles.cells}>
+          <DigitFlipCell value={tens} onChange={setTens} cellSize={92} cellWidth={64} />
+          <DigitFlipCell value={ones} onChange={setOnes} cellSize={92} cellWidth={64} />
+        </View>
+        <Text style={styles.hint}>Swipe to change</Text>
+        {!valid ? (
+          <Text style={styles.warn}>Must be at least 13.</Text>
+        ) : null}
       </View>
-    </KeyboardAvoidingView>
+    </OnboardingChrome>
   )
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  inner: { flex: 1, paddingHorizontal: 24, paddingTop: 56, gap: 18 },
-  prompt: { fontSize: 32, fontWeight: '600', color: colors.text, letterSpacing: -0.6, lineHeight: 38 },
-  sub: { fontSize: 15, color: colors.subtle, lineHeight: 22, marginTop: -10, marginBottom: 8 },
-  input: {
-    borderBottomWidth: 1, borderBottomColor: colors.text,
-    paddingVertical: 14, fontSize: 22, color: colors.text, letterSpacing: 0.4,
+  boardWrap: { gap: 14, alignItems: 'flex-start' },
+  cells: { flexDirection: 'row', gap: 8 },
+  hint: {
+    ...type.hint,
+    color: colors.subtle,
   },
-  button: { backgroundColor: colors.accent, paddingVertical: 16, alignItems: 'center', marginTop: 12 },
-  buttonPressed: { opacity: 0.85 },
-  buttonDisabled: { backgroundColor: colors.text, opacity: 0.18 },
-  buttonText: { color: colors.bg, fontSize: 16, fontWeight: '600', letterSpacing: 0.4, textTransform: 'uppercase' },
-  error: { fontSize: 14, color: colors.error, marginTop: -4 },
+  warn: {
+    ...type.bodyItalic,
+    color: colors.error,
+    fontSize: 13,
+    marginTop: -4,
+  },
 })

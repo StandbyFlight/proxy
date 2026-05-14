@@ -1,0 +1,102 @@
+import { useEffect, useRef, useState } from 'react'
+import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native'
+import { colors } from '../lib/theme'
+
+const BOARD_FONT = Platform.select({
+  ios: 'Menlo',
+  android: 'monospace',
+  default: 'Menlo, Consolas, monospace',
+})
+
+// A flip cell driven by an external `char` prop.
+// When `char` changes, plays a single fast flip-out / flip-in animation.
+// Empty cells render a dim placeholder character (en-dash) and don't animate.
+export function InputFlipCell({
+  char,
+  cellSize = 46,
+  cellWidth,
+  placeholder = '–',
+}: {
+  char: string
+  cellSize?: number
+  cellWidth?: number
+  placeholder?: string
+}) {
+  const isEmpty = char === '' || char === ' '
+  const display = isEmpty ? placeholder : char.toUpperCase()
+
+  const [rendered, setRendered] = useState(display)
+  const scaleY = useRef(new Animated.Value(1)).current
+  const prevRef = useRef(display)
+
+  useEffect(() => {
+    if (display === prevRef.current) return
+    prevRef.current = display
+
+    Animated.timing(scaleY, {
+      toValue: 0,
+      duration: 80,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      setRendered(display)
+      Animated.timing(scaleY, {
+        toValue: 1,
+        duration: 110,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start()
+    })
+  }, [display])
+
+  const s = stylesFor(cellSize, cellWidth)
+  return (
+    <View style={s.cell}>
+      <Animated.View style={{ transform: [{ scaleY }] }}>
+        <Text style={[s.cellChar, isEmpty && s.cellCharDim]}>{rendered}</Text>
+      </Animated.View>
+      <View style={s.cellSeam} />
+    </View>
+  )
+}
+
+type StyleCacheKey = string
+const cache: Record<StyleCacheKey, ReturnType<typeof StyleSheet.create<any>>> = {}
+function stylesFor(cellSize: number, cellWidth?: number) {
+  const key = `${cellSize}_${cellWidth ?? 'auto'}`
+  if (cache[key]) return cache[key]
+  const width = cellWidth ?? Math.round(cellSize * 0.69)
+  const fontSize = Math.round(cellSize * 0.62)
+  const lineHeight = Math.round(cellSize * 0.78)
+  const seamTop = Math.round(cellSize * 0.48)
+  const seamHeight = Math.max(1, Math.round(cellSize * 0.034))
+  cache[key] = StyleSheet.create({
+    cell: {
+      width,
+      height: cellSize,
+      backgroundColor: colors.board,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+      borderRadius: Math.max(1, Math.round(cellSize * 0.05)),
+    },
+    cellChar: {
+      color: colors.boardText,
+      fontSize,
+      fontFamily: BOARD_FONT,
+      lineHeight,
+      letterSpacing: 0.5,
+      textAlign: 'center',
+    },
+    cellCharDim: { opacity: 0.22 },
+    cellSeam: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: seamTop,
+      height: seamHeight,
+      backgroundColor: colors.boardSeam,
+    },
+  })
+  return cache[key]
+}

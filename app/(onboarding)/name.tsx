@@ -1,11 +1,15 @@
 import { useState } from 'react'
-import {
-  View, Text, TextInput, Pressable, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform,
-} from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { colors } from '../../lib/theme'
+import { type } from '../../lib/typography'
+import { OnboardingChrome } from '../../components/OnboardingChrome'
+import { InputFlipBoard } from '../../components/InputFlipBoard'
+
+const NAME_SLOTS = 6
+const CELL_HEIGHT = 46
+const CELL_WIDTH = 36
 
 export default function Name() {
   const router = useRouter()
@@ -39,60 +43,40 @@ export default function Name() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <OnboardingChrome
+      eyebrow="Passenger · 01 / 04"
+      step={1}
+      total={4}
+      title="How should we list you?"
+      subtitle="Only your first name is ever visible. Last names are never shown."
+      onContinue={next}
+      continueDisabled={!valid}
+      continueLoading={loading}
+      hideBack
+      error={error}
     >
-      <View style={styles.inner}>
-        <Text style={styles.prompt}>What's your first name?</Text>
-        <Text style={styles.sub}>This is the only name anyone will see — last names are never shown.</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Alex"
-          placeholderTextColor={colors.subtle}
+      <View style={styles.boardWrap}>
+        <InputFlipBoard
           value={name}
-          onChangeText={setName}
+          length={NAME_SLOTS}
+          onChangeText={(t) => setName(t.replace(/[^a-zA-Z]/g, ''))}
+          cellSize={CELL_HEIGHT}
+          cellWidth={CELL_WIDTH}
+          gap={4}
           autoFocus
-          autoCapitalize="words"
-          autoCorrect={false}
-          selectionColor={colors.accent}
-          returnKeyType="next"
-          onSubmitEditing={next}
+          autoCapitalize="characters"
+          filter={(t) => t.replace(/[^a-zA-Z]/g, '')}
         />
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            !valid && styles.buttonDisabled,
-            pressed && valid && styles.buttonPressed,
-          ]}
-          onPress={next}
-          disabled={loading || !valid}
-        >
-          {loading
-            ? <ActivityIndicator color={colors.bg} />
-            : <Text style={styles.buttonText}>Continue</Text>}
-        </Pressable>
+        <Text style={styles.hint}>Tap to edit</Text>
       </View>
-    </KeyboardAvoidingView>
+    </OnboardingChrome>
   )
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  inner: { flex: 1, paddingHorizontal: 24, paddingTop: 56, gap: 18 },
-  prompt: { fontSize: 32, fontWeight: '600', color: colors.text, letterSpacing: -0.6, lineHeight: 38 },
-  sub: { fontSize: 15, color: colors.subtle, lineHeight: 22, marginTop: -10, marginBottom: 8 },
-  input: {
-    borderBottomWidth: 1, borderBottomColor: colors.text,
-    paddingVertical: 14, fontSize: 22, color: colors.text, letterSpacing: 0.4,
+  boardWrap: { gap: 14, alignItems: 'flex-start' },
+  hint: {
+    ...type.hint,
+    color: colors.subtle,
   },
-  button: { backgroundColor: colors.accent, paddingVertical: 16, alignItems: 'center', marginTop: 12 },
-  buttonPressed: { opacity: 0.85 },
-  buttonDisabled: { backgroundColor: colors.text, opacity: 0.18 },
-  buttonText: { color: colors.bg, fontSize: 16, fontWeight: '600', letterSpacing: 0.4, textTransform: 'uppercase' },
-  error: { fontSize: 14, color: colors.error, marginTop: -4 },
 })
