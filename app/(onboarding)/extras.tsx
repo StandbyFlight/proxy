@@ -116,7 +116,7 @@ export default function Extras() {
   }
 
   function done() {
-    router.replace('/(app)')
+    router.replace('/(app)/flight')
   }
 
   return (
@@ -192,7 +192,7 @@ export default function Extras() {
             onPress={done}
             style={({ pressed }) => [styles.doneBtn, pressed && { opacity: 0.85 }]}
           >
-            <Text style={styles.doneText}>Take me home</Text>
+            <Text style={styles.doneText}>To your flight</Text>
           </Pressable>
         </View>
       </View>

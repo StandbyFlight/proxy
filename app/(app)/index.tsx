@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase'
 import { getAblyClient, userChannelName } from '../../lib/ably'
 import { haptics } from '../../lib/haptics'
 import { ManifestBoard } from '../../components/ManifestBoard'
+import { InputFlipCell } from '../../components/InputFlipCell'
 import { primaryIataForCity } from '../../lib/cities'
 import type Ably from 'ably'
 
@@ -37,20 +38,35 @@ export default function HomeScreen() {
     return () => clearInterval(id)
   }, [])
 
-  // Load profile basics for the manifest row.
+  // Load profile basics for the manifest row, and gate on an active session.
+  // If the user has no current standby session (expires_at in the future),
+  // route them to flight entry — you can't wait without a flight.
   useEffect(() => {
     let cancelled = false
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session || cancelled) return
-      const { data } = await supabase
+
+      const { data: profile } = await supabase
         .from('users')
         .select('first_name, base_city')
         .eq('id', session.user.id)
         .maybeSingle()
       if (cancelled) return
-      if (data?.first_name) setFirstName(data.first_name)
-      if (data?.base_city) setIata(primaryIataForCity(data.base_city))
+      if (profile?.first_name) setFirstName(profile.first_name)
+      if (profile?.base_city) setIata(primaryIataForCity(profile.base_city))
+
+      const nowIso = new Date().toISOString()
+      const { data: activeSession } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .gt('expires_at', nowIso)
+        .order('expires_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+      if (cancelled) return
+      if (!activeSession) router.replace('/(app)/flight')
     }
     load()
     return () => { cancelled = true }
@@ -149,9 +165,13 @@ export default function HomeScreen() {
         <Pressable
           onPress={() => { haptics.buttonTap(); router.push('/(app)/settings') }}
           hitSlop={14}
-          style={({ pressed }) => [styles.gear, pressed && { opacity: 0.5 }]}
+          style={({ pressed }) => [styles.passengerBadge, pressed && { opacity: 0.5 }]}
         >
-          <Text style={styles.gearGlyph}>{'⚙'}</Text>
+          <InputFlipCell
+            char={(firstName[0] || ' ').toUpperCase()}
+            cellSize={28}
+            cellWidth={22}
+          />
         </Pressable>
       </View>
 
@@ -243,15 +263,10 @@ const styles = StyleSheet.create({
   },
   eyebrowWrap: { flex: 1 },
   eyebrow: { color: colors.subtle },
-  gear: {
-    width: 36,
-    height: 36,
+  passengerBadge: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  gearGlyph: {
-    fontSize: 18,
-    color: colors.subtle,
+    paddingLeft: 8,
   },
   body: {
     flex: 1,
