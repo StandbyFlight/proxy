@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, Platform, Animated } from 'react-native'
+import { View, Text, StyleSheet, Platform, Animated, Easing } from 'react-native'
 import { FlipCell } from './FlipCell'
 import { colors } from '../lib/theme'
 import { fonts } from '../lib/typography'
 import { haptics } from '../lib/haptics'
+import { ChurningStatusText } from './ChurningStatusText'
 
 const BOARD_FONT = Platform.select({
   ios: 'Menlo',
@@ -27,12 +28,26 @@ const COLUMN_DELAY = 350
 const NAME_START = 500
 const STATUS_PAD = 250
 
+export type ManifestStatus = 'standby' | 'scanning' | 'gate-quiet' | 'none'
+
 export function ManifestBoard({
   firstName,
   iata,
+  // `cinematic` plays the full settle-by-cell flip animation. `static` mounts
+  // every cell pre-settled — used on the waiting screen where the row is just
+  // present, not re-revealed every load.
+  mode = 'cinematic',
+  // Optional second row for the waiting screen — a "stranger" with dim passenger.
+  stranger,
+  // What the STATUS caption says. 'standby' = churning red word, 'scanning' =
+  // same but a different word, 'gate-quiet' = dimmed/settled, 'none' = no caption.
+  status = 'standby',
 }: {
   firstName: string
   iata: string
+  mode?: 'cinematic' | 'static'
+  stranger?: { flightIata: string; originIata: string } | null
+  status?: ManifestStatus
 }) {
   const nameUpper = firstName.toUpperCase()
   const nameSlots = Math.max(NAME_MIN_SLOTS, nameUpper.length)
@@ -44,10 +59,13 @@ export function ManifestBoard({
   const statusRevealMs =
     originStart + ORIGIN_SLOTS * STAGGER_MS + STATUS_PAD
 
+  const isStatic = mode === 'static'
+
   useEffect(() => {
+    if (isStatic) return
     const t = setTimeout(haptics.standbyStamp, statusRevealMs)
     return () => clearTimeout(t)
-  }, [statusRevealMs])
+  }, [statusRevealMs, isStatic])
 
   return (
     <View>
@@ -67,7 +85,7 @@ export function ManifestBoard({
           </View>
         </View>
 
-        {/* Row */}
+        {/* Your row */}
         <View style={styles.row}>
           {/* FLIGHT — static dim dashes; placeholder for "no flight yet" */}
           <View style={[styles.flightCol, styles.rowAlign]}>
@@ -86,7 +104,7 @@ export function ManifestBoard({
                 <FlipCell
                   key={`n-${i}`}
                   targetChar={c}
-                  stopAfter={NAME_START + i * STAGGER_MS}
+                  stopAfter={isStatic ? 0 : NAME_START + i * STAGGER_MS}
                   cellSize={CELL}
                 />
               )
@@ -108,28 +126,128 @@ export function ManifestBoard({
                 <FlipCell
                   key={`o-${i}`}
                   targetChar={c}
-                  stopAfter={originStart + i * STAGGER_MS}
+                  stopAfter={isStatic ? 0 : originStart + i * STAGGER_MS}
                   cellSize={CELL}
                 />
               )
             )}
           </View>
         </View>
+
+        {/* Stranger row — flips in below yours when a curiosity match lands. */}
+        {stranger ? (
+          <StrangerRow
+            flightIata={stranger.flightIata}
+            originIata={stranger.originIata}
+            nameSlots={nameSlots}
+          />
+        ) : null}
       </View>
 
-      {/* STANDBY caption — the brand payoff, in accent red mono. */}
-      <StatusCaption revealAt={statusRevealMs} />
+      {/* STATUS caption */}
+      {status === 'none' ? null : (
+        <StatusCaption
+          status={status}
+          revealAt={isStatic ? 0 : statusRevealMs}
+        />
+      )}
     </View>
   )
 }
 
-// Renders "STATUS · STANDBY" with STANDBY fading in after the board settles.
-function StatusCaption({ revealAt }: { revealAt: number }) {
+// Second row: flight + dim passenger placeholder + origin. Slides in from below.
+function StrangerRow({
+  flightIata,
+  originIata,
+  nameSlots,
+}: {
+  flightIata: string
+  originIata: string
+  nameSlots: number
+}) {
+  const translateY = useRef(new Animated.Value(8)).current
+  const opacity = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 320,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 320,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }, [])
+
+  const flight = flightIata.toUpperCase().padEnd(6, ' ').slice(0, 6)
+  const origin = originIata.toUpperCase().padEnd(ORIGIN_SLOTS, ' ').slice(0, ORIGIN_SLOTS)
+  const passengerPlaceholder = '─'.repeat(nameSlots)
+
   return (
-    <View style={styles.caption}>
+    <Animated.View style={[styles.row, styles.strangerRow, { opacity, transform: [{ translateY }] }]}>
+      <View style={[styles.flightCol, styles.rowAlign]}>
+        <Text style={styles.flightCode}>{flight.trim()}</Text>
+      </View>
+      <View style={styles.colSep} />
+
+      <View style={[styles.cellsRow, { width: colWidth(nameSlots) }]}>
+        <Text style={styles.passengerPlaceholder}>{passengerPlaceholder}</Text>
+      </View>
+      <View style={styles.colSep} />
+
+      <View style={[styles.cellsRow, { width: colWidth(ORIGIN_SLOTS) }]}>
+        {origin.split('').map((c, i) =>
+          c === ' ' ? (
+            <View
+              key={`s-${i}`}
+              style={{ width: Math.round(CELL * 0.69), height: CELL, backgroundColor: colors.board }}
+            >
+              <Text style={styles.dimGlyph}>·</Text>
+            </View>
+          ) : (
+            <FlipCell key={`s-${i}`} targetChar={c} stopAfter={120 + i * STAGGER_MS} cellSize={CELL} />
+          )
+        )}
+      </View>
+    </Animated.View>
+  )
+}
+
+// Renders "STATUS · {word}" with the word fading in after the board settles
+// and then quietly churning in place every ~6s (standby/scanning) or sitting
+// dim and still (gate-quiet).
+function StatusCaption({
+  status,
+  revealAt,
+}: {
+  status: ManifestStatus
+  revealAt: number
+}) {
+  const word = status === 'gate-quiet' ? 'GATE QUIET' : status === 'scanning' ? 'SCANNING' : 'STANDBY'
+  const opacity = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    const t = setTimeout(() => {
+      Animated.timing(opacity, { toValue: 1, duration: 260, useNativeDriver: true }).start()
+    }, revealAt)
+    return () => clearTimeout(t)
+  }, [revealAt])
+
+  const isQuiet = status === 'gate-quiet'
+
+  return (
+    <Animated.View style={[styles.caption, { opacity }]}>
       <Text style={styles.captionLabel}>STATUS  ·  </Text>
-      <RevealText text="STANDBY" delayMs={revealAt} style={styles.captionStandby} />
-    </View>
+      {isQuiet ? (
+        <Text style={[styles.captionStandby, styles.captionQuiet]}>{word}</Text>
+      ) : (
+        <ChurningStatusText text={word} style={styles.captionStandby} />
+      )}
+    </Animated.View>
   )
 }
 
@@ -214,5 +332,26 @@ const styles = StyleSheet.create({
     color: colors.accent,
     letterSpacing: 2,
     fontWeight: '600',
+  },
+  captionQuiet: {
+    color: colors.subtle,
+    opacity: 0.55,
+  },
+  strangerRow: {
+    marginTop: 6,
+  },
+  flightCode: {
+    color: colors.boardText,
+    opacity: 0.85,
+    fontFamily: BOARD_FONT,
+    fontSize: 13,
+    letterSpacing: 1,
+  },
+  passengerPlaceholder: {
+    color: colors.boardText,
+    opacity: 0.32,
+    fontFamily: BOARD_FONT,
+    fontSize: 14,
+    letterSpacing: 1.5,
   },
 })

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native'
-import { useRouter } from 'expo-router'
+import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useRouter } from 'expo-router'
 import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
-import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
-import { getAblyClient, userChannelName, disconnectAbly } from '../../lib/ably'
+import { getAblyClient, userChannelName } from '../../lib/ably'
+import { haptics } from '../../lib/haptics'
+import { ManifestBoard } from '../../components/ManifestBoard'
+import { primaryIataForCity } from '../../lib/cities'
 import type Ably from 'ably'
 
 type ScreenState = 'searching' | 'curiosity' | 'exhausted'
@@ -14,6 +16,8 @@ type ScreenState = 'searching' | 'curiosity' | 'exhausted'
 interface CuriosityData {
   match_id: string
   winning_signal: string | null
+  flight_iata: string
+  origin_iata: string
 }
 
 export default function HomeScreen() {
@@ -21,10 +25,38 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets()
   const channelRef = useRef<Ably.RealtimeChannel | null>(null)
 
+  const [firstName, setFirstName] = useState('')
+  const [iata, setIata] = useState('···')
   const [state, setState] = useState<ScreenState>('searching')
   const [curiosity, setCuriosity] = useState<CuriosityData | null>(null)
-  const [dismissing, setDismissing] = useState(false)
+  const [clockLabel, setClockLabel] = useState(formatClock(new Date()))
 
+  // Live clock for the eyebrow — ticks every 30s so the minute stays current.
+  useEffect(() => {
+    const id = setInterval(() => setClockLabel(formatClock(new Date())), 30_000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Load profile basics for the manifest row.
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session || cancelled) return
+      const { data } = await supabase
+        .from('users')
+        .select('first_name, base_city')
+        .eq('id', session.user.id)
+        .maybeSingle()
+      if (cancelled) return
+      if (data?.first_name) setFirstName(data.first_name)
+      if (data?.base_city) setIata(primaryIataForCity(data.base_city))
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  // Ably subscriptions for match events.
   useEffect(() => {
     let cancelled = false
 
@@ -42,9 +74,20 @@ export default function HomeScreen() {
       })
 
       channel.subscribe('curiosity.match', (msg) => {
-        const { match_id, winning_signal } = msg.data as { match_id: string; winning_signal: string | null }
-        setCuriosity({ match_id, winning_signal })
+        const data = msg.data as {
+          match_id: string
+          winning_signal: string | null
+          flight_iata?: string
+          origin_iata?: string
+        }
+        setCuriosity({
+          match_id: data.match_id,
+          winning_signal: data.winning_signal,
+          flight_iata: data.flight_iata ?? '',
+          origin_iata: data.origin_iata ?? '···',
+        })
         setState('curiosity')
+        haptics.standbyStamp()
       })
 
       channel.subscribe('pool.exhausted', () => {
@@ -62,9 +105,8 @@ export default function HomeScreen() {
     }
   }, [])
 
-  async function keepLooking() {
+  async function dismissCuriosity() {
     if (!curiosity) return
-    setDismissing(true)
     haptics.selection()
     try {
       await supabase
@@ -74,165 +116,196 @@ export default function HomeScreen() {
     } catch (_) {}
     setCuriosity(null)
     setState('searching')
-    setDismissing(false)
   }
 
-  async function signOut() {
-    channelRef.current?.unsubscribe()
-    channelRef.current = null
-    disconnectAbly()
-    await supabase.auth.signOut()
-    router.replace('/(auth)')
+  function openMatch() {
+    if (!curiosity) return
+    haptics.buttonTap()
+    router.push({ pathname: '/(app)/match', params: { match_id: curiosity.match_id } })
   }
+
+  const eyebrowLabel =
+    state === 'exhausted' ? `THE GATE · ${clockLabel}` : `LISTENING · ${clockLabel}`
+
+  const headline =
+    state === 'exhausted'
+      ? "You've met the gate."
+      : 'Listening for someone worth meeting.'
+
+  const subhead =
+    state === 'exhausted'
+      ? 'Check back closer to boarding — more people check in over time.'
+      : null
+
+  const manifestStatus = state === 'exhausted' ? 'gate-quiet' : 'standby'
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + 20, paddingBottom: Math.max(insets.bottom, 24) }]}>
-      <View style={styles.inner}>
-        <Text style={styles.wordmark}>Standby</Text>
-
-        {state === 'searching' && (
-          <View style={styles.statusBlock}>
-            <Text style={styles.headline}>Looking for someone{'\n'}worth meeting.</Text>
-            <Text style={styles.subhead}>We'll let you know when we find a match.</Text>
-          </View>
-        )}
-
-        {state === 'curiosity' && curiosity && (
-          <View style={styles.curiosityCard}>
-            <Text style={styles.curiosityEyebrow}>Someone interesting</Text>
-            <Text style={styles.curiositySignal}>
-              {curiosity.winning_signal ?? 'No obvious overlap — but you never know.'}
-            </Text>
-
-            <View style={styles.curiosityActions}>
-              <Pressable
-                style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
-                onPress={() => {
-                  haptics.buttonTap()
-                  router.push({ pathname: '/(app)/match', params: { match_id: curiosity.match_id } })
-                }}
-              >
-                <Text style={styles.primaryBtnText}>Sure, why not  →</Text>
-              </Pressable>
-
-              <Pressable
-                style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.7 }]}
-                onPress={keepLooking}
-                disabled={dismissing}
-              >
-                {dismissing
-                  ? <ActivityIndicator color={colors.subtle} />
-                  : <Text style={styles.secondaryBtnText}>Keep looking</Text>
-                }
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {state === 'exhausted' && (
-          <View style={styles.statusBlock}>
-            <Text style={styles.headline}>No more matches{'\n'}right now.</Text>
-            <Text style={styles.subhead}>
-              You've seen everyone available in your area.
-              Check back closer to boarding — more people check in over time.
-            </Text>
-          </View>
-        )}
-
+    <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
+      {/* Top chrome — gear icon top-right. */}
+      <View style={styles.topRow}>
+        <View style={styles.eyebrowWrap}>
+          <Text style={[type.eyebrow, styles.eyebrow]}>{eyebrowLabel}</Text>
+        </View>
         <Pressable
-          onPress={() => { haptics.selection(); router.push('/(app)/flight') }}
-          hitSlop={12}
+          onPress={() => { haptics.buttonTap(); router.push('/(app)/settings') }}
+          hitSlop={14}
+          style={({ pressed }) => [styles.gear, pressed && { opacity: 0.5 }]}
         >
-          <Text style={styles.footerLink}>Change flight</Text>
+          <Text style={styles.gearGlyph}>{'⚙'}</Text>
         </Pressable>
       </View>
 
-      <View style={styles.footer}>
-        <Pressable onPress={signOut} hitSlop={12}>
-          <Text style={styles.footerLink}>Sign out</Text>
-        </Pressable>
-        <Text style={styles.footerDivider}>·</Text>
-        <Pressable onPress={() => router.push('/(app)/dev')} hitSlop={12}>
-          <Text style={styles.footerLink}>Dev</Text>
+      {/* Body — manifest board centered. */}
+      <View style={styles.body}>
+        <Text style={[type.headline, styles.headline]}>{headline}</Text>
+        {subhead ? (
+          <Text style={[type.subhead, styles.subhead]}>{subhead}</Text>
+        ) : null}
+
+        <View style={styles.boardWrap}>
+          <ManifestBoard
+            firstName={firstName || 'YOU'}
+            iata={iata}
+            mode="static"
+            status={manifestStatus}
+            stranger={
+              state === 'curiosity' && curiosity
+                ? {
+                    flightIata: curiosity.flight_iata || '────',
+                    originIata: curiosity.origin_iata || '···',
+                  }
+                : null
+            }
+          />
+        </View>
+
+        {/* Curiosity panel: italic line + MEET / KEEP LOOKING. */}
+        {state === 'curiosity' && curiosity ? (
+          <View style={styles.curiosityPanel}>
+            <Text style={[type.subhead, styles.curiosityLine]}>
+              {curiosity.winning_signal
+                ? `"${curiosity.winning_signal.toLowerCase()}"`
+                : 'someone curious is heading your way.'}
+            </Text>
+            <View style={styles.curiosityActions}>
+              <Pressable
+                onPress={openMatch}
+                style={({ pressed }) => [styles.meetBtn, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={styles.triangle}>{'▶'}</Text>
+                <Text style={styles.meetBtnText}>MEET THEM</Text>
+              </Pressable>
+              <Pressable
+                onPress={dismissCuriosity}
+                hitSlop={14}
+                style={({ pressed }) => [styles.dismissBtn, pressed && { opacity: 0.5 }]}
+              >
+                <Text style={styles.dismissText}>KEEP LOOKING</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+      </View>
+
+      {/* Bottom — change flight only. */}
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <Pressable
+          onPress={() => { haptics.buttonTap(); router.push('/(app)/flight') }}
+          hitSlop={14}
+          style={({ pressed }) => [pressed && { opacity: 0.5 }]}
+        >
+          <Text style={styles.footerText}>CHANGE FLIGHT</Text>
         </Pressable>
       </View>
     </View>
   )
 }
 
+function formatClock(d: Date): string {
+  let h = d.getHours()
+  const m = d.getMinutes()
+  const suffix = h >= 12 ? 'PM' : 'AM'
+  h = h % 12
+  if (h === 0) h = 12
+  return `${h}:${m.toString().padStart(2, '0')} ${suffix}`
+}
+
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
-  inner: { flex: 1, justifyContent: 'center', gap: 24 },
-  wordmark: {
-    fontFamily: fonts.serifBold,
-    fontSize: 38,
-    letterSpacing: -1,
-    color: colors.text,
-    marginBottom: 8,
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    paddingHorizontal: 24,
   },
-  statusBlock: { gap: 10 },
-  headline: { ...type.headline, color: colors.text },
-  subhead: { ...type.subhead, color: colors.subtle },
-  curiosityCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 20,
-    backgroundColor: colors.surface,
-    gap: 16,
-  },
-  curiosityEyebrow: { ...type.eyebrow, color: colors.subtle },
-  curiositySignal: {
-    fontFamily: fonts.serifBold,
-    fontSize: 22,
-    color: colors.text,
-    letterSpacing: -0.3,
-    lineHeight: 30,
-  },
-  curiosityActions: { gap: 10 },
-  primaryBtn: {
-    backgroundColor: colors.accent,
-    paddingVertical: 14,
+  topRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  primaryBtnText: {
+  eyebrowWrap: { flex: 1 },
+  eyebrow: { color: colors.subtle },
+  gear: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gearGlyph: {
+    fontSize: 18,
+    color: colors.subtle,
+  },
+  body: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 20,
+  },
+  headline: { color: colors.text },
+  subhead: { color: colors.subtle, marginTop: -8 },
+  boardWrap: { marginTop: 8, alignSelf: 'flex-start' },
+  curiosityPanel: {
+    marginTop: 8,
+    gap: 14,
+  },
+  curiosityLine: { color: colors.text },
+  curiosityActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+  },
+  meetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  triangle: {
+    fontSize: 9,
+    color: colors.bg,
+  },
+  meetBtnText: {
     fontFamily: fonts.mono,
+    color: colors.bg,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: colors.bg,
   },
-  secondaryBtn: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-  },
-  secondaryBtnText: {
+  dismissBtn: { paddingVertical: 6 },
+  dismissText: {
     fontFamily: fonts.mono,
     fontSize: 12,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
     color: colors.subtle,
-  },
-  footerLink: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.subtle,
+    letterSpacing: 1.4,
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
     paddingTop: 12,
+    alignItems: 'center',
   },
-  footerDivider: {
+  footerText: {
     fontFamily: fonts.mono,
     fontSize: 11,
-    color: colors.border,
+    color: colors.subtle,
+    letterSpacing: 1.6,
   },
 })
