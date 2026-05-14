@@ -230,17 +230,22 @@ Examples of the desired output:
 ## 5. Profile & Auth
 
 ### 5.1 Auth Methods
-- **Apple Sign In** (primary, required for iOS App Store)
+
+**At MVP (as built):**
+- **Phone OTP** (Supabase Auth → Twilio under the hood) — the only sign-in path. UI is a two-step `CHECK-IN · 01 / 02` (phone) → `CHECK-IN · 02 / 02` (code) flow with the digits entered into split-flap cells. `+1` is implicit; US-only.
+
+**Deferred until App Store submission:**
+- **Apple Sign In** (required for iOS App Store)
 - **Google Sign In**
-- **Phone OTP** (Supabase Auth → Twilio under the hood)
-- All three create / resume sessions via Supabase Auth (`signInWithIdToken` for Apple/Google, OTP flow for phone)
+- Both will create / resume sessions via Supabase Auth (`signInWithIdToken`)
 
 > Critical Apple note: Apple only returns name + email on the very first sign-in. Persist them immediately on first auth.
 
-### 5.2 Profile Basics (required)
-- First name only (last name never shown, even after match)
-- Age (optional but recommended for social matching)
-- City you're based in
+### 5.2 Profile Basics (all required at onboarding)
+- **First name** only (last name never shown, even after match). Entered into a flip board that grows with the typed value.
+- **Age** — two digit cells, range 13–99. Used as an age-stage signal in matching.
+- **Base city** — flip board + autocomplete against a static directory of US metros in `lib/cities.ts`. The matcher derives a primary IATA airport from the city for the profile-preview row.
+- **Current thinking** — free-text prompt ("What's been on your mind lately?") in `SIGNAL · 04 / 04`. Deliberately not a flip board; quiet handwritten feel. Min 20 chars.
 
 ### 5.3 Profile Enrichment (all optional)
 
@@ -264,6 +269,11 @@ Users can connect any combination of these to enrich matching quality. Nothing i
 - Travel frequency / style (self-reported: frequent traveler, first time, adventure, comfort, etc.)
 
 > **Design note:** Profile enrichment should feel like building something interesting about yourself, not filling out a form. Frame each connection as "this helps us find you someone worth talking to."
+
+**As built (MVP):**
+- Enrichment is presented on a `DUTY FREE · OPTIONAL` screen after the profile preview. Each provider is a row with a small flip cell on the left that toggles `─` → `✓` with a haptic clack.
+- **Email** is the only enrichment wired to a real flow at MVP: tapping the row expands an inline input, submission triggers `supabase.auth.updateUser({ email })` which sends a magic link, and the email is mirrored onto `users` with `email_verified=false` until the link is clicked.
+- All other rows (Spotify, Goodreads, Letterboxd, Beli) render as honest "coming soon" placeholders — the cell animates on tap but the OAuth flow is deferred.
 
 ### 5.4 Email Verification (Trust Layer, optional)
 - User enters email → Supabase sends verification link → deep link back into app
@@ -428,20 +438,59 @@ Location data is **never stored server-side** — only used client-side for airp
 
 ## 11. Design Direction
 
-**Aesthetic:** Editorial Minimalism with Brutalist touches + a deliberate Offline / IRL brand feel.
+**Brand:** The app is **STANDBY**. The visual identity is built on the **Solari split-flap board** — the mechanical departure board found in airports and train stations. The board is more than a motif: it's the literal interaction language. Letters flip into place as the user types their name. The user's row appears on the manifest with `STATUS · STANDBY` as the moment that names the entire app. The split-flap evokes airports without feeling like a plane ticket or a tech product.
 
-**The brand tension to hold:** warm and human enough for social connections, credible and understated enough for business travelers. It should not look like a dating app. It should not look like LinkedIn.
+**Aesthetic:** Editorial minimalism with brutalist touches and a deliberate offline / IRL brand feel. Warm and human enough for social connections, credible and understated enough for business travelers. It should not look like a dating app. It should not look like LinkedIn.
+
+**Type system:**
+- **Fraunces** (serif) for headlines and editorial subheads. Italic for emotional / handwritten moments. Carries the "thoughtful person wrote this" voice the philosophy calls for. Loaded via `@expo-google-fonts/fraunces`.
+- **Menlo** (system mono) for eyebrows, hints, status, and any technical labels. Read as the board's typography — uppercased with strong letter-spacing.
+- Shared `type` tokens live in `lib/typography.ts` (`eyebrow`, `headline`, `subhead`, `hint`, `bodyItalic`).
+
+**Color** (palette in `lib/theme.ts`):
+- Page background: `#FFFFFF` — generous whitespace, never grey
+- Board surface: `#0A0A0A` (near-black)
+- Board text: `#F2F2F0` (warm off-white)
+- Accent: `#E4002B` — TWA Hotel red. The only accent. Used sparingly for the primary CTA and for the `STATUS · STANDBY` caption.
+- Subtle text: `#6B6B68`
+
+**Interaction primitives** (in `components/`):
+- `FlipCell` — single split-flap cell with the random-cycle-then-settle animation. Used for cinematic reveals (splash, manifest row, welcome cycle).
+- `InputFlipCell` — driven by an external char prop, animates only when the value changes. Mounts at the dim placeholder so dynamically-added cells flip in instead of appearing instantly.
+- `InputFlipBoard` — row of `InputFlipCell`s backed by a hidden TextInput. `minSlots` + `maxLength` API; the row **grows dynamically** as the user types past the minimum, wrapping if needed.
+- `FlipBoard` — used for cinematic settle animations (splash STANDBY, welcome cycle lines, section headers).
+- `ManifestBoard` — the user's three-column departure row (`FLIGHT · PASSENGER · ORIGIN`) used on the profile-preview screen, with a `STATUS · STANDBY` caption flipping in below in accent red.
+- `EnrichmentRow` — single-cell toggle row used in the enrichment list with `expo-haptics` medium impact on tap.
+- `OnboardingChrome` — the shared screen frame.
+
+**Shared screen chrome:**
+- Dash progress bar at the top
+- Tiny mono eyebrow above the headline (e.g. `PASSENGER · 01 / 04`, `ORIGIN · 03 / 04`, `MANIFEST`, `CHECK-IN · 01 / 02`, `DUTY FREE · OPTIONAL`)
+- Editorial serif headline (Fraunces SemiBold)
+- Italic serif subhead (Fraunces Italic)
+- `← Back` / `Continue →` footer. Back is optional (`hideBack`) and overridable (`onBack`); primary is accent-red.
+
+**The onboarding flow as built:**
+1. **Splash** — STANDBY flips in on a white field, holds, then either morphs to the section header (returning user) or fades out into the welcome cycle (signed-out user).
+2. **Welcome cycle** — board cycles through `A QUIET WAY` → `TO MEET` → `SOMEONE AT` → `THE AIRPORT`. ~6–7s, no CTA, strictly auto-advancing.
+3. **Check-in** — phone OTP, two steps with flip-cell digit entry.
+4. **Onboarding inputs** — Passenger / Age / Origin / Signal (4 steps).
+5. **Profile preview** — `MANIFEST` eyebrow; cinematic reveal of the user's row with the STANDBY caption fading in last.
+6. **Duty Free (optional)** — enrichment rows; user can tap "Take me home" any time.
+7. **Home** (`(app)/index.tsx`).
 
 **Principles:**
-- Anti-digital feel — the product exists to get people off their phones
-- Minimal chrome, maximum whitespace
-- Typography-forward — let words do the work, not UI decoration
-- Warm neutrals, not cold blues or corporate grays
-- Copy should feel like a thoughtful person wrote it, not a startup
+- The flip board earns its weight through restraint. It carries moments of identity, declaration, and status. Quiet text moments (the `SIGNAL` prompt screen) deliberately don't use it — the contrast is what gives the board its weight elsewhere.
+- Anti-digital feel — the product exists to get people off their phones.
+- Minimal chrome, maximum whitespace.
+- Typography-forward — let words do the work, not UI decoration.
+- Copy should feel like a thoughtful person wrote it, not a startup.
 
-**References to explore later:** Kinfolk magazine aesthetic, Are.na, Notion's early brand, Robinhood's early minimalism.
+**Sound / haptic:**
+- Enrichment row taps fire `Haptics.ImpactFeedbackStyle.Medium`.
+- Audible flap "clack": deferred. Would require audio assets and careful tuning; risk of feeling cheap if rushed.
 
-**To be fully designed later** — this is a placeholder. Do not finalize UI until visual identity is confirmed.
+**References:** Solari di Udine boards, TWA Hotel signage and the red TWA accent, Kinfolk magazine, Are.na, Notion's early brand, Robinhood's early minimalism.
 
 ---
 
@@ -827,14 +876,18 @@ Build these only after answering: **"Will strangers actually meet through this?"
 
 ## 22. Open Questions & Future
 
+### Decided
+- App name: **STANDBY**
+- Visual design system: built — see [§11 Design Direction](#11-design-direction)
+
 ### Still To Decide
-- [ ] App name
 - [ ] Tune matching thresholds and weights — see [Section 4.4](#44-algorithm) and `matching_algorithm.md`
 - [ ] AI provider for icebreaker / point-of-connection phrasing (Claude vs GPT-4o-mini vs Gemini — pricing eval)
 - [ ] Conference verification flow (email forward? honor system for MVP?)
 - [ ] Map / terminal data source for meet-up spot suggestions
-- [ ] Final visual design system
 - [ ] Whether "candidates exhausted" sessions can re-open if pool grows
+- [ ] Audible "clack" sound for flip animations — defer until audio assets are tuned
+- [ ] Boarding-pass styled sign-in (Apple / Google / Phone) — see deferred Track 3
 
 ### Future Features
 - Events as a match context (YC Demo Day, conferences, etc.)

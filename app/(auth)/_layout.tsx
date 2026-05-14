@@ -1,20 +1,15 @@
 import { View, StyleSheet } from 'react-native'
 import { Slot } from 'expo-router'
-import { SectionHeader } from '../../components/SectionHeader'
 import { colors } from '../../lib/theme'
 
 export default function AuthLayout() {
   return (
     <View style={styles.container}>
-      <SectionHeader label="WELCOME" />
-      <View style={styles.body}>
-        <Slot />
-      </View>
+      <Slot />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  body: { flex: 1 },
 })

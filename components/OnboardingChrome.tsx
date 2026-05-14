@@ -17,6 +17,7 @@ export function OnboardingChrome({
   total,
   children,
   onContinue,
+  onBack,
   continueDisabled,
   continueLoading,
   continueLabel = 'Continue',
@@ -25,11 +26,12 @@ export function OnboardingChrome({
 }: {
   eyebrow: string
   title: string
-  subtitle?: string
+  subtitle?: string | ReactNode
   step: number
   total: number
   children: ReactNode
   onContinue: () => void
+  onBack?: () => void
   continueDisabled?: boolean
   continueLoading?: boolean
   continueLabel?: string
@@ -57,8 +59,10 @@ export function OnboardingChrome({
           showsVerticalScrollIndicator={false}
         >
           <Text style={[type.headline, styles.title]}>{title}</Text>
-          {subtitle ? (
+          {typeof subtitle === 'string' ? (
             <Text style={[type.subhead, styles.subtitle]}>{subtitle}</Text>
+          ) : subtitle ? (
+            <View style={{ marginTop: 10 }}>{subtitle}</View>
           ) : null}
 
           <View style={styles.body}>{children}</View>
@@ -71,7 +75,7 @@ export function OnboardingChrome({
             <View style={styles.footerSpacer} />
           ) : (
             <Pressable
-              onPress={() => router.back()}
+              onPress={onBack ?? (() => router.back())}
               hitSlop={16}
               style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
             >

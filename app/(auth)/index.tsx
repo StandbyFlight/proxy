@@ -1,11 +1,21 @@
 import { useState } from 'react'
-import {
-  View, Text, TextInput, Pressable,
-  StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform,
-} from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { colors } from '../../lib/theme'
+import { fonts, type } from '../../lib/typography'
+import { OnboardingChrome } from '../../components/OnboardingChrome'
+import { InputFlipBoard } from '../../components/InputFlipBoard'
+
+const PHONE_DIGITS = 10
+const OTP_DIGITS = 6
+
+// US-only at MVP; +1 is implicit and rendered as a static mono prefix
+// outside the flip board.
+function formatPhonePretty(digits: string): string {
+  const d = digits.padEnd(PHONE_DIGITS, ' ').slice(0, PHONE_DIGITS)
+  return `(${d.slice(0, 3).trim()}) ${d.slice(3, 6).trim()}-${d.slice(6).trim()}`.trim()
+}
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -15,19 +25,22 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const formattedPhone = phone.startsWith('+') ? phone : `+1${phone.replace(/\D/g, '')}`
-  const phoneDigits = phone.replace(/\D/g, '')
+  const formattedPhone = `+1${phone}`
+  const phoneValid = phone.length === PHONE_DIGITS
+  const otpValid = otp.length === OTP_DIGITS
 
   async function sendOtp() {
+    if (!phoneValid) return
     setLoading(true)
     setError('')
     const { error } = await supabase.auth.signInWithOtp({ phone: formattedPhone })
     setLoading(false)
-    if (error) setError(error.message)
-    else setStep('otp')
+    if (error) { setError(error.message); return }
+    setStep('otp')
   }
 
   async function verifyOtp() {
+    if (!otpValid) return
     setLoading(true)
     setError('')
     const { error } = await supabase.auth.verifyOtp({
@@ -60,151 +73,109 @@ export default function LoginScreen() {
     else router.replace('/(app)')
   }
 
+  function backToPhone() {
+    setStep('phone')
+    setOtp('')
+    setError('')
+  }
+
+  if (step === 'phone') {
+    return (
+      <OnboardingChrome
+        eyebrow="Check-in · 01 / 02"
+        step={1}
+        total={2}
+        title="What's your number?"
+        subtitle="We'll text you a six-digit code."
+        onContinue={sendOtp}
+        continueDisabled={!phoneValid}
+        continueLoading={loading}
+        continueLabel="Send code"
+        hideBack
+        error={error}
+      >
+        <View style={styles.phoneRow}>
+          <Text style={styles.prefix}>+1</Text>
+          <InputFlipBoard
+            value={phone}
+            minSlots={PHONE_DIGITS}
+            maxLength={PHONE_DIGITS}
+            onChangeText={setPhone}
+            cellSize={36}
+            cellWidth={24}
+            gap={3}
+            autoFocus
+            keyboardType="number-pad"
+            filter={(t) => t.replace(/\D/g, '')}
+          />
+        </View>
+        <Text style={styles.hint}>Tap to edit</Text>
+      </OnboardingChrome>
+    )
+  }
+
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <OnboardingChrome
+      eyebrow="Check-in · 02 / 02"
+      step={2}
+      total={2}
+      title="Enter the code."
+      subtitle={
+        <Text style={[type.subhead, { color: colors.subtle }]}>
+          Sent to <Text style={styles.phoneInline}>+1 {formatPhonePretty(phone)}</Text>
+        </Text>
+      }
+      onContinue={verifyOtp}
+      continueDisabled={!otpValid}
+      continueLoading={loading}
+      continueLabel="Verify"
+      onBack={backToPhone}
+      error={error}
     >
-      <View style={styles.inner}>
-        {step === 'phone' ? (
-          <>
-            <Text style={styles.prompt}>What's your number?</Text>
-            <Text style={styles.sub}>We'll text you a code.</Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="(555) 123 4567"
-              placeholderTextColor={colors.subtle}
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={setPhone}
-              autoFocus
-              selectionColor={colors.accent}
-            />
-
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.button,
-                phoneDigits.length < 10 && styles.buttonDisabled,
-                pressed && phoneDigits.length >= 10 && styles.buttonPressed,
-              ]}
-              onPress={sendOtp}
-              disabled={loading || phoneDigits.length < 10}
-            >
-              {loading
-                ? <ActivityIndicator color={colors.bg} />
-                : <Text style={styles.buttonText}>Send code</Text>}
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <Text style={styles.prompt}>Enter the code.</Text>
-            <Text style={styles.sub}>Sent to {phone}.</Text>
-
-            <TextInput
-              style={[styles.input, styles.codeInput]}
-              placeholder="000000"
-              placeholderTextColor={colors.subtle}
-              keyboardType="number-pad"
-              value={otp}
-              onChangeText={setOtp}
-              maxLength={6}
-              autoFocus
-              selectionColor={colors.accent}
-            />
-
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.button,
-                otp.length < 6 && styles.buttonDisabled,
-                pressed && otp.length >= 6 && styles.buttonPressed,
-              ]}
-              onPress={verifyOtp}
-              disabled={loading || otp.length < 6}
-            >
-              {loading
-                ? <ActivityIndicator color={colors.bg} />
-                : <Text style={styles.buttonText}>Verify</Text>}
-            </Pressable>
-
-            <Pressable
-              onPress={() => { setStep('phone'); setOtp(''); setError('') }}
-              hitSlop={12}
-            >
-              <Text style={styles.link}>Use a different number</Text>
-            </Pressable>
-          </>
-        )}
+      <View style={styles.otpWrap}>
+        <InputFlipBoard
+          value={otp}
+          minSlots={OTP_DIGITS}
+          maxLength={OTP_DIGITS}
+          onChangeText={setOtp}
+          cellSize={46}
+          cellWidth={32}
+          gap={4}
+          autoFocus
+          keyboardType="number-pad"
+          filter={(t) => t.replace(/\D/g, '')}
+        />
+        <Text style={styles.hint}>Tap to edit</Text>
       </View>
-    </KeyboardAvoidingView>
+    </OnboardingChrome>
   )
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  inner: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 56,
-    gap: 18,
+  phoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  prompt: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: colors.text,
-    letterSpacing: -0.6,
-    lineHeight: 38,
-  },
-  sub: {
-    fontSize: 15,
-    color: colors.subtle,
-    lineHeight: 22,
-    marginTop: -10,
-    marginBottom: 8,
-  },
-  input: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.text,
-    paddingHorizontal: 0,
-    paddingVertical: 14,
+  prefix: {
+    fontFamily: fonts.mono,
     fontSize: 22,
     color: colors.text,
-    letterSpacing: 0.4,
+    letterSpacing: 1,
   },
-  codeInput: {
-    fontSize: 28,
-    letterSpacing: 12,
-    fontVariant: ['tabular-nums'],
+  phoneInline: {
+    fontFamily: fonts.mono,
+    fontSize: 15,
+    letterSpacing: 1,
+    color: colors.text,
   },
-  button: {
-    backgroundColor: colors.accent,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 12,
+  otpWrap: {
+    gap: 14,
+    alignItems: 'flex-start',
   },
-  buttonPressed: { opacity: 0.85 },
-  buttonDisabled: { backgroundColor: colors.text, opacity: 0.18 },
-  buttonText: {
-    color: colors.bg,
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-  link: {
-    fontSize: 14,
+  hint: {
+    ...type.hint,
     color: colors.subtle,
-    textAlign: 'center',
-    textDecorationLine: 'underline',
-    marginTop: 12,
-  },
-  error: {
-    fontSize: 14,
-    color: colors.error,
-    marginTop: -4,
+    marginTop: 14,
   },
 })
