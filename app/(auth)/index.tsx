@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import {
-  View, Text, TextInput, TouchableOpacity,
+  View, Text, TextInput, Pressable,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
+import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { colors } from '../../lib/theme'
 
 export default function LoginScreen() {
+  const router = useRouter()
   const [phone, setPhone] = useState('')
   const [otp, setOtp] = useState('')
   const [step, setStep] = useState<'phone' | 'otp'>('phone')
@@ -33,70 +35,108 @@ export default function LoginScreen() {
       token: otp,
       type: 'sms',
     })
+    if (error) {
+      setLoading(false)
+      setError(error.message)
+      return
+    }
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      setLoading(false)
+      setError('Something went wrong. Try again.')
+      return
+    }
+    const { data } = await supabase
+      .from('users')
+      .select('first_name, age, base_city, current_thinking')
+      .eq('id', session.user.id)
+      .maybeSingle()
+
     setLoading(false)
-    if (error) setError(error.message)
-    // root layout handles redirect on session change
+    if (!data?.first_name) router.replace('/(onboarding)/name')
+    else if (data.age == null) router.replace('/(onboarding)/age')
+    else if (!data.base_city) router.replace('/(onboarding)/city')
+    else if (!data.current_thinking) router.replace('/(onboarding)/prompt')
+    else router.replace('/(app)')
   }
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.inner}>
-        <Text style={styles.wordmark}>proxy</Text>
-        <Text style={styles.tagline}>
-          Meet someone worth talking to,{'\n'}before your flight.
-        </Text>
-
         {step === 'phone' ? (
           <>
+            <Text style={styles.prompt}>What's your number?</Text>
+            <Text style={styles.sub}>We'll text you a code.</Text>
+
             <TextInput
               style={styles.input}
-              placeholder="Phone number"
+              placeholder="(555) 123 4567"
               placeholderTextColor={colors.subtle}
               keyboardType="phone-pad"
               value={phone}
               onChangeText={setPhone}
               autoFocus
+              selectionColor={colors.accent}
             />
+
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <TouchableOpacity
-              style={[styles.button, phoneDigits.length < 10 && styles.buttonDisabled]}
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                phoneDigits.length < 10 && styles.buttonDisabled,
+                pressed && phoneDigits.length >= 10 && styles.buttonPressed,
+              ]}
               onPress={sendOtp}
               disabled={loading || phoneDigits.length < 10}
             >
               {loading
                 ? <ActivityIndicator color={colors.bg} />
                 : <Text style={styles.buttonText}>Send code</Text>}
-            </TouchableOpacity>
+            </Pressable>
           </>
         ) : (
           <>
-            <Text style={styles.hint}>Code sent to {phone}</Text>
+            <Text style={styles.prompt}>Enter the code.</Text>
+            <Text style={styles.sub}>Sent to {phone}.</Text>
+
             <TextInput
-              style={styles.input}
-              placeholder="6-digit code"
+              style={[styles.input, styles.codeInput]}
+              placeholder="000000"
               placeholderTextColor={colors.subtle}
               keyboardType="number-pad"
               value={otp}
               onChangeText={setOtp}
               maxLength={6}
               autoFocus
+              selectionColor={colors.accent}
             />
+
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <TouchableOpacity
-              style={[styles.button, otp.length < 6 && styles.buttonDisabled]}
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                otp.length < 6 && styles.buttonDisabled,
+                pressed && otp.length >= 6 && styles.buttonPressed,
+              ]}
               onPress={verifyOtp}
               disabled={loading || otp.length < 6}
             >
               {loading
                 ? <ActivityIndicator color={colors.bg} />
                 : <Text style={styles.buttonText}>Verify</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => { setStep('phone'); setOtp(''); setError('') }}>
+            </Pressable>
+
+            <Pressable
+              onPress={() => { setStep('phone'); setOtp(''); setError('') }}
+              hitSlop={12}
+            >
               <Text style={styles.link}>Use a different number</Text>
-            </TouchableOpacity>
+            </Pressable>
           </>
         )}
       </View>
@@ -105,29 +145,66 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  inner: { flex: 1, paddingHorizontal: 28, justifyContent: 'center', gap: 14 },
-  wordmark: { fontSize: 34, fontWeight: '700', color: colors.text, letterSpacing: -1, marginBottom: 4 },
-  tagline: { fontSize: 17, color: colors.subtle, lineHeight: 25, marginBottom: 20 },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
+  flex: { flex: 1 },
+  inner: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 56,
+    gap: 18,
+  },
+  prompt: {
+    fontSize: 32,
+    fontWeight: '600',
     color: colors.text,
-    backgroundColor: colors.surface,
+    letterSpacing: -0.6,
+    lineHeight: 38,
+  },
+  sub: {
+    fontSize: 15,
+    color: colors.subtle,
+    lineHeight: 22,
+    marginTop: -10,
+    marginBottom: 8,
+  },
+  input: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.text,
+    paddingHorizontal: 0,
+    paddingVertical: 14,
+    fontSize: 22,
+    color: colors.text,
+    letterSpacing: 0.4,
+  },
+  codeInput: {
+    fontSize: 28,
+    letterSpacing: 12,
+    fontVariant: ['tabular-nums'],
   },
   button: {
-    backgroundColor: colors.text,
-    borderRadius: 12,
-    paddingVertical: 15,
+    backgroundColor: colors.accent,
+    paddingVertical: 16,
     alignItems: 'center',
+    marginTop: 12,
   },
-  buttonDisabled: { opacity: 0.4 },
-  buttonText: { color: colors.bg, fontSize: 16, fontWeight: '600' },
-  hint: { fontSize: 14, color: colors.subtle },
-  error: { fontSize: 14, color: colors.error },
-  link: { fontSize: 14, color: colors.subtle, textAlign: 'center', textDecorationLine: 'underline', marginTop: 4 },
+  buttonPressed: { opacity: 0.85 },
+  buttonDisabled: { backgroundColor: colors.text, opacity: 0.18 },
+  buttonText: {
+    color: colors.bg,
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  link: {
+    fontSize: 14,
+    color: colors.subtle,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+    marginTop: 12,
+  },
+  error: {
+    fontSize: 14,
+    color: colors.error,
+    marginTop: -4,
+  },
 })

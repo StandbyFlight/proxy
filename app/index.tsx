@@ -1,128 +1,142 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native'
+import { View, StyleSheet, Animated, Easing } from 'react-native'
+import { useRouter } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { FlipBoard } from '../components/FlipBoard'
+import { HEADER_CELL_SIZE, HEADER_PADDING_X, HEADER_PADDING_TOP } from '../components/SectionHeader'
+import { supabase } from '../lib/supabase'
+import { colors } from '../lib/theme'
 
-const TARGET = 'STANDBY'
-const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-const BOARD_FONT = Platform.select({
-  ios: 'AvenirNext-Medium',
-  android: 'sans-serif',
-  default: 'Avenir Next, Avenir, Helvetica, Arial, sans-serif',
-})
+const LABEL = 'STANDBY'
+const BIG_CELL = 58
+const INITIAL_FLIP_MS = 2000
+const STAGGER_MS = 200
+const SETTLE_MS = INITIAL_FLIP_MS + (LABEL.length - 1) * STAGGER_MS + 200
+const BEAT_MS = 600
+const MORPH_MS = 700
 
-function FlipCell({ targetChar, stopAfter }: { targetChar: string; stopAfter: number }) {
-  const [char, setChar] = useState(CHARS[Math.floor(Math.random() * CHARS.length)])
-  const scaleY = useRef(new Animated.Value(1)).current
+type Destination =
+  | { path: '/(auth)' }
+  | { path: '/(onboarding)/name' }
+  | { path: '/(onboarding)/age' }
+  | { path: '/(onboarding)/city' }
+  | { path: '/(onboarding)/prompt' }
+  | { path: '/(app)' }
+
+export default function Loading() {
+  const router = useRouter()
+  const insets = useSafeAreaInsets()
+
+  const wrapRef = useRef<View>(null)
+  const translateX = useRef(new Animated.Value(0)).current
+  const translateY = useRef(new Animated.Value(0)).current
+  const scale = useRef(new Animated.Value(1)).current
+  const fade = useRef(new Animated.Value(1)).current
+
+  const [destination, setDestination] = useState<Destination | null>(null)
 
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined
     let cancelled = false
-    const start = Date.now()
-
-    const cycle = () => {
+    async function resolve() {
+      const { data: { session } } = await supabase.auth.getSession()
       if (cancelled) return
-      const elapsed = Date.now() - start
-      const settle = elapsed >= stopAfter
-
-      Animated.timing(scaleY, {
-        toValue: 0,
-        duration: settle ? 90 : 45,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }).start(() => {
-        if (cancelled) return
-        const next = settle ? targetChar : CHARS[Math.floor(Math.random() * CHARS.length)]
-        setChar(next)
-        Animated.timing(scaleY, {
-          toValue: 1,
-          duration: settle ? 110 : 55,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }).start(() => {
-          if (!settle && !cancelled) {
-            timer = setTimeout(cycle, 12)
-          }
-        })
-      })
+      if (!session) {
+        setDestination({ path: '/(auth)' })
+        return
+      }
+      const { data } = await supabase
+        .from('users')
+        .select('first_name, age, base_city, current_thinking')
+        .eq('id', session.user.id)
+        .maybeSingle()
+      if (cancelled) return
+      if (!data?.first_name) setDestination({ path: '/(onboarding)/name' })
+      else if (data.age == null) setDestination({ path: '/(onboarding)/age' })
+      else if (!data.base_city) setDestination({ path: '/(onboarding)/city' })
+      else if (!data.current_thinking) setDestination({ path: '/(onboarding)/prompt' })
+      else setDestination({ path: '/(app)' })
     }
-
-    cycle()
-    return () => {
-      cancelled = true
-      if (timer) clearTimeout(timer)
-    }
+    resolve()
+    return () => { cancelled = true }
   }, [])
 
-  return (
-    <View style={styles.cell}>
-      <Animated.View style={{ transform: [{ scaleY }] }}>
-        <Text style={styles.cellChar}>{char}</Text>
-      </Animated.View>
-      <View style={styles.cellSeam} />
-    </View>
-  )
-}
+  useEffect(() => {
+    if (!destination) return
+    const wait = SETTLE_MS + BEAT_MS
+    const t = setTimeout(() => {
+      const node = wrapRef.current
+      if (!node) {
+        router.replace(destination.path as any)
+        return
+      }
+      node.measure((_x, _y, w, h, pageX, pageY) => {
+        const SCALE_TO = HEADER_CELL_SIZE / BIG_CELL
+        const targetTopLeftX = HEADER_PADDING_X
+        const targetTopLeftY = insets.top + HEADER_PADDING_TOP
+        const currentCenterX = pageX + w / 2
+        const currentCenterY = pageY + h / 2
+        const scaledW = w * SCALE_TO
+        const scaledH = h * SCALE_TO
+        const targetCenterX = targetTopLeftX + scaledW / 2
+        const targetCenterY = targetTopLeftY + scaledH / 2
+        const tx = targetCenterX - currentCenterX
+        const ty = targetCenterY - currentCenterY
 
-export default function Index() {
+        Animated.parallel([
+          Animated.timing(translateX, {
+            toValue: tx, duration: MORPH_MS,
+            easing: Easing.inOut(Easing.cubic), useNativeDriver: true,
+          }),
+          Animated.timing(translateY, {
+            toValue: ty, duration: MORPH_MS,
+            easing: Easing.inOut(Easing.cubic), useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: SCALE_TO, duration: MORPH_MS,
+            easing: Easing.inOut(Easing.cubic), useNativeDriver: true,
+          }),
+        ]).start(() => {
+          Animated.timing(fade, {
+            toValue: 0, duration: 120, useNativeDriver: true,
+          }).start(() => {
+            router.replace(destination.path as any)
+          })
+        })
+      })
+    }, wait)
+    return () => clearTimeout(t)
+  }, [destination])
+
   return (
     <View style={styles.container}>
-      <View style={styles.board}>
-        <View style={styles.row}>
-          {TARGET.split('').map((c, i) => (
-            <FlipCell key={i} targetChar={c} stopAfter={2000 + i * 200} />
-          ))}
-        </View>
-      </View>
+      <Animated.View
+        ref={wrapRef}
+        collapsable={false}
+        style={[
+          styles.wrap,
+          { opacity: fade, transform: [{ translateX }, { translateY }, { scale }] },
+        ]}
+      >
+        <FlipBoard
+          label={LABEL}
+          cellSize={BIG_CELL}
+          initialFlipMs={INITIAL_FLIP_MS}
+          staggerMs={STAGGER_MS}
+        />
+      </Animated.View>
     </View>
   )
 }
-
-const CELL_WIDTH = 40
-const CELL_HEIGHT = 58
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  board: {
-    backgroundColor: '#0A0A0A',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 3,
-  },
-  cell: {
-    width: CELL_WIDTH,
-    height: CELL_HEIGHT,
-    backgroundColor: '#0A0A0A',
+  wrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-    borderRadius: 2,
-  },
-  cellChar: {
-    color: '#F2F2F0',
-    fontSize: 38,
-    fontFamily: BOARD_FONT,
-    lineHeight: 46,
-    letterSpacing: 0.5,
-    textAlign: 'center',
-  },
-  cellSeam: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 28,
-    height: 2,
-    backgroundColor: '#000',
   },
 })
