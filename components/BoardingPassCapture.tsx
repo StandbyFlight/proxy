@@ -4,7 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useRef, useState } from 'react'
 import {
   View, Text, Pressable, StyleSheet,
-  ActivityIndicator, SafeAreaView,
+  ActivityIndicator, SafeAreaView, Alert, Linking,
 } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { colors } from '../lib/theme'
@@ -75,8 +75,20 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
 
   async function openCamera() {
     if (!permission?.granted) {
-      const { granted } = await requestPermission()
-      if (!granted) return
+      const result = await requestPermission()
+      if (!result.granted) {
+        if (!result.canAskAgain) {
+          Alert.alert(
+            'Camera Access Required',
+            'Please enable camera access in Settings to scan your boarding pass.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openSettings() },
+            ],
+          )
+        }
+        return
+      }
     }
     setMode('camera')
   }

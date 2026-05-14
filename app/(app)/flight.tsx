@@ -163,7 +163,7 @@ export default function FlightScreen() {
                 style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
                 onPress={() => { haptics.buttonTap(); setPhase('capturing') }}
               >
-                <Text style={styles.primaryBtnText}>Scan boarding pass  →</Text>
+                <Text style={styles.primaryBtnText}>Scan boarding pass</Text>
               </Pressable>
 
               <TouchableOpacity

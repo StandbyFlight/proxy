@@ -88,7 +88,7 @@ export default function HomeScreen() {
   return (
     <View style={[styles.root, { paddingTop: insets.top + 20, paddingBottom: Math.max(insets.bottom, 24) }]}>
       <View style={styles.inner}>
-        <Text style={styles.wordmark}>proxy</Text>
+        <Text style={styles.wordmark}>Standby</Text>
 
         {state === 'searching' && (
           <View style={styles.statusBlock}>
