@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { View, Pressable, TextInput, StyleSheet, Platform } from 'react-native'
 import { InputFlipCell } from './InputFlipCell'
+import { haptics } from '../lib/haptics'
 
 // Renders flip cells that grow with the typed value.
 // Visible cells = max(minSlots, min(maxLength, value.length)).
@@ -54,6 +55,7 @@ export function InputFlipBoard({
         style={styles.hidden}
         value={value}
         onChangeText={(t) => {
+          if (t.length !== value.length) haptics.typingSelection()
           const next = filter ? filter(t) : t
           onChangeText(next.slice(0, maxLength))
         }}

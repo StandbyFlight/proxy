@@ -10,8 +10,6 @@ import { InputFlipBoard } from '../../components/InputFlipBoard'
 const PHONE_DIGITS = 10
 const OTP_DIGITS = 6
 
-// US-only at MVP; +1 is implicit and rendered as a static mono prefix
-// outside the flip board.
 function formatPhonePretty(digits: string): string {
   const d = digits.padEnd(PHONE_DIGITS, ' ').slice(0, PHONE_DIGITS)
   return `(${d.slice(0, 3).trim()}) ${d.slice(3, 6).trim()}-${d.slice(6).trim()}`.trim()
@@ -35,7 +33,7 @@ export default function LoginScreen() {
     setError('')
     const { error } = await supabase.auth.signInWithOtp({ phone: formattedPhone })
     setLoading(false)
-    if (error) { setError(error.message); return }
+    if (error) { haptics.error(); setError(error.message); return }
     setStep('otp')
   }
 
@@ -50,6 +48,7 @@ export default function LoginScreen() {
     })
     if (error) {
       setLoading(false)
+      haptics.error()
       setError(error.message)
       return
     }
@@ -66,6 +65,7 @@ export default function LoginScreen() {
       .maybeSingle()
 
     setLoading(false)
+    haptics.success()
     if (!data?.first_name) router.replace('/(onboarding)/name')
     else if (data.age == null) router.replace('/(onboarding)/age')
     else if (!data.base_city) router.replace('/(onboarding)/city')

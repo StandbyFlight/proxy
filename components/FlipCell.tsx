@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native'
 import { colors } from '../lib/theme'
+import { haptics } from '../lib/haptics'
 
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 const BOARD_FONT = Platform.select({
@@ -31,6 +32,9 @@ export function FlipCell({
       const elapsed = Date.now() - start
       const settle = elapsed >= stopAfter
 
+      // Haptics only on the settle cycle — not during the random scramble
+      if (settle) haptics.splitFlapFlipStart()
+
       Animated.timing(scaleY, {
         toValue: 0,
         duration: settle ? 90 : 45,
@@ -40,6 +44,7 @@ export function FlipCell({
         if (cancelled) return
         const next = settle ? targetChar : CHARS[Math.floor(Math.random() * CHARS.length)]
         setChar(next)
+        if (settle) haptics.splitFlapFlipMid()
         Animated.timing(scaleY, {
           toValue: 1,
           duration: settle ? 110 : 55,
@@ -49,6 +54,7 @@ export function FlipCell({
           if (!settle && !cancelled) {
             timer = setTimeout(cycle, 12)
           }
+          if (settle) haptics.splitFlapFlipSettle()
         })
       })
     }

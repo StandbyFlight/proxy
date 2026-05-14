@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   View, Text, Pressable, StyleSheet, FlatList,
 } from 'react-native'
@@ -9,6 +9,7 @@ import { type, fonts } from '../../lib/typography'
 import { OnboardingChrome } from '../../components/OnboardingChrome'
 import { InputFlipBoard } from '../../components/InputFlipBoard'
 import { searchCities, CityEntry } from '../../lib/cities'
+import { haptics } from '../../lib/haptics'
 
 // Start at 10 cells; grow as the user types. Cap at 24 to keep the board on screen.
 const CITY_MIN_SLOTS = 10
@@ -33,7 +34,14 @@ export default function City() {
 
   const valid = !!picked || query.trim().length >= 2
 
+  const prevValid = useRef(false)
+  useEffect(() => {
+    if (valid && !prevValid.current) haptics.inputValid()
+    prevValid.current = valid
+  }, [valid])
+
   function pick(c: CityEntry) {
+    haptics.selection()
     setPicked(c)
     setQuery(c.name)
   }

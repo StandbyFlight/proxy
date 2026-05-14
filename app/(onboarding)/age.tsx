@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
@@ -6,6 +6,7 @@ import { colors } from '../../lib/theme'
 import { type } from '../../lib/typography'
 import { OnboardingChrome } from '../../components/OnboardingChrome'
 import { InputFlipBoard } from '../../components/InputFlipBoard'
+import { haptics } from '../../lib/haptics'
 
 const AGE_LENGTH = 2
 const CELL_HEIGHT = 92
@@ -19,6 +20,12 @@ export default function Age() {
 
   const num = parseInt(age, 10)
   const valid = !isNaN(num) && num >= 13 && num <= 99
+
+  const prevValid = useRef(false)
+  useEffect(() => {
+    if (valid && !prevValid.current) haptics.inputValid()
+    prevValid.current = valid
+  }, [valid])
 
   async function next() {
     if (!valid) return

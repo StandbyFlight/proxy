@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Platform, Animated } from 'react-native'
 import { FlipCell } from './FlipCell'
 import { colors } from '../lib/theme'
 import { fonts } from '../lib/typography'
+import { haptics } from '../lib/haptics'
 
 const BOARD_FONT = Platform.select({
   ios: 'Menlo',
@@ -42,6 +43,11 @@ export function ManifestBoard({
   const originStart = NAME_START + nameSlots * STAGGER_MS + COLUMN_DELAY
   const statusRevealMs =
     originStart + ORIGIN_SLOTS * STAGGER_MS + STATUS_PAD
+
+  useEffect(() => {
+    const t = setTimeout(haptics.standbyStamp, statusRevealMs)
+    return () => clearTimeout(t)
+  }, [statusRevealMs])
 
   return (
     <View>

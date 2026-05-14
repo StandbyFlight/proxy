@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router'
 import { colors } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
 import { getAblyClient, userChannelName, disconnectAbly } from '../../lib/ably'
+import { haptics } from '../../lib/haptics'
 import type Ably from 'ably'
 
 type ScreenState = 'searching' | 'curiosity' | 'exhausted'
@@ -106,14 +107,14 @@ export default function HomeScreen() {
             <View style={styles.curiosityActions}>
               <TouchableOpacity
                 style={styles.sureButton}
-                onPress={() => router.push({ pathname: '/(app)/match', params: { match_id: curiosity.match_id } })}
+                onPress={() => { haptics.buttonTap(); router.push({ pathname: '/(app)/match', params: { match_id: curiosity.match_id } }) }}
               >
                 <Text style={styles.sureButtonText}>Sure why not →</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.keepLookingButton}
-                onPress={keepLooking}
+                onPress={() => { haptics.selection(); keepLooking() }}
                 disabled={dismissing}
               >
                 {dismissing

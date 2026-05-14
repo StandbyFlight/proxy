@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   View, Text, Pressable, StyleSheet, Animated, Easing, Platform,
 } from 'react-native'
-import * as Haptics from 'expo-haptics'
+import { haptics } from '../lib/haptics'
 import { colors } from '../lib/theme'
 import { fonts, type } from '../lib/typography'
 
@@ -59,7 +59,7 @@ export function EnrichmentRow({
 
   const handlePress = () => {
     if (state === 'connecting') return
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
+    haptics.buttonTap()
     onPress()
   }
 

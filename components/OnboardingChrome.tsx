@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router'
 import { colors } from '../lib/theme'
 import { type } from '../lib/typography'
 import { ProgressDashes } from './ProgressDashes'
+import { haptics } from '../lib/haptics'
 
 export function OnboardingChrome({
   eyebrow,
@@ -75,7 +76,7 @@ export function OnboardingChrome({
             <View style={styles.footerSpacer} />
           ) : (
             <Pressable
-              onPress={onBack ?? (() => router.back())}
+              onPress={() => { haptics.buttonTap(); (onBack ?? (() => router.back()))() }}
               hitSlop={16}
               style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
             >
@@ -84,7 +85,7 @@ export function OnboardingChrome({
           )}
 
           <Pressable
-            onPress={onContinue}
+            onPress={() => { if (!continueDisabled && !continueLoading) haptics.buttonTap(); onContinue() }}
             disabled={continueDisabled || continueLoading}
             style={({ pressed }) => [
               styles.continueBtn,

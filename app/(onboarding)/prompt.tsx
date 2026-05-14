@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { OnboardingChrome } from '../../components/OnboardingChrome'
+import { haptics } from '../../lib/haptics'
 
 const EXAMPLES = [
   'the rise of independent bookstores',
@@ -28,6 +29,8 @@ export default function Prompt() {
   const [exampleIdx, setExampleIdx] = useState(0)
   const focusedRef = useRef(false)
   const [showExample, setShowExample] = useState(true)
+  const firedInputStart = useRef(false)
+  const prevValid = useRef(false)
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -39,6 +42,11 @@ export default function Prompt() {
 
   const trimmed = text.trim()
   const valid = trimmed.length >= MIN_CHARS
+
+  useEffect(() => {
+    if (valid && !prevValid.current) haptics.inputValid()
+    prevValid.current = valid
+  }, [valid])
 
   async function next() {
     if (!valid) return
@@ -82,7 +90,11 @@ export default function Prompt() {
           multiline
           scrollEnabled={false}
           selectionColor={colors.accent}
-          onFocus={() => { focusedRef.current = true; setShowExample(false) }}
+          onFocus={() => {
+            focusedRef.current = true
+            setShowExample(false)
+            if (!firedInputStart.current) { firedInputStart.current = true; haptics.inputStart() }
+          }}
           onBlur={() => { focusedRef.current = false; if (text.length === 0) setShowExample(true) }}
           maxLength={MAX_CHARS}
         />

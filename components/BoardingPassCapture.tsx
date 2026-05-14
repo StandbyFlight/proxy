@@ -8,6 +8,7 @@ import {
 } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { colors } from '../lib/theme'
+import { haptics } from '../lib/haptics'
 
 export type BoardingPassData = {
   flight_number: string | null
@@ -54,8 +55,10 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
         throw new Error("Couldn't read the boarding pass — try a clearer, well-lit photo.")
       }
 
+      haptics.success()
       onParsed(data as BoardingPassData)
     } catch (err: any) {
+      haptics.error()
       setErrorMsg(err.message ?? 'Something went wrong.')
       setMode('error')
     }
@@ -115,7 +118,7 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
           </TouchableOpacity>
           <View style={styles.cameraBottom}>
             <Text style={styles.cameraHint}>Frame your boarding pass so all text is visible</Text>
-            <TouchableOpacity style={styles.shutter} onPress={takePicture} />
+            <TouchableOpacity style={styles.shutter} onPress={() => { haptics.buttonTap(); takePicture() }} />
           </View>
         </SafeAreaView>
       </View>
@@ -127,11 +130,11 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
       <Text style={styles.heading}>Add your boarding pass</Text>
       <Text style={styles.sub}>Take a photo or upload one you already have.</Text>
 
-      <TouchableOpacity style={styles.button} onPress={openCamera}>
+      <TouchableOpacity style={styles.button} onPress={() => { haptics.buttonTap(); openCamera() }}>
         <Text style={styles.buttonText}>Take a photo</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.buttonSecondary} onPress={pickFromLibrary}>
+      <TouchableOpacity style={styles.buttonSecondary} onPress={() => { haptics.buttonTap(); pickFromLibrary() }}>
         <Text style={styles.buttonSecondaryText}>Upload from photos</Text>
       </TouchableOpacity>
 

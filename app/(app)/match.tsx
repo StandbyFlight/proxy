@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'rea
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { colors } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
+import { haptics } from '../../lib/haptics'
 
 type MatchType = 'high_confidence' | 'curiosity' | null
 
@@ -113,6 +114,8 @@ export default function MatchScreen() {
   async function respond(interested: boolean) {
     if (!match) return
     setActing(true)
+    if (interested) haptics.success()
+    else haptics.selection()
     await supabase
       .from('matches')
       .update({ status: interested ? 'accepted' : 'declined' })
