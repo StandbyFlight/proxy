@@ -80,7 +80,9 @@ export function OnboardingChrome({
               hitSlop={16}
               style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
             >
-              <Text style={styles.backText}>{'←  Back'}</Text>
+              <Text style={styles.backText}>
+                <Text style={styles.triangle}>{'◀'}</Text>  Back
+              </Text>
             </Pressable>
           )}
 
@@ -96,7 +98,9 @@ export function OnboardingChrome({
             {continueLoading ? (
               <ActivityIndicator color={colors.bg} />
             ) : (
-              <Text style={styles.continueText}>{continueLabel}  {'→'}</Text>
+              <Text style={styles.continueText}>
+                {continueLabel}  <Text style={styles.triangle}>{'▶'}</Text>
+              </Text>
             )}
           </Pressable>
         </View>
@@ -126,8 +130,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(10,10,10,0.08)',
   },
   footerSpacer: { width: 64 },
   backBtn: { paddingVertical: 10, paddingRight: 12 },
@@ -153,5 +155,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
+  },
+  triangle: {
+    fontSize: 8,
+    letterSpacing: 0,
   },
 })
