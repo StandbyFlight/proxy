@@ -80,9 +80,8 @@ export function OnboardingChrome({
               hitSlop={16}
               style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
             >
-              <Text style={styles.backText}>
-                <Text style={styles.triangle}>{'◀'}</Text>  Back
-              </Text>
+              <Text style={[styles.triangle, styles.triangleBack]}>{'◀'}</Text>
+              <Text style={styles.backText}>Back</Text>
             </Pressable>
           )}
 
@@ -98,9 +97,10 @@ export function OnboardingChrome({
             {continueLoading ? (
               <ActivityIndicator color={colors.bg} />
             ) : (
-              <Text style={styles.continueText}>
-                {continueLabel}  <Text style={styles.triangle}>{'▶'}</Text>
-              </Text>
+              <>
+                <Text style={styles.continueText}>{continueLabel}</Text>
+                <Text style={[styles.triangle, styles.triangleContinue]}>{'▶'}</Text>
+              </>
             )}
           </Pressable>
         </View>
@@ -132,7 +132,13 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   footerSpacer: { width: 64 },
-  backBtn: { paddingVertical: 10, paddingRight: 12 },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingRight: 12,
+  },
   backText: {
     fontFamily: 'Menlo',
     fontSize: 12,
@@ -145,7 +151,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 14,
     minWidth: 140,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
   },
   continueBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
   continueText: {
@@ -157,7 +166,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   triangle: {
-    fontSize: 8,
+    fontSize: 10,
+    lineHeight: 12,
     letterSpacing: 0,
+    includeFontPadding: false,
   },
+  triangleBack: { color: colors.subtle },
+  triangleContinue: { color: colors.bg },
 })
