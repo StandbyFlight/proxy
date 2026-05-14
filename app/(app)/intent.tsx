@@ -1,7 +1,13 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
+import {
+  View, Text, TextInput, Pressable,
+  StyleSheet, ScrollView, ActivityIndicator,
+} from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
+import { fonts, type } from '../../lib/typography'
+import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
 import { getAblyClient, flightChannelName } from '../../lib/ably'
 
@@ -40,6 +46,7 @@ export default function IntentScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  const insets = useSafeAreaInsets()
 
   const showPurpose = intent === 'professional' || intent === 'social'
   const showEventField = purpose === 'conference'
@@ -84,8 +91,10 @@ export default function IntentScreen() {
         checked_in_at: new Date().toISOString(),
       })
 
+      haptics.success()
       router.replace('/(app)/')
     } catch (err: any) {
+      haptics.error()
       setError(err.message ?? 'Something went wrong. Try again.')
     } finally {
       setLoading(false)
@@ -93,124 +102,207 @@ export default function IntentScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.inner}>
-      <TouchableOpacity onPress={() => router.back()}>
-        <Text style={styles.back}>← Back</Text>
-      </TouchableOpacity>
-      <Text style={styles.heading}>What are you{'\n'}open to?</Text>
+    <View style={styles.root}>
+      <ScrollView
+        contentContainerStyle={[styles.inner, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 100 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable
+          onPress={() => { haptics.buttonTap(); router.back() }}
+          hitSlop={12}
+          style={styles.back}
+        >
+          <Text style={styles.backText}>{'←  Back'}</Text>
+        </Pressable>
 
-      {params.destination_city ? (
-        <Text style={styles.flight}>
-          {params.flight_iata} → {params.destination_city}
-        </Text>
-      ) : null}
+        <Text style={styles.eyebrow}>Session</Text>
+        <Text style={styles.headline}>What are you{'\n'}open to?</Text>
 
-      <View style={styles.section}>
-        {INTENTS.map(item => (
-          <TouchableOpacity
-            key={item.key}
-            style={[styles.option, intent === item.key && styles.optionSelected]}
-            onPress={() => { setIntent(item.key); setPurpose(null) }}
-          >
-            <Text style={[styles.optionLabel, intent === item.key && styles.optionLabelSelected]}>
-              {item.label}
-            </Text>
-            <Text style={[styles.optionDesc, intent === item.key && styles.optionDescSelected]}>
-              {item.desc}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+        {params.flight_iata ? (
+          <Text style={styles.flightTag}>
+            {params.flight_iata}
+            {params.origin_iata && params.destination_iata
+              ? `  ·  ${params.origin_iata} → ${params.destination_iata}`
+              : ''}
+          </Text>
+        ) : null}
 
-      {showPurpose && (
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>What brings you here?</Text>
-          {PURPOSES.map(item => (
-            <TouchableOpacity
+          <Text style={styles.sectionLabel}>Connection type</Text>
+          {INTENTS.map(item => (
+            <Pressable
               key={item.key}
-              style={[styles.option, purpose === item.key && styles.optionSelected]}
-              onPress={() => { setPurpose(item.key); setEventId('') }}
+              style={({ pressed }) => [
+                styles.option,
+                intent === item.key && styles.optionSelected,
+                pressed && intent !== item.key && { opacity: 0.7 },
+              ]}
+              onPress={() => { haptics.selection(); setIntent(item.key); setPurpose(null) }}
             >
-              <Text style={[styles.optionLabel, purpose === item.key && styles.optionLabelSelected]}>
+              <Text style={[styles.optionLabel, intent === item.key && styles.optionLabelSelected]}>
                 {item.label}
               </Text>
-            </TouchableOpacity>
+              <Text style={[styles.optionDesc, intent === item.key && styles.optionDescSelected]}>
+                {item.desc}
+              </Text>
+            </Pressable>
           ))}
         </View>
-      )}
 
-      {showEventField && (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>
-            Which event?{'  '}<Text style={styles.optional}>optional but helps a lot</Text>
-          </Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Consensus 2026, YC Startup School"
-            placeholderTextColor={colors.subtle}
-            value={eventId}
-            onChangeText={setEventId}
-            autoCorrect={false}
-          />
-        </View>
-      )}
+        {showPurpose && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>What brings you here?</Text>
+            {PURPOSES.map(item => (
+              <Pressable
+                key={item.key}
+                style={({ pressed }) => [
+                  styles.option,
+                  purpose === item.key && styles.optionSelected,
+                  pressed && purpose !== item.key && { opacity: 0.7 },
+                ]}
+                onPress={() => { haptics.selection(); setPurpose(item.key); setEventId('') }}
+              >
+                <Text style={[styles.optionLabel, purpose === item.key && styles.optionLabelSelected]}>
+                  {item.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+        {showEventField && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>
+              Which event?{'  '}
+              <Text style={styles.optional}>optional but helps a lot</Text>
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Consensus 2026, YC Startup School"
+              placeholderTextColor={colors.subtle}
+              value={eventId}
+              onChangeText={setEventId}
+              autoCorrect={false}
+            />
+          </View>
+        )}
 
-      <TouchableOpacity
-        style={[styles.button, (!canContinue || loading) && styles.buttonDisabled]}
-        onPress={proceed}
-        disabled={!canContinue || loading}
-      >
-        {loading
-          ? <ActivityIndicator color={colors.bg} />
-          : <Text style={styles.buttonText}>Find someone</Text>
-        }
-      </TouchableOpacity>
-    </ScrollView>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+      </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            (!canContinue || loading) && styles.primaryBtnDisabled,
+            pressed && canContinue && { opacity: 0.85 },
+          ]}
+          onPress={() => { haptics.buttonTap(); proceed() }}
+          disabled={!canContinue || loading}
+        >
+          {loading
+            ? <ActivityIndicator color={colors.bg} />
+            : <Text style={styles.primaryBtnText}>Find someone  →</Text>
+          }
+        </Pressable>
+      </View>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  inner: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 80, paddingBottom: 40, gap: 24 },
-  heading: { fontSize: 28, fontWeight: '700', color: colors.text, letterSpacing: -0.5 },
-  back: { fontSize: 15, color: colors.subtle, marginBottom: 8 },
-  flight: { fontSize: 14, color: colors.subtle, marginTop: -16 },
+  root: { flex: 1, backgroundColor: colors.bg },
+  inner: { paddingHorizontal: 24, gap: 20 },
+  back: { marginBottom: 4 },
+  backText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: colors.subtle,
+  },
+  eyebrow: { ...type.eyebrow, color: colors.subtle },
+  headline: { ...type.headline, color: colors.text, marginTop: 4 },
+  flightTag: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: colors.subtle,
+    marginTop: -8,
+  },
   section: { gap: 10 },
-  sectionLabel: { fontSize: 13, fontWeight: '600', color: colors.subtle, letterSpacing: 0.3, textTransform: 'uppercase', marginBottom: 2 },
+  sectionLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    color: colors.subtle,
+    marginBottom: 2,
+  },
+  optional: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 12,
+    letterSpacing: 0,
+    textTransform: 'none',
+    color: colors.subtle,
+  },
   option: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
     padding: 16,
     backgroundColor: colors.surface,
     gap: 4,
   },
   optionSelected: { borderColor: colors.text, backgroundColor: colors.text },
-  optionLabel: { fontSize: 16, fontWeight: '600', color: colors.text },
+  optionLabel: {
+    fontFamily: fonts.serifBold,
+    fontSize: 17,
+    color: colors.text,
+    letterSpacing: -0.2,
+  },
   optionLabelSelected: { color: colors.bg },
-  optionDesc: { fontSize: 13, color: colors.subtle },
-  optionDescSelected: { color: 'rgba(249,248,246,0.65)' },
-  optional: { fontWeight: '400', textTransform: 'none', letterSpacing: 0, fontSize: 12 },
+  optionDesc: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 14,
+    color: colors.subtle,
+    lineHeight: 20,
+  },
+  optionDescSelected: { color: 'rgba(249,248,246,0.7)' },
   input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    fontFamily: fonts.serif,
     fontSize: 16,
     color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     backgroundColor: colors.surface,
   },
-  error: { fontSize: 14, color: colors.error },
-  button: {
-    backgroundColor: colors.text,
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 8,
+  error: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 14,
+    color: colors.error,
   },
-  buttonDisabled: { opacity: 0.4 },
-  buttonText: { color: colors.bg, fontSize: 16, fontWeight: '600' },
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(10,10,10,0.08)',
+    backgroundColor: colors.bg,
+  },
+  primaryBtn: {
+    backgroundColor: colors.accent,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  primaryBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
+  primaryBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: colors.bg,
+  },
 })

@@ -3,11 +3,12 @@ import * as ImageManipulator from 'expo-image-manipulator'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useRef, useState } from 'react'
 import {
-  View, Text, TouchableOpacity, StyleSheet,
+  View, Text, Pressable, StyleSheet,
   ActivityIndicator, SafeAreaView,
 } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { colors } from '../lib/theme'
+import { fonts, type } from '../lib/typography'
 import { haptics } from '../lib/haptics'
 
 export type BoardingPassData = {
@@ -97,13 +98,17 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
   if (mode === 'error') {
     return (
       <View style={styles.center}>
+        <Text style={styles.eyebrow}>Couldn't read it</Text>
         <Text style={styles.errorText}>{errorMsg}</Text>
-        <TouchableOpacity style={styles.button} onPress={() => setMode('choose')}>
-          <Text style={styles.buttonText}>Try again</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onClose} style={styles.cancel}>
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
+        <Pressable
+          style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
+          onPress={() => { haptics.buttonTap(); setMode('choose') }}
+        >
+          <Text style={styles.primaryBtnText}>Try again</Text>
+        </Pressable>
+        <Pressable onPress={onClose} hitSlop={12} style={styles.ghostLink}>
+          <Text style={styles.ghostLinkText}>Cancel</Text>
+        </Pressable>
       </View>
     )
   }
@@ -113,12 +118,19 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
       <View style={styles.full}>
         <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
         <SafeAreaView style={styles.cameraUI}>
-          <TouchableOpacity onPress={() => setMode('choose')} style={styles.cameraBack}>
-            <Text style={styles.cameraBackText}>← Back</Text>
-          </TouchableOpacity>
+          <Pressable
+            onPress={() => { haptics.buttonTap(); setMode('choose') }}
+            style={styles.cameraBack}
+            hitSlop={12}
+          >
+            <Text style={styles.cameraBackText}>{'←  Back'}</Text>
+          </Pressable>
           <View style={styles.cameraBottom}>
             <Text style={styles.cameraHint}>Frame your boarding pass so all text is visible</Text>
-            <TouchableOpacity style={styles.shutter} onPress={() => { haptics.buttonTap(); takePicture() }} />
+            <Pressable
+              style={({ pressed }) => [styles.shutter, pressed && { opacity: 0.8 }]}
+              onPress={() => { haptics.buttonTap(); takePicture() }}
+            />
           </View>
         </SafeAreaView>
       </View>
@@ -127,20 +139,29 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
 
   return (
     <View style={styles.center}>
-      <Text style={styles.heading}>Add your boarding pass</Text>
-      <Text style={styles.sub}>Take a photo or upload one you already have.</Text>
+      <Text style={styles.eyebrow}>Boarding pass</Text>
+      <Text style={styles.headline}>Add your{'\n'}boarding pass.</Text>
+      <Text style={styles.subhead}>Take a photo or upload one you already have.</Text>
 
-      <TouchableOpacity style={styles.button} onPress={() => { haptics.buttonTap(); openCamera() }}>
-        <Text style={styles.buttonText}>Take a photo</Text>
-      </TouchableOpacity>
+      <View style={styles.btnGroup}>
+        <Pressable
+          style={({ pressed }) => [styles.primaryBtn, { width: '100%' }, pressed && { opacity: 0.85 }]}
+          onPress={() => { haptics.buttonTap(); openCamera() }}
+        >
+          <Text style={styles.primaryBtnText}>Take a photo  →</Text>
+        </Pressable>
 
-      <TouchableOpacity style={styles.buttonSecondary} onPress={() => { haptics.buttonTap(); pickFromLibrary() }}>
-        <Text style={styles.buttonSecondaryText}>Upload from photos</Text>
-      </TouchableOpacity>
+        <Pressable
+          style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.7 }]}
+          onPress={() => { haptics.buttonTap(); pickFromLibrary() }}
+        >
+          <Text style={styles.secondaryBtnText}>Upload from photos</Text>
+        </Pressable>
 
-      <TouchableOpacity onPress={onClose} style={styles.cancel}>
-        <Text style={styles.cancelText}>Cancel</Text>
-      </TouchableOpacity>
+        <Pressable onPress={onClose} hitSlop={12} style={styles.ghostLink}>
+          <Text style={styles.ghostLinkText}>Cancel</Text>
+        </Pressable>
+      </View>
     </View>
   )
 }
@@ -150,41 +171,77 @@ const styles = StyleSheet.create({
   center: {
     flex: 1,
     backgroundColor: colors.bg,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
-    padding: 28,
+    paddingHorizontal: 24,
     gap: 12,
   },
-  heading: { fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: 4 },
-  sub: { fontSize: 15, color: colors.subtle, textAlign: 'center', marginBottom: 8 },
-  loadingText: { fontSize: 15, color: colors.subtle, marginTop: 16 },
-  errorText: { fontSize: 15, color: colors.error, textAlign: 'center', marginBottom: 8 },
-  button: {
-    backgroundColor: colors.text,
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
-    width: '100%',
+  eyebrow: { ...type.eyebrow, color: colors.subtle },
+  headline: { ...type.headline, color: colors.text, marginTop: 4 },
+  subhead: { ...type.subhead, color: colors.subtle, marginTop: 2 },
+  loadingText: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 16,
+    color: colors.subtle,
+    marginTop: 16,
   },
-  buttonText: { color: colors.bg, fontSize: 16, fontWeight: '600' },
-  buttonSecondary: {
+  errorText: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 15,
+    color: colors.error,
+    lineHeight: 22,
+  },
+  btnGroup: { gap: 10, width: '100%', marginTop: 8 },
+  primaryBtn: {
+    backgroundColor: colors.accent,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  primaryBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: colors.bg,
+  },
+  secondaryBtn: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
-    paddingVertical: 15,
+    paddingVertical: 14,
     alignItems: 'center',
+    backgroundColor: colors.surface,
     width: '100%',
   },
-  buttonSecondaryText: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  cancel: { marginTop: 4 },
-  cancelText: { fontSize: 15, color: colors.subtle },
+  secondaryBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.subtle,
+  },
+  ghostLink: { alignSelf: 'center', paddingVertical: 8 },
+  ghostLinkText: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.subtle,
+  },
   cameraUI: { flex: 1, justifyContent: 'space-between' },
   cameraBack: { padding: 20 },
-  cameraBackText: { color: '#fff', fontSize: 15 },
+  cameraBackText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: '#fff',
+  },
   cameraBottom: { alignItems: 'center', gap: 20, paddingBottom: 48 },
   cameraHint: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 15,
     color: 'rgba(255,255,255,0.85)',
-    fontSize: 14,
     textAlign: 'center',
     paddingHorizontal: 32,
   },

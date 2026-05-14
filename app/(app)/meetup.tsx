@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
-  View, Text, TextInput, TouchableOpacity,
+  View, Text, TextInput, Pressable,
   StyleSheet, ScrollView, ActivityIndicator,
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
+import { fonts, type } from '../../lib/typography'
+import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
 
 const SLOTS = [
@@ -19,6 +22,7 @@ export default function MeetupScreen() {
   const [iAmA, setIAmA] = useState<boolean | null>(null)
   const [saving, setSaving] = useState(false)
   const router = useRouter()
+  const insets = useSafeAreaInsets()
 
   const canConfirm = wearing.trim().length > 0 && slot !== null
 
@@ -49,95 +53,141 @@ export default function MeetupScreen() {
       : { wearing_b: wearing.trim() }
 
     await supabase.from('matches').update(update).eq('id', match_id)
-
+    haptics.success()
     router.replace({ pathname: '/(app)/post-meetup', params: { match_id } })
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.inner}>
-      <Text style={styles.heading}>Let's set a time</Text>
-      <Text style={styles.sub}>Pick a time and help them find you.</Text>
-
-      <View style={styles.section}>
-        <Text style={styles.label}>What are you wearing?</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Navy puffer, red backpack"
-          placeholderTextColor={colors.subtle}
-          value={wearing}
-          onChangeText={setWearing}
-          maxLength={80}
-        />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.label}>When do you want to meet?</Text>
-        {SLOTS.map(s => (
-          <TouchableOpacity
-            key={s.key}
-            style={[styles.slot, slot === s.key && styles.slotSelected]}
-            onPress={() => setSlot(s.key)}
-          >
-            <Text style={[styles.slotLabel, slot === s.key && styles.slotLabelSelected]}>
-              {s.label}
-            </Text>
-            <Text style={[styles.slotDesc, slot === s.key && styles.slotDescSelected]}>
-              {s.desc}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <TouchableOpacity
-        style={[styles.button, (!canConfirm || saving) && styles.buttonDisabled]}
-        onPress={confirm}
-        disabled={!canConfirm || saving}
+    <View style={styles.root}>
+      <ScrollView
+        contentContainerStyle={[styles.inner, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 100 }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {saving
-          ? <ActivityIndicator color={colors.bg} />
-          : <Text style={styles.buttonText}>Confirm meetup</Text>
-        }
-      </TouchableOpacity>
-    </ScrollView>
+        <Text style={styles.eyebrow}>Meetup</Text>
+        <Text style={styles.headline}>Let's set{'\n'}a time.</Text>
+        <Text style={styles.subhead}>Help them find you, pick a window.</Text>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>What are you wearing?</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Navy puffer, red backpack"
+            placeholderTextColor={colors.subtle}
+            value={wearing}
+            onChangeText={setWearing}
+            maxLength={80}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>When do you want to meet?</Text>
+          {SLOTS.map(s => (
+            <Pressable
+              key={s.key}
+              style={({ pressed }) => [
+                styles.option,
+                slot === s.key && styles.optionSelected,
+                pressed && slot !== s.key && { opacity: 0.7 },
+              ]}
+              onPress={() => { haptics.selection(); setSlot(s.key) }}
+            >
+              <Text style={[styles.optionLabel, slot === s.key && styles.optionLabelSelected]}>
+                {s.label}
+              </Text>
+              <Text style={[styles.optionDesc, slot === s.key && styles.optionDescSelected]}>
+                {s.desc}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            (!canConfirm || saving) && styles.primaryBtnDisabled,
+            pressed && canConfirm && { opacity: 0.85 },
+          ]}
+          onPress={() => { haptics.buttonTap(); confirm() }}
+          disabled={!canConfirm || saving}
+        >
+          {saving
+            ? <ActivityIndicator color={colors.bg} />
+            : <Text style={styles.primaryBtnText}>Confirm meetup  →</Text>
+          }
+        </Pressable>
+      </View>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  inner: { paddingHorizontal: 28, paddingTop: 80, paddingBottom: 40, gap: 28 },
-  heading: { fontSize: 28, fontWeight: '700', color: colors.text, letterSpacing: -0.5 },
-  sub: { fontSize: 16, color: colors.subtle, marginTop: -16 },
+  root: { flex: 1, backgroundColor: colors.bg },
+  inner: { paddingHorizontal: 24, gap: 24 },
+  eyebrow: { ...type.eyebrow, color: colors.subtle },
+  headline: { ...type.headline, color: colors.text, marginTop: 4 },
+  subhead: { ...type.subhead, color: colors.subtle, marginTop: 2 },
   section: { gap: 12 },
-  label: { fontSize: 13, fontWeight: '600', color: colors.subtle, letterSpacing: 0.3, textTransform: 'uppercase' },
+  sectionLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    color: colors.subtle,
+  },
   input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    fontFamily: fonts.serif,
     fontSize: 16,
     color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  slot: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: colors.surface,
+  },
+  option: {
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: 16,
     backgroundColor: colors.surface,
     gap: 4,
   },
-  slotSelected: { borderColor: colors.text, backgroundColor: colors.text },
-  slotLabel: { fontSize: 16, fontWeight: '600', color: colors.text },
-  slotLabelSelected: { color: colors.bg },
-  slotDesc: { fontSize: 13, color: colors.subtle },
-  slotDescSelected: { color: 'rgba(249,248,246,0.65)' },
-  button: {
-    backgroundColor: colors.text,
-    borderRadius: 12,
-    paddingVertical: 15,
+  optionSelected: { borderColor: colors.text, backgroundColor: colors.text },
+  optionLabel: {
+    fontFamily: fonts.serifBold,
+    fontSize: 17,
+    color: colors.text,
+    letterSpacing: -0.2,
+  },
+  optionLabelSelected: { color: colors.bg },
+  optionDesc: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 14,
+    color: colors.subtle,
+    lineHeight: 20,
+  },
+  optionDescSelected: { color: 'rgba(249,248,246,0.7)' },
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(10,10,10,0.08)',
+    backgroundColor: colors.bg,
+  },
+  primaryBtn: {
+    backgroundColor: colors.accent,
+    paddingVertical: 14,
     alignItems: 'center',
   },
-  buttonDisabled: { opacity: 0.4 },
-  buttonText: { color: colors.bg, fontSize: 16, fontWeight: '600' },
+  primaryBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
+  primaryBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: colors.bg,
+  },
 })

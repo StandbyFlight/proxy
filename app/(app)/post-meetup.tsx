@@ -1,16 +1,22 @@
 import { useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
+import { fonts, type } from '../../lib/typography'
+import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
 
 export default function PostMeetupScreen() {
   const { match_id } = useLocalSearchParams<{ match_id: string }>()
   const [saving, setSaving] = useState(false)
   const router = useRouter()
+  const insets = useSafeAreaInsets()
 
   async function respond(met: boolean) {
     setSaving(true)
+    if (met) haptics.success()
+    else haptics.selection()
 
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.replace('/(app)/'); return }
@@ -32,30 +38,31 @@ export default function PostMeetupScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.root, { paddingBottom: Math.max(insets.bottom, 32) }]}>
       <View style={styles.inner}>
-        <Text style={styles.heading}>Did you meet up?</Text>
-        <Text style={styles.sub}>Just between us — this helps us improve.</Text>
+        <Text style={styles.eyebrow}>After</Text>
+        <Text style={styles.headline}>Did you{'\n'}meet up?</Text>
+        <Text style={styles.subhead}>Just between us — this helps us improve.</Text>
 
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.yes, saving && styles.disabled]}
+          <Pressable
+            style={({ pressed }) => [styles.primaryBtn, saving && styles.disabled, pressed && { opacity: 0.85 }]}
             onPress={() => respond(true)}
             disabled={saving}
           >
             {saving
               ? <ActivityIndicator color={colors.bg} />
-              : <Text style={styles.yesText}>Yes, we met</Text>
+              : <Text style={styles.primaryBtnText}>Yes, we met  →</Text>
             }
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
-            style={[styles.no, saving && styles.disabled]}
+          <Pressable
+            style={({ pressed }) => [styles.secondaryBtn, saving && styles.disabled, pressed && { opacity: 0.7 }]}
             onPress={() => respond(false)}
             disabled={saving}
           >
-            <Text style={styles.noText}>No, it didn't work out</Text>
-          </TouchableOpacity>
+            <Text style={styles.secondaryBtnText}>No, it didn't work out</Text>
+          </Pressable>
         </View>
       </View>
     </View>
@@ -63,21 +70,38 @@ export default function PostMeetupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  inner: { flex: 1, paddingHorizontal: 28, justifyContent: 'center', gap: 20 },
-  heading: { fontSize: 28, fontWeight: '700', color: colors.text, letterSpacing: -0.5 },
-  sub: { fontSize: 16, color: colors.subtle, marginTop: -12 },
-  actions: { gap: 12, marginTop: 8 },
-  yes: { backgroundColor: colors.text, borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
-  yesText: { color: colors.bg, fontSize: 16, fontWeight: '600' },
-  no: {
+  root: { flex: 1, backgroundColor: colors.bg },
+  inner: { flex: 1, paddingHorizontal: 24, justifyContent: 'center', gap: 16 },
+  eyebrow: { ...type.eyebrow, color: colors.subtle },
+  headline: { ...type.headline, color: colors.text, marginTop: 4 },
+  subhead: { ...type.subhead, color: colors.subtle, marginTop: 2 },
+  actions: { gap: 12, marginTop: 16 },
+  primaryBtn: {
+    backgroundColor: colors.accent,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  primaryBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: colors.bg,
+  },
+  secondaryBtn: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
-    paddingVertical: 15,
+    paddingVertical: 14,
     alignItems: 'center',
     backgroundColor: colors.surface,
   },
-  noText: { color: colors.subtle, fontSize: 16 },
+  secondaryBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.subtle,
+  },
   disabled: { opacity: 0.5 },
 })

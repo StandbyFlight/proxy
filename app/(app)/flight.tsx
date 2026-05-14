@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import {
-  View, Text, TextInput, TouchableOpacity,
+  View, Text, TextInput, TouchableOpacity, Pressable,
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
+import { fonts, type } from '../../lib/typography'
 import { supabase } from '../../lib/supabase'
+import { haptics } from '../../lib/haptics'
 import { BoardingPassCapture, type BoardingPassData } from '../../components/BoardingPassCapture'
 
 function buildDepartureISO(date: string, time: string): string | null {
@@ -49,12 +52,14 @@ export default function FlightScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  const insets = useSafeAreaInsets()
 
   function set(key: keyof Fields) {
     return (val: string) => setFields(f => ({ ...f, [key]: val }))
   }
 
   function handleParsed(data: BoardingPassData) {
+    haptics.success()
     setFields({
       flight_number: data.flight_number ?? '',
       origin: data.origin ?? '',
@@ -97,6 +102,7 @@ export default function FlightScreen() {
 
       if (upsertErr) throw upsertErr
 
+      haptics.success()
       router.push({
         pathname: '/(app)/intent',
         params: {
@@ -111,6 +117,7 @@ export default function FlightScreen() {
         },
       })
     } catch (err: any) {
+      haptics.error()
       setError(err.message ?? 'Something went wrong. Try again.')
     } finally {
       setLoading(false)
@@ -128,144 +135,163 @@ export default function FlightScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity
-          style={styles.back}
-          onPress={() => phase === 'confirm' ? setPhase('landing') : router.back()}
-        >
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+      <ScrollView
+        contentContainerStyle={[styles.inner, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        {phase === 'confirm' && (
+          <Pressable
+            onPress={() => { haptics.buttonTap(); setPhase('landing') }}
+            hitSlop={12}
+            style={styles.back}
+          >
+            <Text style={styles.backText}>{'←  Back'}</Text>
+          </Pressable>
+        )}
 
         {phase === 'landing' && (
           <>
-            <Text style={styles.heading}>What's your flight?</Text>
-            <Text style={styles.sub}>Scan or upload your boarding pass.</Text>
+            <Text style={styles.eyebrow}>Your flight</Text>
+            <Text style={styles.headline}>What's your{'\n'}flight?</Text>
+            <Text style={styles.subhead}>Scan or upload your boarding pass.</Text>
 
-            <TouchableOpacity style={styles.button} onPress={() => setPhase('capturing')}>
-              <Text style={styles.buttonText}>Scan boarding pass</Text>
-            </TouchableOpacity>
+            <View style={styles.actions}>
+              <Pressable
+                style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
+                onPress={() => { haptics.buttonTap(); setPhase('capturing') }}
+              >
+                <Text style={styles.primaryBtnText}>Scan boarding pass  →</Text>
+              </Pressable>
 
-            <TouchableOpacity
-              style={styles.manualLink}
-              onPress={() => { setFields(emptyFields); setPhase('confirm') }}
-            >
-              <Text style={styles.manualLinkText}>Enter details manually</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.ghostLink}
+                onPress={() => { haptics.selection(); setFields(emptyFields); setPhase('confirm') }}
+              >
+                <Text style={styles.ghostLinkText}>Enter details manually</Text>
+              </TouchableOpacity>
+            </View>
           </>
         )}
 
         {phase === 'confirm' && (
           <>
-            <Text style={styles.heading}>Review your flight</Text>
-            <Text style={styles.sub}>Correct anything that looks off.</Text>
+            <Text style={styles.eyebrow}>Review</Text>
+            <Text style={styles.headline}>Looks right?</Text>
+            <Text style={styles.subhead}>Correct anything that looks off.</Text>
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Flight number</Text>
-              <TextInput
-                style={styles.input}
-                value={fields.flight_number}
-                onChangeText={set('flight_number')}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                placeholder="AA1234"
-                placeholderTextColor={colors.subtle}
-              />
-            </View>
-
-            <View style={styles.row}>
-              <View style={[styles.field, styles.rowField]}>
-                <Text style={styles.label}>From</Text>
+            <View style={styles.form}>
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Flight number</Text>
                 <TextInput
                   style={styles.input}
-                  value={fields.origin}
-                  onChangeText={set('origin')}
+                  value={fields.flight_number}
+                  onChangeText={set('flight_number')}
                   autoCapitalize="characters"
                   autoCorrect={false}
-                  placeholder="JFK"
+                  placeholder="AA1234"
                   placeholderTextColor={colors.subtle}
-                  maxLength={3}
                 />
               </View>
-              <View style={[styles.field, styles.rowField]}>
-                <Text style={styles.label}>To</Text>
-                <TextInput
-                  style={styles.input}
-                  value={fields.destination}
-                  onChangeText={set('destination')}
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                  placeholder="SFO"
-                  placeholderTextColor={colors.subtle}
-                  maxLength={3}
-                />
-              </View>
-            </View>
 
-            <View style={styles.row}>
-              <View style={[styles.field, styles.rowField]}>
-                <Text style={styles.label}>Date</Text>
-                <TextInput
-                  style={styles.input}
-                  value={fields.departure_date}
-                  onChangeText={set('departure_date')}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.subtle}
-                  keyboardType="numbers-and-punctuation"
-                />
+              <View style={styles.row}>
+                <View style={[styles.field, styles.rowField]}>
+                  <Text style={styles.fieldLabel}>From</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={fields.origin}
+                    onChangeText={set('origin')}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    placeholder="JFK"
+                    placeholderTextColor={colors.subtle}
+                    maxLength={3}
+                  />
+                </View>
+                <View style={[styles.field, styles.rowField]}>
+                  <Text style={styles.fieldLabel}>To</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={fields.destination}
+                    onChangeText={set('destination')}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    placeholder="SFO"
+                    placeholderTextColor={colors.subtle}
+                    maxLength={3}
+                  />
+                </View>
               </View>
-              <View style={[styles.field, styles.rowField]}>
-                <Text style={styles.label}>Departure time</Text>
-                <TextInput
-                  style={styles.input}
-                  value={fields.departure_time}
-                  onChangeText={set('departure_time')}
-                  placeholder="14:35"
-                  placeholderTextColor={colors.subtle}
-                  keyboardType="numbers-and-punctuation"
-                />
-              </View>
-            </View>
 
-            <View style={styles.row}>
-              <View style={[styles.field, styles.rowField]}>
-                <Text style={styles.label}>Terminal</Text>
-                <TextInput
-                  style={styles.input}
-                  value={fields.terminal}
-                  onChangeText={set('terminal')}
-                  autoCapitalize="characters"
-                  placeholder="T1"
-                  placeholderTextColor={colors.subtle}
-                />
+              <View style={styles.row}>
+                <View style={[styles.field, styles.rowField]}>
+                  <Text style={styles.fieldLabel}>Date</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={fields.departure_date}
+                    onChangeText={set('departure_date')}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={colors.subtle}
+                    keyboardType="numbers-and-punctuation"
+                  />
+                </View>
+                <View style={[styles.field, styles.rowField]}>
+                  <Text style={styles.fieldLabel}>Departure time</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={fields.departure_time}
+                    onChangeText={set('departure_time')}
+                    placeholder="14:35"
+                    placeholderTextColor={colors.subtle}
+                    keyboardType="numbers-and-punctuation"
+                  />
+                </View>
               </View>
-              <View style={[styles.field, styles.rowField]}>
-                <Text style={styles.label}>Gate</Text>
-                <TextInput
-                  style={styles.input}
-                  value={fields.gate}
-                  onChangeText={set('gate')}
-                  autoCapitalize="characters"
-                  placeholder="B42"
-                  placeholderTextColor={colors.subtle}
-                />
+
+              <View style={styles.row}>
+                <View style={[styles.field, styles.rowField]}>
+                  <Text style={styles.fieldLabel}>Terminal</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={fields.terminal}
+                    onChangeText={set('terminal')}
+                    autoCapitalize="characters"
+                    placeholder="T1"
+                    placeholderTextColor={colors.subtle}
+                  />
+                </View>
+                <View style={[styles.field, styles.rowField]}>
+                  <Text style={styles.fieldLabel}>Gate</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={fields.gate}
+                    onChangeText={set('gate')}
+                    autoCapitalize="characters"
+                    placeholder="B42"
+                    placeholderTextColor={colors.subtle}
+                  />
+                </View>
               </View>
             </View>
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <TouchableOpacity
-              style={[styles.button, (!canConfirm || loading) && styles.buttonDisabled]}
-              onPress={confirm}
+            <Pressable
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                (!canConfirm || loading) && styles.primaryBtnDisabled,
+                pressed && canConfirm && { opacity: 0.85 },
+              ]}
+              onPress={() => { haptics.buttonTap(); confirm() }}
               disabled={!canConfirm || loading}
             >
               {loading
                 ? <ActivityIndicator color={colors.bg} />
-                : <Text style={styles.buttonText}>Looks good</Text>
+                : <Text style={styles.primaryBtnText}>Looks good  →</Text>
               }
-            </TouchableOpacity>
+            </Pressable>
           </>
         )}
       </ScrollView>
@@ -274,42 +300,68 @@ export default function FlightScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  inner: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 60, paddingBottom: 40, gap: 16 },
-  back: { paddingBottom: 8 },
-  backText: { fontSize: 15, color: colors.subtle },
-  heading: { fontSize: 28, fontWeight: '700', color: colors.text, letterSpacing: -0.5 },
-  sub: { fontSize: 16, color: colors.subtle, marginTop: -8 },
-  field: { gap: 6 },
+  root: { flex: 1, backgroundColor: colors.bg },
+  inner: { paddingHorizontal: 24, gap: 16 },
+  back: { marginBottom: 8 },
+  backText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: colors.subtle,
+  },
+  eyebrow: { ...type.eyebrow, color: colors.subtle },
+  headline: { ...type.headline, color: colors.text, marginTop: 4 },
+  subhead: { ...type.subhead, color: colors.subtle, marginTop: 2 },
+  actions: { gap: 12, marginTop: 8 },
+  form: { gap: 16, marginTop: 8 },
+  field: { gap: 8 },
   row: { flexDirection: 'row', gap: 12 },
   rowField: { flex: 1 },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.subtle,
-    letterSpacing: 0.5,
+  fieldLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
+    color: colors.subtle,
   },
   input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    fontFamily: fonts.serif,
     fontSize: 16,
     color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     backgroundColor: colors.surface,
   },
-  error: { fontSize: 14, color: colors.error },
-  button: {
-    backgroundColor: colors.text,
-    borderRadius: 12,
-    paddingVertical: 15,
+  error: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 14,
+    color: colors.error,
+  },
+  primaryBtn: {
+    backgroundColor: colors.accent,
+    paddingVertical: 14,
+    paddingHorizontal: 22,
     alignItems: 'center',
     marginTop: 8,
   },
-  buttonDisabled: { opacity: 0.4 },
-  buttonText: { color: colors.bg, fontSize: 16, fontWeight: '600' },
-  manualLink: { alignItems: 'center', paddingVertical: 8 },
-  manualLinkText: { fontSize: 15, color: colors.subtle },
+  primaryBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
+  primaryBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: colors.bg,
+  },
+  ghostLink: { alignItems: 'center', paddingVertical: 10 },
+  ghostLinkText: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.subtle,
+  },
 })

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
-import { supabase } from '../../lib/supabase'
+import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
+import { supabase } from '../../lib/supabase'
 
 type MatchType = 'high_confidence' | 'curiosity' | null
 
@@ -40,9 +42,7 @@ function buildFallbackBlurb(theirIntent: string, theirPurpose: string | null, de
   const purposeStr = theirPurpose ? PURPOSE_LABEL[theirPurpose] ?? 'travel' : null
   const destStr = dest ? ` to ${dest}` : ''
 
-  if (purposeStr) {
-    return `Heading${destStr} for ${purposeStr}, open to ${intentStr}.`
-  }
+  if (purposeStr) return `Heading${destStr} for ${purposeStr}, open to ${intentStr}.`
   return `Heading${destStr}, open to ${intentStr}.`
 }
 
@@ -53,10 +53,9 @@ export default function MatchScreen() {
   const [error, setError] = useState('')
   const [acting, setActing] = useState(false)
   const router = useRouter()
+  const insets = useSafeAreaInsets()
 
-  useEffect(() => {
-    loadMatch()
-  }, [match_id])
+  useEffect(() => { loadMatch() }, [match_id])
 
   async function loadMatch() {
     try {
@@ -139,10 +138,10 @@ export default function MatchScreen() {
   if (error || !match) {
     return (
       <View style={styles.center}>
-        <Text style={styles.error}>{error || 'Match not found.'}</Text>
-        <TouchableOpacity onPress={() => router.replace('/(app)/')}>
-          <Text style={styles.link}>Go home</Text>
-        </TouchableOpacity>
+        <Text style={styles.errorText}>{error || 'Match not found.'}</Text>
+        <Pressable onPress={() => router.replace('/(app)/')} hitSlop={12}>
+          <Text style={styles.linkText}>Go home</Text>
+        </Pressable>
       </View>
     )
   }
@@ -151,14 +150,15 @@ export default function MatchScreen() {
   const fallbackBlurb = buildFallbackBlurb(match.theirIntent, match.theirPurpose, match.destinationIata)
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.root, { paddingBottom: Math.max(insets.bottom, 32) }]}>
       <View style={styles.inner}>
 
         {isCuriosity ? (
           <>
             <Text style={styles.eyebrow}>A curious match</Text>
-            <Text style={styles.heading}>
-              {match.theirFirstName ?? 'Someone'} is heading{match.destinationIata ? ` to ${match.destinationIata}` : ''} too.
+            <Text style={styles.headline}>
+              {match.theirFirstName ?? 'Someone'} is heading
+              {match.destinationIata ? ` to ${match.destinationIata}` : ''} too.
             </Text>
             <Text style={styles.curiosityNote}>
               No obvious shared connection — but you're both here, and that's usually enough.
@@ -171,11 +171,9 @@ export default function MatchScreen() {
         ) : (
           <>
             <Text style={styles.eyebrow}>Your match</Text>
-            {match.pointOfConnection ? (
-              <Text style={styles.heading}>{match.pointOfConnection}</Text>
-            ) : (
-              <Text style={styles.heading}>{fallbackBlurb}</Text>
-            )}
+            <Text style={styles.headline}>
+              {match.pointOfConnection ?? fallbackBlurb}
+            </Text>
             {match.theirIndustry ? (
               <Text style={styles.detail}>Works in {match.theirIndustry}</Text>
             ) : null}
@@ -183,24 +181,24 @@ export default function MatchScreen() {
         )}
 
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.accept, acting && styles.disabled]}
+          <Pressable
+            style={({ pressed }) => [styles.primaryBtn, acting && styles.disabled, pressed && { opacity: 0.85 }]}
             onPress={() => respond(true)}
             disabled={acting}
           >
             {acting
               ? <ActivityIndicator color={colors.bg} />
-              : <Text style={styles.acceptText}>I'm interested</Text>
+              : <Text style={styles.primaryBtnText}>I'm interested  →</Text>
             }
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
-            style={[styles.decline, acting && styles.disabled]}
+          <Pressable
+            style={({ pressed }) => [styles.secondaryBtn, acting && styles.disabled, pressed && { opacity: 0.7 }]}
             onPress={() => respond(false)}
             disabled={acting}
           >
-            <Text style={styles.declineText}>Not for me</Text>
-          </TouchableOpacity>
+            <Text style={styles.secondaryBtnText}>Not for me</Text>
+          </Pressable>
         </View>
 
         <Text style={styles.note}>
@@ -212,47 +210,71 @@ export default function MatchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  root: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', gap: 16 },
-  inner: { flex: 1, paddingHorizontal: 28, justifyContent: 'center', gap: 20 },
-  eyebrow: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.subtle,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  heading: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.text,
-    lineHeight: 34,
-    letterSpacing: -0.4,
-  },
+  inner: { flex: 1, paddingHorizontal: 24, justifyContent: 'center', gap: 20 },
+  eyebrow: { ...type.eyebrow, color: colors.subtle },
+  headline: { ...type.headline, color: colors.text, marginTop: 4 },
   curiosityNote: {
-    fontSize: 15,
+    fontFamily: fonts.serifItalic,
+    fontSize: 16,
     color: colors.subtle,
-    lineHeight: 22,
+    lineHeight: 23,
     marginTop: -8,
   },
   detail: {
-    fontSize: 14,
+    fontFamily: fonts.serif,
+    fontSize: 15,
     color: colors.subtle,
+    lineHeight: 22,
   },
   actions: { gap: 12, marginTop: 8 },
-  accept: { backgroundColor: colors.text, borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
-  acceptText: { color: colors.bg, fontSize: 16, fontWeight: '600' },
-  decline: {
+  primaryBtn: {
+    backgroundColor: colors.accent,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  primaryBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: colors.bg,
+  },
+  secondaryBtn: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
-    paddingVertical: 15,
+    paddingVertical: 14,
     alignItems: 'center',
     backgroundColor: colors.surface,
   },
-  declineText: { color: colors.subtle, fontSize: 16 },
+  secondaryBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.subtle,
+  },
   disabled: { opacity: 0.5 },
-  note: { fontSize: 13, color: colors.subtle, textAlign: 'center', lineHeight: 19 },
-  error: { fontSize: 15, color: colors.error },
-  link: { fontSize: 14, color: colors.subtle, textDecorationLine: 'underline' },
+  note: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 13,
+    color: colors.subtle,
+    textAlign: 'center',
+    lineHeight: 19,
+  },
+  errorText: {
+    fontFamily: fonts.serif,
+    fontSize: 15,
+    color: colors.error,
+  },
+  linkText: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.subtle,
+    textDecorationLine: 'underline',
+  },
 })

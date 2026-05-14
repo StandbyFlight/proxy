@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
+import { fonts, type } from '../../lib/typography'
+import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
 import { getAblyClient, userChannelName, disconnectAbly } from '../../lib/ably'
-import { haptics } from '../../lib/haptics'
 import type Ably from 'ably'
 
 type ScreenState = 'searching' | 'curiosity' | 'exhausted'
@@ -16,6 +18,7 @@ interface CuriosityData {
 
 export default function HomeScreen() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const channelRef = useRef<Ably.RealtimeChannel | null>(null)
 
   const [state, setState] = useState<ScreenState>('searching')
@@ -62,14 +65,13 @@ export default function HomeScreen() {
   async function keepLooking() {
     if (!curiosity) return
     setDismissing(true)
+    haptics.selection()
     try {
       await supabase
         .from('matches')
         .update({ status: 'declined' })
         .eq('id', curiosity.match_id)
-    } catch (_) {
-      // best-effort — pg_cron uses created_at cooldown as fallback
-    }
+    } catch (_) {}
     setCuriosity(null)
     setState('searching')
     setDismissing(false)
@@ -84,127 +86,153 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.root, { paddingTop: insets.top + 20, paddingBottom: Math.max(insets.bottom, 24) }]}>
       <View style={styles.inner}>
         <Text style={styles.wordmark}>proxy</Text>
 
         {state === 'searching' && (
           <View style={styles.statusBlock}>
-            <Text style={styles.statusHeading}>Looking for someone{'\n'}worth meeting.</Text>
-            <Text style={styles.statusSub}>We'll let you know when we find a match.</Text>
+            <Text style={styles.headline}>Looking for someone{'\n'}worth meeting.</Text>
+            <Text style={styles.subhead}>We'll let you know when we find a match.</Text>
           </View>
         )}
 
         {state === 'curiosity' && curiosity && (
           <View style={styles.curiosityCard}>
             <Text style={styles.curiosityEyebrow}>Someone interesting</Text>
-            {curiosity.winning_signal ? (
-              <Text style={styles.curiositySignal}>{curiosity.winning_signal}</Text>
-            ) : (
-              <Text style={styles.curiositySignal}>No obvious overlap — but you never know.</Text>
-            )}
+            <Text style={styles.curiositySignal}>
+              {curiosity.winning_signal ?? 'No obvious overlap — but you never know.'}
+            </Text>
 
             <View style={styles.curiosityActions}>
-              <TouchableOpacity
-                style={styles.sureButton}
-                onPress={() => { haptics.buttonTap(); router.push({ pathname: '/(app)/match', params: { match_id: curiosity.match_id } }) }}
+              <Pressable
+                style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
+                onPress={() => {
+                  haptics.buttonTap()
+                  router.push({ pathname: '/(app)/match', params: { match_id: curiosity.match_id } })
+                }}
               >
-                <Text style={styles.sureButtonText}>Sure why not →</Text>
-              </TouchableOpacity>
+                <Text style={styles.primaryBtnText}>Sure, why not  →</Text>
+              </Pressable>
 
-              <TouchableOpacity
-                style={styles.keepLookingButton}
-                onPress={() => { haptics.selection(); keepLooking() }}
+              <Pressable
+                style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.7 }]}
+                onPress={keepLooking}
                 disabled={dismissing}
               >
                 {dismissing
                   ? <ActivityIndicator color={colors.subtle} />
-                  : <Text style={styles.keepLookingText}>Keep looking</Text>
+                  : <Text style={styles.secondaryBtnText}>Keep looking</Text>
                 }
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         )}
 
         {state === 'exhausted' && (
           <View style={styles.statusBlock}>
-            <Text style={styles.statusHeading}>No more matches{'\n'}right now.</Text>
-            <Text style={styles.statusSub}>
+            <Text style={styles.headline}>No more matches{'\n'}right now.</Text>
+            <Text style={styles.subhead}>
               You've seen everyone available in your area.
               Check back closer to boarding — more people check in over time.
             </Text>
           </View>
         )}
 
-        <TouchableOpacity onPress={() => router.push('/(app)/flight')}>
-          <Text style={styles.link}>Change flight</Text>
-        </TouchableOpacity>
+        <Pressable
+          onPress={() => { haptics.selection(); router.push('/(app)/flight') }}
+          hitSlop={12}
+        >
+          <Text style={styles.footerLink}>Change flight</Text>
+        </Pressable>
       </View>
 
       <View style={styles.footer}>
-        <TouchableOpacity onPress={signOut}>
-          <Text style={styles.footerText}>Sign out</Text>
-        </TouchableOpacity>
+        <Pressable onPress={signOut} hitSlop={12}>
+          <Text style={styles.footerLink}>Sign out</Text>
+        </Pressable>
         <Text style={styles.footerDivider}>·</Text>
-        <TouchableOpacity onPress={() => router.push('/(app)/dev')}>
-          <Text style={styles.footerText}>Dev</Text>
-        </TouchableOpacity>
+        <Pressable onPress={() => router.push('/(app)/dev')} hitSlop={12}>
+          <Text style={styles.footerLink}>Dev</Text>
+        </Pressable>
       </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  inner: { flex: 1, paddingHorizontal: 28, justifyContent: 'center', gap: 20 },
-  wordmark: { fontSize: 34, fontWeight: '700', color: colors.text, letterSpacing: -1, marginBottom: 16 },
-
+  root: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
+  inner: { flex: 1, justifyContent: 'center', gap: 24 },
+  wordmark: {
+    fontFamily: fonts.serifBold,
+    fontSize: 38,
+    letterSpacing: -1,
+    color: colors.text,
+    marginBottom: 8,
+  },
   statusBlock: { gap: 10 },
-  statusHeading: { fontSize: 26, fontWeight: '700', color: colors.text, letterSpacing: -0.5, lineHeight: 34 },
-  statusSub: { fontSize: 15, color: colors.subtle, lineHeight: 22 },
-
+  headline: { ...type.headline, color: colors.text },
+  subhead: { ...type.subhead, color: colors.subtle },
   curiosityCard: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
     padding: 20,
     backgroundColor: colors.surface,
-    gap: 14,
+    gap: 16,
   },
-  curiosityEyebrow: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.subtle,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
+  curiosityEyebrow: { ...type.eyebrow, color: colors.subtle },
   curiositySignal: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontFamily: fonts.serifBold,
+    fontSize: 22,
     color: colors.text,
     letterSpacing: -0.3,
-    lineHeight: 28,
+    lineHeight: 30,
   },
-  curiosityActions: { gap: 10, marginTop: 4 },
-  sureButton: {
-    backgroundColor: colors.text,
-    borderRadius: 12,
+  curiosityActions: { gap: 10 },
+  primaryBtn: {
+    backgroundColor: colors.accent,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  sureButtonText: { color: colors.bg, fontSize: 16, fontWeight: '600' },
-  keepLookingButton: {
+  primaryBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: colors.bg,
+  },
+  secondaryBtn: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     backgroundColor: colors.surface,
   },
-  keepLookingText: { color: colors.subtle, fontSize: 15, fontWeight: '500' },
-
-  link: { fontSize: 15, color: colors.subtle, textDecorationLine: 'underline' },
-  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingBottom: 48, gap: 8 },
-  footerText: { fontSize: 14, color: colors.subtle },
-  footerDivider: { fontSize: 14, color: colors.border },
+  secondaryBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.subtle,
+  },
+  footerLink: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.subtle,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 12,
+  },
+  footerDivider: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.border,
+  },
 })
