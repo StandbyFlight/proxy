@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>STANDBY — match</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="twa.css" />
+</head>
+<body class="match">
+
+  <main class="phone">
+
+    <span class="phone-bar"></span>
+
+    <header class="phone-top">
+      <div class="l">No. 04</div>
+      <div class="c">STANDBY</div>
+      <div class="r" id="local-time">15:42</div>
+    </header>
+
+    <!-- terminal/gate grid -->
+    <div class="phone-grid">
+      <div>
+        <span class="k">Airport</span>
+        <span class="v">LHR</span>
+      </div>
+      <div>
+        <span class="k">Term.</span>
+        <span class="v">T5</span>
+      </div>
+      <div>
+        <span class="k">Gate</span>
+        <span class="v">B22</span>
+      </div>
+      <div>
+        <span class="k">Since</span>
+        <span class="v">15·17</span>
+      </div>
+    </div>
+
+    <!-- the headline -->
+    <div class="phone-headline" id="headline">
+      One match found
+    </div>
+
+    <!-- solari board -->
+    <div class="phone-board-wrap">
+      <div id="match-board"></div>
+    </div>
+
+    <!-- the shared sentence -->
+    <p class="phone-status" id="status">
+      <span class="small">A thing you both share</span>
+      That copy of Annie Dillard you both keep travelling with.
+    </p>
+
+    <!-- match identity -->
+    <section class="phone-section phone-name" id="reveal-name">
+      <div class="k">The other person on standby</div>
+      <div class="name">Mira</div>
+      <div class="meta">→ ATH · 17·35 · Gate B14</div>
+    </section>
+
+    <!-- spot -->
+    <section class="phone-section phone-spot" id="reveal-spot">
+      <div class="k">Suggested meeting spot</div>
+      <div class="spot-row">
+        <div>
+          <div class="spot">Caffè Nero</div>
+          <em>Level 1 · near gate B22</em>
+        </div>
+        <div class="walk">6′</div>
+      </div>
+    </section>
+
+    <!-- when (full-bleed slot row) -->
+    <div class="phone-slots" id="reveal-slots">
+      <button class="slot"
+        data-when="15"
+        data-target-line1="SEE YOU IN     "
+        data-target-line2="FIFTEEN MIN.   "
+        data-target-line3="CAFFE NERO L1  ">
+        <span class="when">15 min</span>
+        <span class="span">15·57 → 16·15</span>
+      </button>
+      <button class="slot"
+        data-when="45"
+        data-target-line1="SEE YOU IN     "
+        data-target-line2="FORTY-FIVE MIN."
+        data-target-line3="CAFFE NERO L1  ">
+        <span class="when">45 min</span>
+        <span class="span">16·27 → 16·45</span>
+      </button>
+    </div>
+
+    <!-- step out / timer -->
+    <div class="phone-out" id="reveal-out">
+      <button class="step-out" id="stepOut">Step out →</button>
+      <div class="timer">
+        Respond by
+        <b class="countdown" id="countdown">04:32</b>
+      </div>
+    </div>
+
+    <footer class="phone-footer">
+      <span>No feed · No profile</span>
+      <span class="r">If you don't, she never knows</span>
+    </footer>
+
+  </main>
+
+  <script src="solari.js"></script>
+  <script>
+    // local clock
+    function pad(n){ return n < 10 ? '0'+n : ''+n; }
+    function tick(){
+      const d = new Date();
+      document.getElementById('local-time').textContent =
+        pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    tick(); setInterval(tick, 30000);
+
+    // countdown
+    let secondsLeft = 4*60 + 32;
+    function tickDown(){
+      if (secondsLeft <= 0) return;
+      secondsLeft--;
+      const m = Math.floor(secondsLeft / 60);
+      const s = secondsLeft % 60;
+      const el = document.getElementById('countdown');
+      if (el) el.textContent = pad(m) + ':' + pad(s);
+    }
+    setInterval(tickDown, 1000);
+
+    // solari — 3 rows × 15 cols
+    const boardWrap = document.getElementById('match-board');
+    const board = new SolariBoard(boardWrap, { rows: 3, cols: 15 });
+
+    function wait(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+    async function reveal(){
+      await wait(350);
+      document.getElementById('headline').classList.add('shown');
+      await wait(700);
+
+      await board.setText([
+        'YOU BOTH KEEP A',
+        'COPY OF PILGRIM',
+        'AT TINKER CREEK',
+      ], { stagger: 16, startVariance: 220 });
+
+      await wait(450);
+      document.getElementById('status').classList.add('shown');
+      await wait(650);
+      document.getElementById('reveal-name').classList.add('shown');
+      await wait(550);
+      document.getElementById('reveal-spot').classList.add('shown');
+      await wait(550);
+      document.getElementById('reveal-slots').classList.add('shown');
+      await wait(450);
+      document.getElementById('reveal-out').classList.add('shown');
+    }
+
+    document.addEventListener('DOMContentLoaded', reveal);
+
+    // slot select → board re-flips
+    document.querySelectorAll('.slot').forEach(slot => {
+      slot.addEventListener('click', async () => {
+        document.querySelectorAll('.slot').forEach(s => {
+          s.style.opacity = '0.35';
+          s.style.background = 'var(--bone-tile)';
+          s.style.color = 'var(--ink)';
+        });
+        slot.style.opacity = '1';
+        slot.style.background = 'var(--red)';
+        slot.style.color = 'var(--bone)';
+
+        const l1 = slot.dataset.targetLine1;
+        const l2 = slot.dataset.targetLine2;
+        const l3 = slot.dataset.targetLine3;
+        await board.setText([l1, l2, l3], { stagger: 18, startVariance: 240 });
+
+        const status = document.getElementById('status');
+        status.innerHTML =
+          '<span class="small">Confirmed · she will know in a moment</span>' +
+          'See you at Caffè Nero in ' + slot.dataset.when + ' minutes.';
+        status.style.opacity = '1';
+      });
+    });
+
+    // step out
+    document.getElementById('stepOut').addEventListener('click', async () => {
+      document.querySelectorAll('.slot').forEach(s => s.style.opacity = '0.3');
+      document.getElementById('stepOut').style.opacity = '0.45';
+
+      await board.setText([
+        'STEPPED OUT.   ',
+        'SAFE FLIGHT.   ',
+        '       -       ',
+      ], { stagger: 14, startVariance: 200 });
+
+      const status = document.getElementById('status');
+      status.innerHTML =
+        '<span class="small">No one is told</span>' +
+        'You stepped out. She never knew.';
+    });
+  </script>
+</body>
+</html>
