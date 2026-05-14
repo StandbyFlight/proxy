@@ -58,6 +58,19 @@ export const CITIES: CityEntry[] = [
   { name: 'Oakland', state: 'CA', airports: ['OAK'] },
 ]
 
+// Derive a 3-letter IATA-shaped code from a user-typed city.
+// Used by the profile preview row when the user entered a free-text city
+// that didn't match the autocomplete.
+export function primaryIataForCity(cityRaw: string): string {
+  const city = cityRaw.trim()
+  if (!city) return '···'
+  const match = CITIES.find(c => c.name.toLowerCase() === city.toLowerCase())
+  if (match) return match.airports[0]
+  // Free-text fallback: first 3 alpha chars, uppercased.
+  const letters = city.replace(/[^a-zA-Z]/g, '').toUpperCase()
+  return letters.slice(0, 3).padEnd(3, '·')
+}
+
 export function searchCities(query: string, limit = 6): CityEntry[] {
   const q = query.trim().toLowerCase()
   if (!q) return []

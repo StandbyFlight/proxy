@@ -2,12 +2,14 @@ import { useRef } from 'react'
 import { View, Pressable, TextInput, StyleSheet, Platform } from 'react-native'
 import { InputFlipCell } from './InputFlipCell'
 
-// Renders `length` flip cells filled by the characters of `value`.
+// Renders flip cells that grow with the typed value.
+// Visible cells = max(minSlots, min(maxLength, value.length)).
 // Tapping anywhere on the row focuses a hidden input so the keyboard opens.
-// Empty slots render dim placeholders so the user can see how many remain.
+// Cells past the typed value render dim placeholders.
 export function InputFlipBoard({
   value,
-  length,
+  minSlots,
+  maxLength,
   onChangeText,
   cellSize = 46,
   cellWidth,
@@ -18,7 +20,8 @@ export function InputFlipBoard({
   filter,
 }: {
   value: string
-  length: number
+  minSlots: number
+  maxLength: number
   onChangeText: (text: string) => void
   cellSize?: number
   cellWidth?: number
@@ -30,8 +33,9 @@ export function InputFlipBoard({
 }) {
   const inputRef = useRef<TextInput>(null)
 
+  const visibleSlots = Math.max(minSlots, Math.min(maxLength, value.length))
   const chars: string[] = []
-  for (let i = 0; i < length; i++) {
+  for (let i = 0; i < visibleSlots; i++) {
     chars.push(value[i] ?? '')
   }
 
@@ -51,13 +55,13 @@ export function InputFlipBoard({
         value={value}
         onChangeText={(t) => {
           const next = filter ? filter(t) : t
-          onChangeText(next.slice(0, length))
+          onChangeText(next.slice(0, maxLength))
         }}
         autoFocus={autoFocus}
         autoCapitalize={autoCapitalize}
         autoCorrect={false}
         keyboardType={keyboardType}
-        maxLength={length}
+        maxLength={maxLength}
         caretHidden
         // Avoid native suggestion bar covering the screen on iOS
         spellCheck={false}
@@ -68,7 +72,7 @@ export function InputFlipBoard({
 
 const styles = StyleSheet.create({
   wrap: { alignSelf: 'flex-start' },
-  row: { flexDirection: 'row', alignItems: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   hidden: {
     position: 'absolute',
     width: 1,

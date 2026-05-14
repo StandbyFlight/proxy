@@ -10,8 +10,9 @@ import { OnboardingChrome } from '../../components/OnboardingChrome'
 import { InputFlipBoard } from '../../components/InputFlipBoard'
 import { searchCities, CityEntry } from '../../lib/cities'
 
-// City name typically fits in <= 14 chars (longest in our list is "San Francisco" = 13).
-const CITY_SLOTS = 14
+// Start at 10 cells; grow as the user types. Cap at 24 to keep the board on screen.
+const CITY_MIN_SLOTS = 10
+const CITY_MAX = 24
 const CELL_HEIGHT = 36
 const CELL_WIDTH = 28
 
@@ -72,7 +73,8 @@ export default function City() {
       <View style={styles.boardWrap}>
         <InputFlipBoard
           value={boardValue}
-          length={CITY_SLOTS}
+          minSlots={CITY_MIN_SLOTS}
+          maxLength={CITY_MAX}
           onChangeText={(t) => {
             setPicked(null)
             setQuery(t)

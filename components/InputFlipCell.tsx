@@ -25,9 +25,11 @@ export function InputFlipCell({
   const isEmpty = char === '' || char === ' '
   const display = isEmpty ? placeholder : char.toUpperCase()
 
-  const [rendered, setRendered] = useState(display)
+  // Always mount at the placeholder so newly-added cells (from dynamic
+  // growth in InputFlipBoard) flip in instead of appearing instantly.
+  const [rendered, setRendered] = useState(placeholder)
   const scaleY = useRef(new Animated.Value(1)).current
-  const prevRef = useRef(display)
+  const prevRef = useRef(placeholder)
 
   useEffect(() => {
     if (display === prevRef.current) return
@@ -49,11 +51,16 @@ export function InputFlipCell({
     })
   }, [display])
 
+  // Whether the *rendered* glyph is the dim placeholder. We use this to
+  // dim the text — driven by what's currently shown, not what's incoming —
+  // so the dim/bright transition stays in sync with the flip animation.
+  const renderedIsEmpty = rendered === placeholder
+
   const s = stylesFor(cellSize, cellWidth)
   return (
     <View style={s.cell}>
       <Animated.View style={{ transform: [{ scaleY }] }}>
-        <Text style={[s.cellChar, isEmpty && s.cellCharDim]}>{rendered}</Text>
+        <Text style={[s.cellChar, renderedIsEmpty && s.cellCharDim]}>{rendered}</Text>
       </Animated.View>
       <View style={s.cellSeam} />
     </View>

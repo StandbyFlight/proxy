@@ -5,21 +5,20 @@ import { supabase } from '../../lib/supabase'
 import { colors } from '../../lib/theme'
 import { type } from '../../lib/typography'
 import { OnboardingChrome } from '../../components/OnboardingChrome'
-import { DigitFlipCell } from '../../components/DigitFlipCell'
+import { InputFlipBoard } from '../../components/InputFlipBoard'
 
-// Two-digit age. Default lands at 22 — typical college-age user, easy to swipe from.
-const DEFAULT_TENS = 2
-const DEFAULT_ONES = 2
+const AGE_LENGTH = 2
+const CELL_HEIGHT = 92
+const CELL_WIDTH = 64
 
 export default function Age() {
   const router = useRouter()
-  const [tens, setTens] = useState(DEFAULT_TENS)
-  const [ones, setOnes] = useState(DEFAULT_ONES)
+  const [age, setAge] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const num = tens * 10 + ones
-  const valid = num >= 13 && num <= 99
+  const num = parseInt(age, 10)
+  const valid = !isNaN(num) && num >= 13 && num <= 99
 
   async function next() {
     if (!valid) return
@@ -53,13 +52,21 @@ export default function Age() {
       error={error}
     >
       <View style={styles.boardWrap}>
-        <View style={styles.cells}>
-          <DigitFlipCell value={tens} onChange={setTens} cellSize={92} cellWidth={64} />
-          <DigitFlipCell value={ones} onChange={setOnes} cellSize={92} cellWidth={64} />
-        </View>
-        <Text style={styles.hint}>Swipe to change</Text>
-        {!valid ? (
-          <Text style={styles.warn}>Must be at least 13.</Text>
+        <InputFlipBoard
+          value={age}
+          minSlots={AGE_LENGTH}
+          maxLength={AGE_LENGTH}
+          onChangeText={setAge}
+          cellSize={CELL_HEIGHT}
+          cellWidth={CELL_WIDTH}
+          gap={6}
+          autoFocus
+          keyboardType="number-pad"
+          filter={(t) => t.replace(/\D/g, '')}
+        />
+        <Text style={styles.hint}>Tap to edit</Text>
+        {age.length === AGE_LENGTH && !valid ? (
+          <Text style={styles.warn}>Must be between 13 and 99.</Text>
         ) : null}
       </View>
     </OnboardingChrome>
@@ -68,7 +75,6 @@ export default function Age() {
 
 const styles = StyleSheet.create({
   boardWrap: { gap: 14, alignItems: 'flex-start' },
-  cells: { flexDirection: 'row', gap: 8 },
   hint: {
     ...type.hint,
     color: colors.subtle,

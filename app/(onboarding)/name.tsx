@@ -7,7 +7,8 @@ import { type } from '../../lib/typography'
 import { OnboardingChrome } from '../../components/OnboardingChrome'
 import { InputFlipBoard } from '../../components/InputFlipBoard'
 
-const NAME_SLOTS = 6
+const NAME_MIN_SLOTS = 6
+const NAME_MAX = 20
 const CELL_HEIGHT = 46
 const CELL_WIDTH = 36
 
@@ -58,8 +59,9 @@ export default function Name() {
       <View style={styles.boardWrap}>
         <InputFlipBoard
           value={name}
-          length={NAME_SLOTS}
-          onChangeText={(t) => setName(t.replace(/[^a-zA-Z]/g, ''))}
+          minSlots={NAME_MIN_SLOTS}
+          maxLength={NAME_MAX}
+          onChangeText={setName}
           cellSize={CELL_HEIGHT}
           cellWidth={CELL_WIDTH}
           gap={4}
