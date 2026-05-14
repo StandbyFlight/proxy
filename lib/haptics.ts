@@ -28,7 +28,7 @@ function fireSettle() {
   settleTimer = setTimeout(() => {
     settleTimer = null
     impact(ExpoHaptics.ImpactFeedbackStyle.Medium)
-  }, 320)
+  }, 180)
 }
 function cancelSettle() {
   if (settleTimer) { clearTimeout(settleTimer); settleTimer = null }
@@ -41,9 +41,21 @@ function typingThrottle() {
   if (now - lastTyping >= 60) { lastTyping = now; sel() }
 }
 
+// Global throttle for scramble-phase clicks — collapses simultaneous multi-cell
+// ticks into a single felt impact at most once every 65 ms.
+let lastScramble = 0
+function scrambleTick() {
+  if (!supported) return
+  const now = Date.now()
+  if (now - lastScramble >= 65) {
+    lastScramble = now
+    impact(ExpoHaptics.ImpactFeedbackStyle.Light)
+  }
+}
+
 export const haptics = {
   /** Primary CTA button tap */
-  buttonTap: () => impact(ExpoHaptics.ImpactFeedbackStyle.Light),
+  buttonTap: () => impact(ExpoHaptics.ImpactFeedbackStyle.Medium),
 
   /** Subtle selection — list picks, secondary actions */
   selection: sel,
@@ -54,11 +66,14 @@ export const haptics = {
   /** Input transitions invalid → valid */
   inputValid: () => impact(ExpoHaptics.ImpactFeedbackStyle.Medium),
 
+  /** Single click during the fast random-scramble phase of a flip cell */
+  scrambleTick,
+
   /** Tile starts its settle animation (animation phase 0%) */
-  splitFlapFlipStart: () => impact(ExpoHaptics.ImpactFeedbackStyle.Light),
+  splitFlapFlipStart: () => impact(ExpoHaptics.ImpactFeedbackStyle.Medium),
 
   /** Tile passes visual midpoint (animation phase ~50%) */
-  splitFlapFlipMid: sel,
+  splitFlapFlipMid: () => impact(ExpoHaptics.ImpactFeedbackStyle.Light),
 
   /**
    * Tile completes settle (animation phase 100%).
@@ -76,11 +91,12 @@ export const haptics = {
     )
   },
 
-  /** "STANDBY" stamp — medium then heavy, the airport board payoff */
+  /** "STANDBY" stamp — two heavy impacts for the airport-board brand payoff */
   standbyStamp() {
     cancelSettle()
-    impact(ExpoHaptics.ImpactFeedbackStyle.Medium)
-    setTimeout(() => impact(ExpoHaptics.ImpactFeedbackStyle.Heavy), 130)
+    impact(ExpoHaptics.ImpactFeedbackStyle.Heavy)
+    setTimeout(() => impact(ExpoHaptics.ImpactFeedbackStyle.Heavy), 110)
+    setTimeout(() => notification(ExpoHaptics.NotificationFeedbackType.Success), 260)
   },
 
   /** Per-character selection throttled for fast typing */

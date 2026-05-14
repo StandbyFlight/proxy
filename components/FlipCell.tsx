@@ -32,8 +32,11 @@ export function FlipCell({
       const elapsed = Date.now() - start
       const settle = elapsed >= stopAfter
 
-      // Haptics only on the settle cycle — not during the random scramble
-      if (settle) haptics.splitFlapFlipStart()
+      if (settle) {
+        haptics.splitFlapFlipStart()
+      } else {
+        haptics.scrambleTick()
+      }
 
       Animated.timing(scaleY, {
         toValue: 0,
