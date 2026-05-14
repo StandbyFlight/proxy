@@ -1,6 +1,5 @@
 import * as ImagePicker from 'expo-image-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
-import * as FileSystem from 'expo-file-system'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useRef, useState } from 'react'
 import {
@@ -40,12 +39,11 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
       const resized = await ImageManipulator.manipulateAsync(
         uri,
         [{ resize: { width: 1200 } }],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true },
       )
 
-      const base64 = await FileSystem.readAsStringAsync(resized.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      })
+      if (!resized.base64) throw new Error('Failed to process image.')
+      const base64 = resized.base64
 
       const { data, error } = await supabase.functions.invoke('parse-boarding-pass', {
         body: { image_base64: base64, media_type: 'image/jpeg' },
