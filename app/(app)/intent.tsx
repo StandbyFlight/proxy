@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { colors } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
@@ -36,11 +36,13 @@ export default function IntentScreen() {
 
   const [intent, setIntent] = useState<Intent | null>(null)
   const [purpose, setPurpose] = useState<Purpose | null>(null)
+  const [eventId, setEventId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
 
   const showPurpose = intent === 'professional' || intent === 'social'
+  const showEventField = purpose === 'conference'
   const canContinue = intent !== null && (!showPurpose || purpose !== null)
 
   async function proceed() {
@@ -62,6 +64,7 @@ export default function IntentScreen() {
         gate: params.gate || null,
         connection_intent: intent!,
         travel_purpose: purpose ?? null,
+        event_id: eventId.trim() || null,
         expires_at: params.departure_time
           ? new Date(params.departure_time).toISOString()
           : null,
@@ -126,13 +129,29 @@ export default function IntentScreen() {
             <TouchableOpacity
               key={item.key}
               style={[styles.option, purpose === item.key && styles.optionSelected]}
-              onPress={() => setPurpose(item.key)}
+              onPress={() => { setPurpose(item.key); setEventId('') }}
             >
               <Text style={[styles.optionLabel, purpose === item.key && styles.optionLabelSelected]}>
                 {item.label}
               </Text>
             </TouchableOpacity>
           ))}
+        </View>
+      )}
+
+      {showEventField && (
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>
+            Which event?{'  '}<Text style={styles.optional}>optional but helps a lot</Text>
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Consensus 2026, YC Startup School"
+            placeholderTextColor={colors.subtle}
+            value={eventId}
+            onChangeText={setEventId}
+            autoCorrect={false}
+          />
         </View>
       )}
 
@@ -173,6 +192,17 @@ const styles = StyleSheet.create({
   optionLabelSelected: { color: colors.bg },
   optionDesc: { fontSize: 13, color: colors.subtle },
   optionDescSelected: { color: 'rgba(249,248,246,0.65)' },
+  optional: { fontWeight: '400', textTransform: 'none', letterSpacing: 0, fontSize: 12 },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: colors.text,
+    backgroundColor: colors.surface,
+  },
   error: { fontSize: 14, color: colors.error },
   button: {
     backgroundColor: colors.text,

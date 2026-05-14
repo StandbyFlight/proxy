@@ -4,20 +4,20 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import { colors } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
 
+type MatchType = 'high_confidence' | 'curiosity' | null
+
 type MatchData = {
   id: string
   status: string
+  matchType: MatchType
+  pointOfConnection: string | null
   mySessionId: string
+  theirFirstName: string | null
+  theirIndustry: string | null
   theirIntent: string
   theirPurpose: string | null
-  flightIata: string
   destinationIata: string | null
-}
-
-const INTENT_LABEL: Record<string, string> = {
-  professional: 'professional connections',
-  social: 'social connections',
-  open: 'open to anything',
+  flightIata: string
 }
 
 const PURPOSE_LABEL: Record<string, string> = {
@@ -28,15 +28,21 @@ const PURPOSE_LABEL: Record<string, string> = {
   other: 'travel',
 }
 
-function buildBlurb(theirIntent: string, theirPurpose: string | null, dest: string | null): string {
+const INTENT_LABEL: Record<string, string> = {
+  professional: 'professional connections',
+  social: 'social connections',
+  open: 'open to anything',
+}
+
+function buildFallbackBlurb(theirIntent: string, theirPurpose: string | null, dest: string | null): string {
   const intentStr = INTENT_LABEL[theirIntent] ?? theirIntent
   const purposeStr = theirPurpose ? PURPOSE_LABEL[theirPurpose] ?? 'travel' : null
   const destStr = dest ? ` to ${dest}` : ''
 
   if (purposeStr) {
-    return `They're heading${destStr} for ${purposeStr} and open to ${intentStr}.`
+    return `Heading${destStr} for ${purposeStr}, open to ${intentStr}.`
   }
-  return `They're heading${destStr} and open to ${intentStr}.`
+  return `Heading${destStr}, open to ${intentStr}.`
 }
 
 export default function MatchScreen() {
@@ -59,9 +65,17 @@ export default function MatchScreen() {
       const { data, error: matchErr } = await supabase
         .from('matches')
         .select(`
-          id, status, session_id_a, session_id_b,
-          session_a:sessions!session_id_a(user_id, connection_intent, travel_purpose, flights(flight_iata, destination_iata)),
-          session_b:sessions!session_id_b(user_id, connection_intent, travel_purpose, flights(flight_iata, destination_iata))
+          id, status, match_type, point_of_connection, session_id_a, session_id_b,
+          session_a:sessions!session_id_a(
+            user_id, connection_intent, travel_purpose, destination_iata,
+            flights(flight_iata),
+            users(first_name, industry)
+          ),
+          session_b:sessions!session_id_b(
+            user_id, connection_intent, travel_purpose, destination_iata,
+            flights(flight_iata),
+            users(first_name, industry)
+          )
         `)
         .eq('id', match_id)
         .single()
@@ -72,16 +86,22 @@ export default function MatchScreen() {
       const sessionB = Array.isArray(data.session_b) ? data.session_b[0] : data.session_b
       const iAmA = sessionA?.user_id === session.user.id
       const theirSession = iAmA ? sessionB : sessionA
+
+      const theirUser = Array.isArray(theirSession?.users) ? theirSession.users[0] : theirSession?.users
       const flight = Array.isArray(theirSession?.flights) ? theirSession.flights[0] : theirSession?.flights
 
       setMatch({
         id: data.id,
         status: data.status,
+        matchType: data.match_type ?? null,
+        pointOfConnection: data.point_of_connection ?? null,
         mySessionId: iAmA ? data.session_id_a : data.session_id_b,
+        theirFirstName: theirUser?.first_name ?? null,
+        theirIndustry: theirUser?.industry ?? null,
         theirIntent: theirSession?.connection_intent ?? 'open',
         theirPurpose: theirSession?.travel_purpose ?? null,
+        destinationIata: theirSession?.destination_iata ?? null,
         flightIata: flight?.flight_iata ?? '',
-        destinationIata: flight?.destination_iata ?? null,
       })
     } catch (err: any) {
       setError(err.message ?? 'Could not load match.')
@@ -124,14 +144,40 @@ export default function MatchScreen() {
     )
   }
 
-  const blurb = buildBlurb(match.theirIntent, match.theirPurpose, match.destinationIata)
+  const isCuriosity = match.matchType === 'curiosity'
+  const fallbackBlurb = buildFallbackBlurb(match.theirIntent, match.theirPurpose, match.destinationIata)
 
   return (
     <View style={styles.container}>
       <View style={styles.inner}>
-        <Text style={styles.label}>Your connection</Text>
-        <Text style={styles.flight}>{match.flightIata}</Text>
-        <Text style={styles.blurb}>{blurb}</Text>
+
+        {isCuriosity ? (
+          <>
+            <Text style={styles.eyebrow}>A curious match</Text>
+            <Text style={styles.heading}>
+              {match.theirFirstName ?? 'Someone'} is heading{match.destinationIata ? ` to ${match.destinationIata}` : ''} too.
+            </Text>
+            <Text style={styles.curiosityNote}>
+              No obvious shared connection — but you're both here, and that's usually enough.
+            </Text>
+            {match.theirIndustry ? (
+              <Text style={styles.detail}>Works in {match.theirIndustry}</Text>
+            ) : null}
+            <Text style={styles.detail}>{fallbackBlurb}</Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.eyebrow}>Your match</Text>
+            {match.pointOfConnection ? (
+              <Text style={styles.heading}>{match.pointOfConnection}</Text>
+            ) : (
+              <Text style={styles.heading}>{fallbackBlurb}</Text>
+            )}
+            {match.theirIndustry ? (
+              <Text style={styles.detail}>Works in {match.theirIndustry}</Text>
+            ) : null}
+          </>
+        )}
 
         <View style={styles.actions}>
           <TouchableOpacity
@@ -165,10 +211,31 @@ export default function MatchScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', gap: 16 },
-  inner: { flex: 1, paddingHorizontal: 28, justifyContent: 'center', gap: 24 },
-  label: { fontSize: 12, fontWeight: '600', color: colors.subtle, letterSpacing: 1, textTransform: 'uppercase' },
-  flight: { fontSize: 15, fontWeight: '600', color: colors.subtle, marginBottom: -16 },
-  blurb: { fontSize: 26, fontWeight: '600', color: colors.text, lineHeight: 34, letterSpacing: -0.3 },
+  inner: { flex: 1, paddingHorizontal: 28, justifyContent: 'center', gap: 20 },
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.subtle,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  heading: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: colors.text,
+    lineHeight: 34,
+    letterSpacing: -0.4,
+  },
+  curiosityNote: {
+    fontSize: 15,
+    color: colors.subtle,
+    lineHeight: 22,
+    marginTop: -8,
+  },
+  detail: {
+    fontSize: 14,
+    color: colors.subtle,
+  },
   actions: { gap: 12, marginTop: 8 },
   accept: { backgroundColor: colors.text, borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
   acceptText: { color: colors.bg, fontSize: 16, fontWeight: '600' },
