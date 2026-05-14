@@ -6,6 +6,7 @@ import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { OnboardingChrome } from '../../components/OnboardingChrome'
 import { InputFlipBoard } from '../../components/InputFlipBoard'
+import { haptics } from '../../lib/haptics'
 
 const PHONE_DIGITS = 10
 const OTP_DIGITS = 6

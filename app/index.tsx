@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, StyleSheet, Animated, Easing } from 'react-native'
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { FlipBoard } from '../components/FlipBoard'
 import { HEADER_CELL_SIZE, HEADER_PADDING_X, HEADER_PADDING_TOP } from '../components/SectionHeader'
 import { supabase } from '../lib/supabase'
 import { colors } from '../lib/theme'
+import { fonts } from '../lib/typography'
 
 const LABEL = 'STANDBY'
 const BIG_CELL = 58
@@ -15,19 +16,15 @@ const SETTLE_MS = INITIAL_FLIP_MS + (LABEL.length - 1) * STAGGER_MS + 200
 const BEAT_MS = 600
 const MORPH_MS = 700
 
-// Welcome cycle — shown only to signed-out users. Reads as one continuous
-// sentence: "A quiet way / to meet / someone at / the airport."
-const WELCOME_LINES = [
-  'A QUIET WAY',
-  'TO MEET',
-  'SOMEONE AT',
-  'THE AIRPORT',
-]
-const WELCOME_CELL = 36
-const WELCOME_INITIAL_MS = 400
-const WELCOME_STAGGER_MS = 70
-const WELCOME_HOLD_MS = 850     // dwell after a line settles
-const WELCOME_TAIL_MS = 600     // pause after the last line before routing
+// Splash tagline — shown only to signed-out users. Mono, not flip cells, so
+// STANDBY stays the singular flip-board moment on this screen. Two lines so
+// "HAS A STORY" gets to land as the punchline.
+const TAGLINE_LINE_1 = 'EVERYONE AT THE GATE'
+const TAGLINE_LINE_2 = 'HAS A STORY'
+const TAGLINE_FADE_DELAY_MS = 400   // beat after STANDBY settles
+const TAGLINE_FADE_MS = 500
+const TAGLINE_HOLD_MS = 1800
+const TAGLINE_OUT_MS = 280
 
 type Destination =
   | { path: '/(auth)' }
@@ -37,7 +34,7 @@ type Destination =
   | { path: '/(onboarding)/prompt' }
   | { path: '/(app)' }
 
-type Phase = 'standby' | 'welcome' | 'morph'
+type Phase = 'standby' | 'tagline' | 'morph'
 
 export default function Loading() {
   const router = useRouter()
@@ -48,11 +45,10 @@ export default function Loading() {
   const translateY = useRef(new Animated.Value(0)).current
   const scale = useRef(new Animated.Value(1)).current
   const fade = useRef(new Animated.Value(1)).current
-  const welcomeFade = useRef(new Animated.Value(0)).current
+  const taglineOpacity = useRef(new Animated.Value(0)).current
 
   const [destination, setDestination] = useState<Destination | null>(null)
   const [phase, setPhase] = useState<Phase>('standby')
-  const [welcomeIdx, setWelcomeIdx] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -79,26 +75,14 @@ export default function Loading() {
     return () => { cancelled = true }
   }, [])
 
-  // After STANDBY settles, branch: signed-out goes to welcome cycle, signed-in
-  // does the morph-to-section-header animation.
+  // After STANDBY settles + beat: signed-out users see the tagline, then route
+  // to auth. Signed-in users skip tagline and run the morph-to-section-header.
   useEffect(() => {
     if (!destination) return
     const wait = SETTLE_MS + BEAT_MS
     const t = setTimeout(() => {
       if (destination.path === '/(auth)') {
-        // Fade STANDBY out, then begin welcome cycle.
-        Animated.timing(fade, {
-          toValue: 0,
-          duration: 280,
-          useNativeDriver: true,
-        }).start(() => {
-          setPhase('welcome')
-          Animated.timing(welcomeFade, {
-            toValue: 1,
-            duration: 220,
-            useNativeDriver: true,
-          }).start()
-        })
+        setPhase('tagline')
       } else {
         setPhase('morph')
       }
@@ -106,19 +90,34 @@ export default function Loading() {
     return () => clearTimeout(t)
   }, [destination])
 
-  // Welcome cycle: advance through lines, then route to auth.
+  // Tagline animation: fade in, hold, fade out together with STANDBY, then route.
   useEffect(() => {
-    if (phase !== 'welcome') return
-    if (welcomeIdx >= WELCOME_LINES.length) {
-      const t = setTimeout(() => router.replace('/(auth)'), WELCOME_TAIL_MS)
-      return () => clearTimeout(t)
-    }
-    const letters = WELCOME_LINES[welcomeIdx].replace(/[^A-Z]/g, '').length
-    const settle = WELCOME_INITIAL_MS + Math.max(0, letters - 1) * WELCOME_STAGGER_MS
-    const total = settle + WELCOME_HOLD_MS
-    const t = setTimeout(() => setWelcomeIdx(i => i + 1), total)
-    return () => clearTimeout(t)
-  }, [phase, welcomeIdx])
+    if (phase !== 'tagline') return
+
+    Animated.sequence([
+      Animated.delay(TAGLINE_FADE_DELAY_MS),
+      Animated.timing(taglineOpacity, {
+        toValue: 1,
+        duration: TAGLINE_FADE_MS,
+        useNativeDriver: true,
+      }),
+      Animated.delay(TAGLINE_HOLD_MS),
+      Animated.parallel([
+        Animated.timing(taglineOpacity, {
+          toValue: 0,
+          duration: TAGLINE_OUT_MS,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fade, {
+          toValue: 0,
+          duration: TAGLINE_OUT_MS,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => {
+      router.replace('/(auth)')
+    })
+  }, [phase])
 
   // Morph animation for signed-in users.
   useEffect(() => {
@@ -166,35 +165,29 @@ export default function Loading() {
 
   return (
     <View style={styles.container}>
-      {phase !== 'welcome' && (
-        <Animated.View
-          ref={wrapRef}
-          collapsable={false}
-          style={[
-            styles.wrap,
-            { opacity: fade, transform: [{ translateX }, { translateY }, { scale }] },
-          ]}
-        >
-          <FlipBoard
-            label={LABEL}
-            cellSize={BIG_CELL}
-            initialFlipMs={INITIAL_FLIP_MS}
-            staggerMs={STAGGER_MS}
-          />
-        </Animated.View>
-      )}
+      <Animated.View
+        ref={wrapRef}
+        collapsable={false}
+        style={[
+          styles.wrap,
+          { opacity: fade, transform: [{ translateX }, { translateY }, { scale }] },
+        ]}
+      >
+        <FlipBoard
+          label={LABEL}
+          cellSize={BIG_CELL}
+          initialFlipMs={INITIAL_FLIP_MS}
+          staggerMs={STAGGER_MS}
+        />
+      </Animated.View>
 
-      {phase === 'welcome' && welcomeIdx < WELCOME_LINES.length && (
-        <Animated.View style={[styles.wrap, { opacity: welcomeFade }]}>
-          <FlipBoard
-            key={`welcome-${welcomeIdx}`}
-            label={WELCOME_LINES[welcomeIdx]}
-            cellSize={WELCOME_CELL}
-            initialFlipMs={WELCOME_INITIAL_MS}
-            staggerMs={WELCOME_STAGGER_MS}
-          />
-        </Animated.View>
-      )}
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.tagline, { opacity: taglineOpacity }]}
+      >
+        <Text style={styles.taglineLine}>{TAGLINE_LINE_1}</Text>
+        <Text style={styles.taglineLine}>{TAGLINE_LINE_2}</Text>
+      </Animated.View>
     </View>
   )
 }
@@ -209,5 +202,17 @@ const styles = StyleSheet.create({
   wrap: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tagline: {
+    marginTop: 32,
+    alignItems: 'center',
+    gap: 4,
+  },
+  taglineLine: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 2.4,
+    color: colors.subtle,
+    textAlign: 'center',
   },
 })
