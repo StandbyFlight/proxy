@@ -52,7 +52,7 @@ export default function PostMeetupScreen() {
           >
             {saving
               ? <ActivityIndicator color={colors.bg} />
-              : <Text style={styles.primaryBtnText}>Yes, we met  →</Text>
+              : <Text style={styles.primaryBtnText}>Yes, we met</Text>
             }
           </Pressable>
 

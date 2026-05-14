@@ -115,7 +115,7 @@ export default function MeetupScreen() {
         >
           {saving
             ? <ActivityIndicator color={colors.bg} />
-            : <Text style={styles.primaryBtnText}>Confirm meetup  →</Text>
+            : <Text style={styles.primaryBtnText}>Confirm meetup</Text>
           }
         </Pressable>
       </View>

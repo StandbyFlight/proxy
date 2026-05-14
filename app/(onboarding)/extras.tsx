@@ -174,7 +174,7 @@ export default function Extras() {
                       {states.email === 'connecting' ? (
                         <ActivityIndicator color={colors.bg} />
                       ) : (
-                        <Text style={styles.emailBtnText}>Send link  →</Text>
+                        <Text style={styles.emailBtnText}>Send link</Text>
                       )}
                     </Pressable>
                     {emailError ? (
@@ -192,7 +192,7 @@ export default function Extras() {
             onPress={done}
             style={({ pressed }) => [styles.doneBtn, pressed && { opacity: 0.85 }]}
           >
-            <Text style={styles.doneText}>Take me home  →</Text>
+            <Text style={styles.doneText}>Take me home</Text>
           </Pressable>
         </View>
       </View>

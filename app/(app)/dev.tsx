@@ -105,7 +105,7 @@ export default function DevScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.inner}>
       <TouchableOpacity onPress={() => router.back()}>
-        <Text style={styles.back}>← Back</Text>
+        <Text style={styles.back}>Back</Text>
       </TouchableOpacity>
 
       <View style={styles.badge}>

@@ -135,7 +135,7 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
             style={styles.cameraBack}
             hitSlop={12}
           >
-            <Text style={styles.cameraBackText}>{'←  Back'}</Text>
+            <Text style={styles.cameraBackText}>Back</Text>
           </Pressable>
           <View style={styles.cameraBottom}>
             <Text style={styles.cameraHint}>Frame your boarding pass so all text is visible</Text>
@@ -160,7 +160,7 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
           style={({ pressed }) => [styles.primaryBtn, { width: '100%' }, pressed && { opacity: 0.85 }]}
           onPress={() => { haptics.buttonTap(); openCamera() }}
         >
-          <Text style={styles.primaryBtnText}>Take a photo  →</Text>
+          <Text style={styles.primaryBtnText}>Take a photo</Text>
         </Pressable>
 
         <Pressable

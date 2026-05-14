@@ -112,7 +112,7 @@ export default function IntentScreen() {
           hitSlop={12}
           style={styles.back}
         >
-          <Text style={styles.backText}>{'←  Back'}</Text>
+          <Text style={styles.backText}>Back</Text>
         </Pressable>
 
         <Text style={styles.eyebrow}>Session</Text>
@@ -122,7 +122,7 @@ export default function IntentScreen() {
           <Text style={styles.flightTag}>
             {params.flight_iata}
             {params.origin_iata && params.destination_iata
-              ? `  ·  ${params.origin_iata} → ${params.destination_iata}`
+              ? `  ·  ${params.origin_iata} to ${params.destination_iata}`
               : ''}
           </Text>
         ) : null}
@@ -178,7 +178,7 @@ export default function IntentScreen() {
             </Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Consensus 2026, YC Startup School"
+              placeholder="e.g. Consensus 2026, ICML"
               placeholderTextColor={colors.subtle}
               value={eventId}
               onChangeText={setEventId}
@@ -202,7 +202,7 @@ export default function IntentScreen() {
         >
           {loading
             ? <ActivityIndicator color={colors.bg} />
-            : <Text style={styles.primaryBtnText}>Find someone  →</Text>
+            : <Text style={styles.primaryBtnText}>Find someone</Text>
           }
         </Pressable>
       </View>

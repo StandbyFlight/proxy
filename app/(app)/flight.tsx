@@ -148,7 +148,7 @@ export default function FlightScreen() {
             hitSlop={12}
             style={styles.back}
           >
-            <Text style={styles.backText}>{'←  Back'}</Text>
+            <Text style={styles.backText}>Back</Text>
           </Pressable>
         )}
 
@@ -289,7 +289,7 @@ export default function FlightScreen() {
             >
               {loading
                 ? <ActivityIndicator color={colors.bg} />
-                : <Text style={styles.primaryBtnText}>Looks good  →</Text>
+                : <Text style={styles.primaryBtnText}>Looks good</Text>
               }
             </Pressable>
           </>
