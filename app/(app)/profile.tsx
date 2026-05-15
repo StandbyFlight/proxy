@@ -376,13 +376,13 @@ export default function ProfileScreen() {
                 label="I KNOW A LOT ABOUT"
                 value={profile.know_a_lot_about}
                 onChange={set('know_a_lot_about')}
-                placeholder="college football, French cuisine…"
+                placeholder="specialty coffee, college football, French cuisine…"
                 maxLength={60}
               />
               <FieldLine label="HOMETOWN" value={profile.hometown} onChange={set('hometown')}
-                placeholder="Memphis, TN" autoCapitalize="words" maxLength={48} />
+                placeholder="Chapel Hill, NC" autoCapitalize="words" maxLength={48} />
               <FieldLine label="SCHOOL" value={profile.school} onChange={set('school')}
-                placeholder="MIT" autoCapitalize="words" maxLength={48} />
+                placeholder="UNC" autoCapitalize="words" maxLength={48} />
             </View>
 
             <View style={styles.pickerSection}>
@@ -442,7 +442,7 @@ export default function ProfileScreen() {
                 label="CITIES I KNOW WELL"
                 value={profile.cities_know_well}
                 onChange={set('cities_know_well')}
-                placeholder="Chicago, Austin, Tokyo"
+                placeholder="Boston, Charlotte, Tokyo"
                 maxLength={80}
               />
               <FieldLine
