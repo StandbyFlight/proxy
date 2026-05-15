@@ -151,6 +151,15 @@ export default function MeetupScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        <Pressable
+          onPress={() => { haptics.buttonTap(); router.replace('/(app)/') }}
+          hitSlop={14}
+          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
+        >
+          <Text style={styles.triangleSubtle}>{'◀'}</Text>
+          <Text style={styles.backText}>BACK</Text>
+        </Pressable>
+
         <Text style={styles.eyebrow}>Meetup</Text>
         <Text style={styles.headline}>Let's set{'\n'}a time.</Text>
 
@@ -235,6 +244,9 @@ export default function MeetupScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   inner: { paddingHorizontal: 24, gap: 20 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
+  triangleSubtle: { fontSize: 10, color: colors.subtle, includeFontPadding: false },
+  backText: { fontFamily: fonts.mono, fontSize: 12, color: colors.subtle, letterSpacing: 1.4 },
   eyebrow: { ...type.eyebrow, color: colors.subtle },
   headline: { ...type.headline, color: colors.text, marginTop: 4 },
   subhead: { ...type.subhead, color: colors.subtle, marginTop: -4 },
