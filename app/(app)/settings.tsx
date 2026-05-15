@@ -44,6 +44,14 @@ export default function Settings() {
 
         <View style={styles.rows}>
           <Pressable
+            onPress={() => { haptics.selection(); router.push('/(app)/profile') }}
+            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+          >
+            <Text style={styles.rowLabel}>YOUR PASS</Text>
+            <Text style={styles.rowHint}>Edit your profile</Text>
+          </Pressable>
+
+          <Pressable
             onPress={signOut}
             style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
           >

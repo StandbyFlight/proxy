@@ -7,6 +7,8 @@ import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
 import { FlipBoard } from '../../components/FlipBoard'
+import { BoardingPass } from '../../components/BoardingPass'
+import { StandbyStamp } from '../../components/StandbyStamp'
 
 // Match status state machine:
 //   pending    — created, both users notified, neither has responded
@@ -265,11 +267,28 @@ export default function MatchScreen() {
         <View style={styles.topRow}>
           <Text style={[type.eyebrow, styles.eyebrow]}>MATCH · WAITING</Text>
         </View>
-        <View style={styles.body}>
-          <FlipBoard label="STANDBY" cellSize={28} initialFlipMs={600} staggerMs={100} />
+        <View style={styles.waitBody}>
           <Text style={[type.subhead, styles.waitSubhead]}>
-            You said yes.{'\n'}Waiting for them to decide.
+            You said yes.{'\n'}Waiting for them to stamp theirs.
           </Text>
+
+          <View style={styles.waitPassWrap}>
+            <BoardingPass
+              airline="STANDBY"
+              classLabel="MEETUP PASS · PENDING"
+              passenger={null}
+              origin={null}
+              destination={null}
+              flight={null}
+              date={null}
+              time={null}
+              gate={null}
+              terminal={null}
+              seat={null}
+              stampSlot={<StandbyStamp label="PENDING" delayMs={400} angle={-12} />}
+            />
+          </View>
+
           <Text style={styles.privacyNote}>
             YOU'LL BE NOTIFIED THE MOMENT THEY RESPOND.
           </Text>
@@ -359,7 +378,15 @@ const styles = StyleSheet.create({
   waitSubhead: {
     color: colors.text,
     textAlign: 'center',
-    marginTop: 16,
+  },
+  waitBody: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 22,
+    paddingHorizontal: 4,
+  },
+  waitPassWrap: {
+    alignSelf: 'stretch',
   },
   reveal: {
     alignSelf: 'stretch',
