@@ -58,16 +58,53 @@ export default function HomeScreen() {
       if (profile?.first_name) setFirstName(profile.first_name)
       if (profile?.base_city) setIata(primaryIataForCity(profile.base_city))
 
+      // Get most recent session (active or expired) — needed for match recovery.
+      // Using a separate query without expiry filter so we can surface a pending
+      // match even if the session's departure time already passed.
       const nowIso = new Date().toISOString()
-      const { data: activeSession } = await supabase
-        .from('sessions')
-        .select('id, flights(flight_iata)')
-        .eq('user_id', session.user.id)
-        .gt('expires_at', nowIso)
-        .order('expires_at', { ascending: true })
-        .limit(1)
-        .maybeSingle()
+      const [{ data: recentSession }, { data: activeSession }] = await Promise.all([
+        supabase
+          .from('sessions')
+          .select('id, expires_at, flights(flight_iata)')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('sessions')
+          .select('id, flights(flight_iata)')
+          .eq('user_id', session.user.id)
+          .gt('expires_at', nowIso)
+          .order('expires_at', { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+      ])
       if (cancelled) return
+
+      // Recover any match — check before the session-expiry gate so a match
+      // that fired just as the departure time passed isn't silently dropped.
+      if (recentSession) {
+        const { data: existingMatch } = await supabase
+          .from('matches')
+          .select('id, status')
+          .or(`session_id_a.eq.${recentSession.id},session_id_b.eq.${recentSession.id}`)
+          .in('status', ['pending', 'pending_a', 'pending_b', 'mutual'])
+          .limit(1)
+          .maybeSingle()
+        if (cancelled) return
+        if (existingMatch) {
+          const flight = recentSession.flights as { flight_iata: string } | { flight_iata: string }[] | null
+          const fIata = Array.isArray(flight) ? flight[0]?.flight_iata : flight?.flight_iata
+          if (fIata) setFlightIata(fIata)
+          if (existingMatch.status === 'mutual') {
+            router.replace({ pathname: '/(app)/meetup', params: { match_id: existingMatch.id } })
+          } else {
+            router.push({ pathname: '/(app)/match', params: { match_id: existingMatch.id } })
+          }
+          return
+        }
+      }
+
       if (!activeSession) { router.replace('/(app)/flight'); return }
       const flight = activeSession.flights as { flight_iata: string } | { flight_iata: string }[] | null
       const fIata = Array.isArray(flight) ? flight[0]?.flight_iata : flight?.flight_iata

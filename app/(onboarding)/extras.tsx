@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, Pressable, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions, ScrollView,
 } from 'react-native'
+import * as AuthSession from 'expo-auth-session'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { supabase } from '../../lib/supabase'
@@ -11,8 +12,23 @@ import { fonts, type } from '../../lib/typography'
 import { ProgressDashes } from '../../components/ProgressDashes'
 import { EnrichmentRow, EnrichmentState } from '../../components/EnrichmentRow'
 import { haptics } from '../../lib/haptics'
+import {
+  exchangeSpotifyCode,
+  fetchTopArtists,
+  saveSpotifyData,
+} from '../../lib/spotify'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
+
+const SPOTIFY_DISCOVERY = {
+  authorizationEndpoint: 'https://accounts.spotify.com/authorize',
+  tokenEndpoint: 'https://accounts.spotify.com/api/token',
+}
+
+const redirectUri = AuthSession.makeRedirectUri({
+  scheme: 'proxy-app',
+  path: 'spotify-callback',
+})
 
 type RowKey = 'spotify' | 'goodreads' | 'letterboxd' | 'beli' | 'email'
 
@@ -24,7 +40,7 @@ interface RowConfig {
 }
 
 const ROWS: RowConfig[] = [
-  { key: 'spotify',    provider: 'Spotify',    tagline: "what you've been playing",    comingSoon: true },
+  { key: 'spotify',    provider: 'Spotify',    tagline: "what you've been playing",    comingSoon: false },
   { key: 'goodreads',  provider: 'Goodreads',  tagline: "what you're reading",         comingSoon: true },
   { key: 'letterboxd', provider: 'Letterboxd', tagline: "what you've been watching",   comingSoon: true },
   { key: 'beli',       provider: 'Beli',       tagline: 'where you eat',               comingSoon: true },
@@ -44,6 +60,52 @@ export default function Extras() {
   const [emailInput, setEmailInput] = useState('')
   const [emailError, setEmailError] = useState('')
 
+  // Spotify OAuth — PKCE, no client secret needed
+  const [request, response, promptAsync] = AuthSession.useAuthRequest(
+    {
+      clientId: process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID!,
+      scopes: ['user-top-read'],
+      usePKCE: true,
+      redirectUri,
+    },
+    SPOTIFY_DISCOVERY,
+  )
+
+  useEffect(() => {
+    if (!response) return
+    if (response.type === 'cancel' || response.type === 'dismiss' || response.type === 'error') {
+      setStates(s => ({ ...s, spotify: 'idle' }))
+      return
+    }
+    if (response.type !== 'success') return
+
+    const successResponse = response
+
+    async function handleSuccess() {
+      try {
+        const { accessToken, refreshToken, expiresIn } = await exchangeSpotifyCode(
+          successResponse.params.code,
+          request!.codeVerifier!,
+          redirectUri,
+        )
+        const artists = await fetchTopArtists(accessToken)
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          await saveSpotifyData(session.user.id, accessToken, refreshToken, expiresIn, artists)
+        }
+        setStates(s => ({ ...s, spotify: 'connected' }))
+        setNotes(n => ({
+          ...n,
+          spotify: artists.length > 0 ? artists.slice(0, 3).join(', ') : 'connected',
+        }))
+      } catch {
+        setStates(s => ({ ...s, spotify: 'idle' }))
+      }
+    }
+
+    handleSuccess()
+  }, [response])
+
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -51,7 +113,7 @@ export default function Extras() {
       if (!session || cancelled) return
       const { data } = await supabase
         .from('users')
-        .select('email, email_verified')
+        .select('email, email_verified, spotify_top_artists')
         .eq('id', session.user.id)
         .maybeSingle()
       if (cancelled) return
@@ -62,17 +124,29 @@ export default function Extras() {
         setEmailInput(data.email)
         setNotes(n => ({ ...n, email: `pending · check ${data.email}` }))
       }
+      const artists = data?.spotify_top_artists as string[] | null
+      if (artists && artists.length > 0) {
+        setStates(s => ({ ...s, spotify: 'connected' }))
+        setNotes(n => ({ ...n, spotify: artists.slice(0, 3).join(', ') }))
+      }
     }
     load()
     return () => { cancelled = true }
   }, [])
 
   function handleRowPress(key: RowKey) {
+    if (key === 'spotify') {
+      if (states.spotify === 'connected' || states.spotify === 'connecting') return
+      setStates(s => ({ ...s, spotify: 'connecting' }))
+      promptAsync()
+      return
+    }
+
     const row = ROWS.find(r => r.key === key)!
     if (row.comingSoon) {
       if (states[key] === 'coming_soon') return
       setStates(s => ({ ...s, [key]: 'connecting' }))
-      setNotes(n => ({ ...n, [key]: '' }))
+      setNotes(n => ({ ...n, [key]: 'available soon — helps us match you on this signal' }))
       setTimeout(async () => {
         setStates(s => ({ ...s, [key]: 'coming_soon' }))
         const { data: { session } } = await supabase.auth.getSession()
@@ -83,6 +157,7 @@ export default function Extras() {
       }, 350)
       return
     }
+
     if (key === 'email') {
       setEmailExpanded(v => !v)
     }

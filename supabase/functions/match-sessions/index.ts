@@ -76,6 +76,7 @@ interface UserProfile {
   base_city: string | null
   career_stage: string | null
   travel_style: string | null
+  spotify_top_artists: string[] | null
 }
 
 interface SessionRecord {
@@ -161,6 +162,15 @@ function scoreCandidate(me: SessionRecord, them: SessionRecord): ScoreResult {
     const iThem = seniority.indexOf(theirUser.career_stage)
     if (iMe !== -1 && iThem !== -1 && Math.abs(iMe - iThem) >= 2) {
       signals.push({ type: 'career_asymmetry', tier: 3, points: 2, label: 'different career levels' })
+    }
+  }
+
+  // ── Tier 3 (continued) — music taste ─────────────────────────────────────
+  if (myUser.spotify_top_artists && theirUser.spotify_top_artists) {
+    const mySet = new Set<string>(myUser.spotify_top_artists)
+    const shared = theirUser.spotify_top_artists.filter(a => mySet.has(a))
+    if (shared.length >= 2) {
+      signals.push({ type: 'same_music_taste', tier: 3, points: 2, label: `both listen to ${shared[0]}` })
     }
   }
 
@@ -302,7 +312,7 @@ Deno.serve(async (req) => {
         flights!flight_id (flight_iata),
         users (
           id, first_name, current_thinking, industry, company,
-          school, hometown, base_city, career_stage, travel_style
+          school, hometown, base_city, career_stage, travel_style, spotify_top_artists
         )
       `)
       .eq('origin_iata', originIata)
@@ -368,7 +378,7 @@ Deno.serve(async (req) => {
       // My profile for scoring
       supabase
         .from('users')
-        .select('id, first_name, current_thinking, industry, company, school, hometown, base_city, career_stage, travel_style')
+        .select('id, first_name, current_thinking, industry, company, school, hometown, base_city, career_stage, travel_style, spotify_top_artists')
         .eq('id', userId)
         .single(),
 

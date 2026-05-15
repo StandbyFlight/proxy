@@ -89,9 +89,11 @@ export default function IntentScreen() {
       // Ably subscription is active — avoids dropping the pool.exhausted event.
       setPendingSession(sessionRow)
 
+      const d = new Date()
+      const localToday = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
       const departureDate = params.departure_time
         ? params.departure_time.split('T')[0]
-        : new Date().toISOString().split('T')[0]
+        : localToday
 
       const ably = getAblyClient(session.user.id)
       const channel = ably.channels.get(flightChannelName(params.flight_iata, departureDate))

@@ -16,14 +16,24 @@ import { StandbyStamp } from '../../components/StandbyStamp'
 function buildDepartureISO(date: string, time: string): string | null {
   if (!date || !time) return null
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null
-  const match = time.match(/^(\d{1,2}):(\d{2})$/)
-  if (!match) return null
-  const [y, mo, d] = date.split('-').map(Number)
-  const h = parseInt(match[1], 10)
-  const m = parseInt(match[2], 10)
+  const clean = time.trim().toLowerCase()
+  // Accept "2:35 PM" / "2:35pm" and "14:35" (24h) formats.
+  const ampm = clean.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/)
+  const mil  = clean.match(/^(\d{1,2}):(\d{2})$/)
+  if (!ampm && !mil) return null
+  let h: number, m: number
+  if (ampm) {
+    h = parseInt(ampm[1], 10)
+    m = parseInt(ampm[2], 10)
+    const isPM = ampm[3] === 'pm'
+    if (h === 12) h = isPM ? 12 : 0
+    else if (isPM) h += 12
+  } else {
+    h = parseInt(mil![1], 10)
+    m = parseInt(mil![2], 10)
+  }
   if (h > 23 || m > 59) return null
-  // Interpret the wall time as the device's local time and convert to UTC so
-  // Postgres timestamptz comparisons line up with the user's "now".
+  const [y, mo, d] = date.split('-').map(Number)
   return new Date(y, mo - 1, d, h, m, 0).toISOString()
 }
 
@@ -48,21 +58,28 @@ type Fields = {
   gate: string
 }
 
-const today = new Date().toISOString().split('T')[0]
+function localDateString(): string {
+  const d = new Date()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
+}
 
-const emptyFields: Fields = {
-  flight_number: '',
-  origin: '',
-  destination: '',
-  departure_date: today,
-  departure_time: '',
-  terminal: '',
-  gate: '',
+function makeEmptyFields(): Fields {
+  return {
+    flight_number: '',
+    origin: '',
+    destination: '',
+    departure_date: localDateString(),
+    departure_time: '',
+    terminal: '',
+    gate: '',
+  }
 }
 
 export default function FlightScreen() {
   const [phase, setPhase] = useState<Phase>('landing')
-  const [fields, setFields] = useState<Fields>(emptyFields)
+  const [fields, setFields] = useState<Fields>(makeEmptyFields)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
@@ -78,7 +95,7 @@ export default function FlightScreen() {
       flight_number: data.flight_number ?? '',
       origin: data.origin ?? '',
       destination: data.destination ?? '',
-      departure_date: data.departure_date ?? today,
+      departure_date: data.departure_date ?? localDateString(),
       departure_time: data.departure_time ?? '',
       terminal: data.terminal ?? '',
       gate: data.gate ?? '',
@@ -216,7 +233,7 @@ export default function FlightScreen() {
               <Pressable
                 onPress={() => {
                   haptics.selection()
-                  setFields(emptyFields)
+                  setFields(makeEmptyFields())
                   setPhase('edit')
                 }}
                 hitSlop={12}
@@ -261,7 +278,7 @@ export default function FlightScreen() {
                 <FieldLine label="DATE" value={fields.departure_date} onChange={set('departure_date')}
                   placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" half />
                 <FieldLine label="DEPART" value={fields.departure_time} onChange={set('departure_time')}
-                  placeholder="14:35" keyboardType="numbers-and-punctuation" half />
+                  placeholder="4:00 PM" keyboardType="numbers-and-punctuation" half />
               </View>
 
               <View style={styles.fieldRow}>
