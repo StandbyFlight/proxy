@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   View, Text, TextInput, Pressable, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -10,12 +10,9 @@ import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { ProgressDashes } from '../../components/ProgressDashes'
 import { EnrichmentRow, EnrichmentState } from '../../components/EnrichmentRow'
+import { haptics } from '../../lib/haptics'
 
-// Optional enrichment — the user is technically done. Each row is a soft
-// invitation: "more shots on goal." Tapping a placeholder shows an inline
-// "coming soon" note (no OAuth wired up yet per app_plan §3 / §14).
-// The EMAIL row is real — it uses Supabase's updateUser flow which sends a
-// confirmation link to verify the email.
+const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
 type RowKey = 'spotify' | 'goodreads' | 'letterboxd' | 'beli' | 'email'
 
@@ -27,9 +24,9 @@ interface RowConfig {
 }
 
 const ROWS: RowConfig[] = [
-  { key: 'spotify',    provider: 'Spotify',    tagline: 'what you’ve been playing',    comingSoon: true },
-  { key: 'goodreads',  provider: 'Goodreads',  tagline: 'what you’re reading',         comingSoon: true },
-  { key: 'letterboxd', provider: 'Letterboxd', tagline: 'what you’ve been watching',   comingSoon: true },
+  { key: 'spotify',    provider: 'Spotify',    tagline: "what you've been playing",    comingSoon: true },
+  { key: 'goodreads',  provider: 'Goodreads',  tagline: "what you're reading",         comingSoon: true },
+  { key: 'letterboxd', provider: 'Letterboxd', tagline: "what you've been watching",   comingSoon: true },
   { key: 'beli',       provider: 'Beli',       tagline: 'where you eat',               comingSoon: true },
   { key: 'email',      provider: 'Email',      tagline: 'verifies your .edu',          comingSoon: false },
 ]
@@ -47,7 +44,6 @@ export default function Extras() {
   const [emailInput, setEmailInput] = useState('')
   const [emailError, setEmailError] = useState('')
 
-  // Reflect existing verified email on mount.
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -74,8 +70,6 @@ export default function Extras() {
   function handleRowPress(key: RowKey) {
     const row = ROWS.find(r => r.key === key)!
     if (row.comingSoon) {
-      // Quick flash that lets the user feel the row was touched without claiming
-      // anything was actually persisted.
       setStates(s => ({ ...s, [key]: 'connecting' }))
       setNotes(n => ({ ...n, [key]: 'available soon — helps us match you on this signal' }))
       setTimeout(() => {
@@ -91,7 +85,7 @@ export default function Extras() {
   async function sendEmailLink() {
     const trimmed = emailInput.trim().toLowerCase()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setEmailError('That doesn’t look like a valid email.')
+      setEmailError("That doesn't look like a valid email.")
       return
     }
     setEmailError('')
@@ -102,7 +96,6 @@ export default function Extras() {
       setEmailError(error.message)
       return
     }
-    // Mirror onto the users row for downstream queries.
     const { data: { session } } = await supabase.auth.getSession()
     if (session) {
       await supabase
@@ -119,15 +112,27 @@ export default function Extras() {
     router.replace('/(app)/flight')
   }
 
+  function handleStoryTap(e: { nativeEvent: { pageX: number } }) {
+    if (e.nativeEvent.pageX < SCREEN_WIDTH * 0.4) {
+      haptics.buttonTap()
+      if (router.canGoBack()) router.back()
+      else router.replace('/(onboarding)/preview')
+    } else {
+      haptics.buttonTap()
+      done()
+    }
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-        <View style={styles.topChrome}>
+        {/* Header — story-tappable */}
+        <Pressable onPress={handleStoryTap} style={styles.topChrome} android_ripple={null}>
           <ProgressDashes step={4} total={4} />
-        </View>
+        </Pressable>
 
         <View style={styles.scroll}>
           <Text style={[type.headline, styles.title]}>
@@ -188,10 +193,24 @@ export default function Extras() {
 
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
           <Pressable
+            onPress={() => {
+              haptics.buttonTap()
+              if (router.canGoBack()) router.back()
+              else router.replace('/(onboarding)/preview')
+            }}
+            hitSlop={16}
+            style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
+          >
+            <Text style={styles.triangleBack}>{'◀'}</Text>
+            <Text style={styles.backText}>Back</Text>
+          </Pressable>
+
+          <Pressable
             onPress={done}
             style={({ pressed }) => [styles.doneBtn, pressed && { opacity: 0.85 }]}
           >
-            <Text style={styles.doneText}>To your flight</Text>
+            <Text style={styles.doneBtnText}>SKIP FOR NOW</Text>
+            <Text style={styles.triangleFwd}>{'▶'}</Text>
           </Pressable>
         </View>
       </View>
@@ -202,8 +221,7 @@ export default function Extras() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
-  topChrome: { gap: 12, marginBottom: 24 },
-  eyebrow: { color: colors.subtle },
+  topChrome: { marginBottom: 24 },
   scroll: { flex: 1 },
   title: { color: colors.text },
   subtitle: { color: colors.subtle, marginTop: 10 },
@@ -233,6 +251,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.mono,
     color: colors.bg,
     fontSize: 12,
+    fontWeight: '600',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
@@ -244,23 +263,43 @@ const styles = StyleSheet.create({
 
   footer: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(10,10,10,0.08)',
   },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingRight: 12,
+  },
+  backText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.subtle,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  triangleBack: { fontSize: 10, color: colors.subtle },
+  triangleFwd: { fontSize: 10, color: colors.bg },
   doneBtn: {
     backgroundColor: colors.accent,
     paddingHorizontal: 22,
     paddingVertical: 14,
     minWidth: 160,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
   },
-  doneText: {
+  doneBtnText: {
     fontFamily: fonts.mono,
     color: colors.bg,
     fontSize: 12,
+    fontWeight: '600',
     letterSpacing: 1.4,
-    textTransform: 'uppercase',
   },
 })

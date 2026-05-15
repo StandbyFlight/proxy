@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import {
   View, Text, Pressable, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
+  Dimensions,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -9,6 +10,8 @@ import { colors } from '../lib/theme'
 import { type } from '../lib/typography'
 import { ProgressDashes } from './ProgressDashes'
 import { haptics } from '../lib/haptics'
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
 export function OnboardingChrome({
   eyebrow,
@@ -42,6 +45,31 @@ export function OnboardingChrome({
   const insets = useSafeAreaInsets()
   const router = useRouter()
 
+  function goBack() {
+    haptics.buttonTap()
+    if (onBack) { onBack(); return }
+    if (router.canGoBack()) router.back()
+    else router.replace('/(onboarding)/name')
+  }
+
+  function goForward() {
+    if (!continueDisabled && !continueLoading) {
+      haptics.buttonTap()
+      onContinue()
+    }
+  }
+
+  // Instagram-story-style tap: left 40% = back, right 60% = forward.
+  // Only fires on empty areas — interactive children (inputs, buttons) claim
+  // their own touches first and this handler never sees them.
+  function handleStoryTap(e: { nativeEvent: { pageX: number } }) {
+    if (e.nativeEvent.pageX < SCREEN_WIDTH * 0.4) {
+      if (!hideBack) goBack()
+    } else {
+      goForward()
+    }
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -61,16 +89,21 @@ export function OnboardingChrome({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[type.headline, styles.title]}>{title}</Text>
-          {typeof subtitle === 'string' ? (
-            <Text style={[type.subhead, styles.subtitle]}>{subtitle}</Text>
-          ) : subtitle ? (
-            <View style={{ marginTop: 10 }}>{subtitle}</View>
-          ) : null}
+          {/* Scroll body wrapped in a story-tap Pressable. Interactive descendants
+              (TextInput, inner Pressables) claim their own touches — this only fires
+              on truly empty regions of the scroll content. */}
+          <Pressable onPress={handleStoryTap} android_ripple={null} style={styles.storyBody}>
+            <Text style={[type.headline, styles.title]}>{title}</Text>
+            {typeof subtitle === 'string' ? (
+              <Text style={[type.subhead, styles.subtitle]}>{subtitle}</Text>
+            ) : subtitle ? (
+              <View style={{ marginTop: 10 }}>{subtitle}</View>
+            ) : null}
 
-          <View style={styles.body}>{children}</View>
+            <View style={styles.body}>{children}</View>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+          </Pressable>
         </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
@@ -78,12 +111,7 @@ export function OnboardingChrome({
             <View style={styles.footerSpacer} />
           ) : (
             <Pressable
-              onPress={() => {
-                haptics.buttonTap()
-                if (onBack) { onBack(); return }
-                if (router.canGoBack()) router.back()
-                else router.replace('/(onboarding)/name')
-              }}
+              onPress={goBack}
               hitSlop={16}
               style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
             >
@@ -180,4 +208,5 @@ const styles = StyleSheet.create({
   },
   triangleBack: { color: colors.subtle },
   triangleContinue: { color: colors.bg },
+  storyBody: { alignSelf: 'stretch' },
 })

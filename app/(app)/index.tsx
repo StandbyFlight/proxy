@@ -69,7 +69,7 @@ export default function HomeScreen() {
         .maybeSingle()
       if (cancelled) return
       if (!activeSession) { router.replace('/(app)/flight'); return }
-      const flight = activeSession.flights
+      const flight = activeSession.flights as { flight_iata: string } | { flight_iata: string }[] | null
       const fIata = Array.isArray(flight) ? flight[0]?.flight_iata : flight?.flight_iata
       if (fIata) setFlightIata(fIata)
     }
