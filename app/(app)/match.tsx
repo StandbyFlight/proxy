@@ -340,7 +340,7 @@ export default function MatchScreen() {
 
       <View style={styles.body}>
         <Text style={[type.subhead, styles.subhead]}>
-          one reason to sit down across from each other.
+          one reason to get to know each other.
         </Text>
 
         <View style={styles.reveal}>
