@@ -29,6 +29,7 @@ export default function HomeScreen() {
 
   const [firstName, setFirstName] = useState('')
   const [iata, setIata] = useState('···')
+  const [flightIata, setFlightIata] = useState<string | null>(null)
   const [state, setState] = useState<ScreenState>('searching')
   const [curiosity, setCuriosity] = useState<CuriosityData | null>(null)
   const [clockLabel, setClockLabel] = useState(formatClock(new Date()))
@@ -60,14 +61,17 @@ export default function HomeScreen() {
       const nowIso = new Date().toISOString()
       const { data: activeSession } = await supabase
         .from('sessions')
-        .select('id')
+        .select('id, flights(flight_iata)')
         .eq('user_id', session.user.id)
         .gt('expires_at', nowIso)
         .order('expires_at', { ascending: true })
         .limit(1)
         .maybeSingle()
       if (cancelled) return
-      if (!activeSession) router.replace('/(app)/flight')
+      if (!activeSession) { router.replace('/(app)/flight'); return }
+      const flight = activeSession.flights
+      const fIata = Array.isArray(flight) ? flight[0]?.flight_iata : flight?.flight_iata
+      if (fIata) setFlightIata(fIata)
     }
     load()
     return () => { cancelled = true }
@@ -193,6 +197,7 @@ export default function HomeScreen() {
           <ManifestBoard
             firstName={firstName || 'YOU'}
             iata={iata}
+            flightIata={flightIata}
             mode="static"
             status={manifestStatus}
             stranger={

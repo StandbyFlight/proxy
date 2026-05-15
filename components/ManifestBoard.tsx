@@ -33,18 +33,14 @@ export type ManifestStatus = 'standby' | 'scanning' | 'gate-quiet' | 'none'
 export function ManifestBoard({
   firstName,
   iata,
-  // `cinematic` plays the full settle-by-cell flip animation. `static` mounts
-  // every cell pre-settled — used on the waiting screen where the row is just
-  // present, not re-revealed every load.
+  flightIata,
   mode = 'cinematic',
-  // Optional second row for the waiting screen — a "stranger" with dim passenger.
   stranger,
-  // What the STATUS caption says. 'standby' = churning red word, 'scanning' =
-  // same but a different word, 'gate-quiet' = dimmed/settled, 'none' = no caption.
   status = 'standby',
 }: {
   firstName: string
   iata: string
+  flightIata?: string | null
   mode?: 'cinematic' | 'static'
   stranger?: { flightIata: string; originIata: string } | null
   status?: ManifestStatus
@@ -87,9 +83,12 @@ export function ManifestBoard({
 
         {/* Your row */}
         <View style={styles.row}>
-          {/* FLIGHT — static dim dashes; placeholder for "no flight yet" */}
           <View style={[styles.flightCol, styles.rowAlign]}>
-            <Text style={styles.flightDashes}>─ ─ ─ ─</Text>
+            {flightIata ? (
+              <Text style={styles.flightCode}>{flightIata.toUpperCase().slice(0, 6)}</Text>
+            ) : (
+              <Text style={styles.flightDashes}>─ ─ ─ ─</Text>
+            )}
           </View>
           <View style={styles.colSep} />
 
