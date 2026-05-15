@@ -23,6 +23,14 @@ const PER_CELL_STAGGER_MS = 70
 const PER_LINE_DELAY_MS = 260
 const FIRST_LINE_OFFSET_MS = 500
 
+type TheirProfile = {
+  current_thinking: string | null
+  company: string | null
+  industry: string | null
+  hometown: string | null
+  travel_style: string | null
+}
+
 type MatchData = {
   id: string
   status: string
@@ -30,6 +38,7 @@ type MatchData = {
   theirIntent: string
   theirPurpose: string | null
   destinationIata: string | null
+  theirProfile: TheirProfile | null
   iAmA: boolean
   mySessionId: string
   theirSessionId: string
@@ -58,6 +67,23 @@ function buildOneReason(match: MatchData): string {
   const destStr = match.destinationIata ? ` to ${match.destinationIata}` : ''
   if (purposeStr) return `someone heading${destStr} for ${purposeStr}`
   return `someone open to ${intentStr}`
+}
+
+function buildConversationStarter(profile: TheirProfile | null): string | null {
+  if (!profile) return null
+  if (profile.current_thinking?.trim()) {
+    return `ask them about ${profile.current_thinking.trim().toLowerCase().replace(/\.$/, '')}`
+  }
+  if (profile.company?.trim()) {
+    return `ask them about their work at ${profile.company.trim()}`
+  }
+  if (profile.industry?.trim()) {
+    return `ask them what it's like working in ${profile.industry.trim().toLowerCase()}`
+  }
+  if (profile.hometown?.trim()) {
+    return `ask them about growing up in ${profile.hometown.trim()}`
+  }
+  return null
 }
 
 function wrapLines(text: string, maxLen: number): string[] {
@@ -120,8 +146,8 @@ export default function MatchScreen() {
         .select(`
           id, status, point_of_connection,
           session_id_a, session_id_b,
-          session_a:sessions!session_id_a(user_id, connection_intent, travel_purpose, destination_iata),
-          session_b:sessions!session_id_b(user_id, connection_intent, travel_purpose, destination_iata)
+          session_a:sessions!session_id_a(user_id, connection_intent, travel_purpose, destination_iata, user:users!user_id(current_thinking, company, industry, hometown, travel_style)),
+          session_b:sessions!session_id_b(user_id, connection_intent, travel_purpose, destination_iata, user:users!user_id(current_thinking, company, industry, hometown, travel_style))
         `)
         .eq('id', match_id)
         .single()
@@ -132,6 +158,9 @@ export default function MatchScreen() {
       const sessionB = Array.isArray(data.session_b) ? data.session_b[0] : data.session_b
       const iAmA = sessionA?.user_id === session.user.id
       const theirSession = iAmA ? sessionB : sessionA
+      const theirUser = theirSession?.user
+        ? (Array.isArray(theirSession.user) ? theirSession.user[0] : theirSession.user)
+        : null
 
       setMatch({
         id: data.id,
@@ -140,6 +169,7 @@ export default function MatchScreen() {
         theirIntent: theirSession?.connection_intent ?? 'open',
         theirPurpose: theirSession?.travel_purpose ?? null,
         destinationIata: theirSession?.destination_iata ?? null,
+        theirProfile: theirUser ?? null,
         iAmA,
         mySessionId: iAmA ? data.session_id_a : data.session_id_b,
         theirSessionId: iAmA ? data.session_id_b : data.session_id_a,
@@ -300,6 +330,7 @@ export default function MatchScreen() {
   // phase === 'deciding'
   const reason = buildOneReason(match)
   const lines = wrapLines(reason, MAX_CHARS_PER_LINE)
+  const starter = buildConversationStarter(match.theirProfile)
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
@@ -327,6 +358,13 @@ export default function MatchScreen() {
             </View>
           ))}
         </View>
+
+        {starter ? (
+          <View style={styles.starterWrap}>
+            <Text style={styles.starterLabel}>CONVERSATION STARTER</Text>
+            <Text style={styles.starterText}>{starter}</Text>
+          </View>
+        ) : null}
 
         <Text style={styles.privacyNote}>
           THEIR NAME STAYS HIDDEN UNTIL YOU BOTH SAY YES.
@@ -403,6 +441,25 @@ const styles = StyleSheet.create({
     color: colors.subtle,
     textAlign: 'center',
     marginTop: 8,
+  },
+  starterWrap: {
+    alignSelf: 'stretch',
+    borderLeftWidth: 2,
+    borderLeftColor: colors.accent,
+    paddingLeft: 14,
+    gap: 4,
+  },
+  starterLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    letterSpacing: 1.8,
+    color: colors.subtle,
+  },
+  starterText: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 16,
+    color: colors.text,
+    lineHeight: 22,
   },
   footer: {
     flexDirection: 'row',
