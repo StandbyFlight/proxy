@@ -134,6 +134,7 @@ export default function MeetupScreen() {
       haptics.success()
       router.replace({ pathname: '/(app)/post-meetup', params: { match_id } })
     } catch (err: any) {
+      console.error('[meetup] confirm error:', err)
       haptics.error()
       setError(err.message ?? 'Something went wrong. Try again.')
     } finally {

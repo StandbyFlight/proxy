@@ -70,7 +70,7 @@ function makeEmptyFields(): Fields {
     flight_number: '',
     origin: '',
     destination: '',
-    departure_date: localDateString(),
+    departure_date: '',
     departure_time: '',
     terminal: '',
     gate: '',
@@ -151,11 +151,20 @@ export default function FlightScreen() {
 
   function handleParsed(data: BoardingPassData) {
     haptics.success()
+    // Boarding passes don't print the year; Claude guesses and often picks a past
+    // year. Reject any scanned date that's already in the past and fall back to
+    // today so the user just needs to confirm rather than correct it.
+    const today = localDateString()
+    const scannedDate = data.departure_date
+    const safeDate = scannedDate && scannedDate >= today ? scannedDate : null
+    if (scannedDate && !safeDate) {
+      console.warn('[boarding-pass] scanned date is in the past', scannedDate, '— using today')
+    }
     setFields({
       flight_number: data.flight_number ?? '',
       origin: data.origin ?? '',
       destination: data.destination ?? '',
-      departure_date: data.departure_date ?? localDateString(),
+      departure_date: safeDate ?? localDateString(),
       departure_time: data.departure_time ?? '',
       terminal: data.terminal ?? '',
       gate: data.gate ?? '',

@@ -13,6 +13,8 @@ Deno.serve(async (req) => {
   try {
     const { image_base64, media_type = 'image/jpeg' } = await req.json()
 
+    const todayISO = new Date().toISOString().split('T')[0]
+
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 512,
@@ -26,7 +28,7 @@ Deno.serve(async (req) => {
             },
             {
               type: 'text',
-              text: `Extract the following from this boarding pass image. Return ONLY valid JSON with no explanation or markdown:
+              text: `Today's date is ${todayISO}. Extract the following from this boarding pass image. Boarding passes often omit the year — if the year is not printed, infer it from today's date (the flight must be on or after today). Return ONLY valid JSON with no explanation or markdown:
 {
   "flight_number": "carrier code + flight number, e.g. AA1234",
   "origin": "3-letter IATA departure airport code, e.g. JFK",
