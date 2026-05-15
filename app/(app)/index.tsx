@@ -13,7 +13,7 @@ import { InputFlipCell } from '../../components/InputFlipCell'
 import { primaryIataForCity } from '../../lib/cities'
 import type Ably from 'ably'
 
-type ScreenState = 'searching' | 'curiosity' | 'exhausted'
+type ScreenState = 'searching' | 'curiosity' | 'exhausted' | 'waiting_match'
 
 interface CuriosityData {
   match_id: string
@@ -33,6 +33,7 @@ export default function HomeScreen() {
   const [flightIata, setFlightIata] = useState<string | null>(null)
   const [state, setState] = useState<ScreenState>('searching')
   const [curiosity, setCuriosity] = useState<CuriosityData | null>(null)
+  const [waitingMatchId, setWaitingMatchId] = useState<string | null>(null)
   const [clockLabel, setClockLabel] = useState(formatClock(new Date()))
   // Session record kept around so the curiosity timer can re-invoke match-sessions
   // after 90s of waiting. Mirrors the body shape that intent.tsx hands off.
@@ -91,7 +92,7 @@ export default function HomeScreen() {
       if (recentSession) {
         const { data: existingMatch } = await supabase
           .from('matches')
-          .select('id, status')
+          .select('id, status, session_id_a')
           .or(`session_id_a.eq.${recentSession.id},session_id_b.eq.${recentSession.id}`)
           .in('status', ['pending', 'pending_a', 'pending_b', 'mutual'])
           .limit(1)
@@ -103,12 +104,27 @@ export default function HomeScreen() {
           const fIata = Array.isArray(flight) ? flight[0]?.flight_iata : flight?.flight_iata
           if (fIata) setFlightIata(fIata)
           if (existingMatch.status === 'mutual') {
+            setWaitingMatchId(null)
             router.replace({ pathname: '/(app)/meetup', params: { match_id: existingMatch.id } })
-          } else {
-            router.push({ pathname: '/(app)/match', params: { match_id: existingMatch.id } })
+            return
           }
+          // Check whether the current user already accepted (pending_b means A accepted,
+          // pending_a means B accepted). If so, stay on home with a pending indicator
+          // rather than forcing them back to the match screen.
+          const iAmA = existingMatch.session_id_a === recentSession.id
+          const iAlreadyAccepted =
+            (iAmA && existingMatch.status === 'pending_b') ||
+            (!iAmA && existingMatch.status === 'pending_a')
+          if (iAlreadyAccepted) {
+            setWaitingMatchId(existingMatch.id)
+            setState('waiting_match')
+            return
+          }
+          setWaitingMatchId(null)
+          router.push({ pathname: '/(app)/match', params: { match_id: existingMatch.id } })
           return
         }
+        setWaitingMatchId(null)
       }
 
       if (!activeSession) { router.replace('/(app)/flight'); return }
@@ -190,6 +206,35 @@ export default function HomeScreen() {
     }
   }, [])
 
+  // Realtime subscription for a match the current user has already accepted.
+  // Active only when on the home screen (not match.tsx) after navigating back.
+  // Catches the mutual event without requiring the user to stay on match.tsx.
+  useEffect(() => {
+    if (!waitingMatchId) return
+    const channel = supabase
+      .channel(`home-match-${waitingMatchId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${waitingMatchId}` },
+        (payload) => {
+          const newStatus = (payload.new as { status: string }).status
+          console.log('[home] waiting match status update:', newStatus)
+          if (newStatus === 'mutual') {
+            const matchId = waitingMatchId
+            haptics.standbyStamp()
+            setWaitingMatchId(null)
+            setState('searching')
+            router.replace({ pathname: '/(app)/meetup', params: { match_id: matchId } })
+          } else if (newStatus === 'declined') {
+            setWaitingMatchId(null)
+            setState('searching')
+          }
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [waitingMatchId])
+
   // Curiosity-mode probe: after 15 seconds in 'searching' state, ask the matcher
   // to find someone the user might not have originally been looking for. The
   // backend separately enforces that *both* users have waited 15s, so this is
@@ -236,14 +281,18 @@ export default function HomeScreen() {
       ? `THE GATE · ${clockLabel}`
       : state === 'curiosity'
         ? `CURIOSITY · ${clockLabel}`
-        : `LISTENING · ${clockLabel}`
+        : state === 'waiting_match'
+          ? `STANDBY · ${clockLabel}`
+          : `LISTENING · ${clockLabel}`
 
   const headline =
     state === 'exhausted'
       ? "We looked, nobody yet."
       : state === 'curiosity'
         ? 'Be open to someone unexpected.'
-        : "Finding the person you would've walked past."
+        : state === 'waiting_match'
+          ? "They're deciding now."
+          : "Finding the person you would've walked past."
 
   const subhead =
     state === 'exhausted'
@@ -325,14 +374,24 @@ export default function HomeScreen() {
         ) : null}
       </View>
 
-      {/* Bottom — change flight only. */}
+      {/* Bottom — pending match banner when waiting, otherwise change flight. */}
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <Pressable
-          onPress={() => { haptics.buttonTap(); router.push('/(app)/flight') }}
-          style={({ pressed }) => [styles.changeFlightBtn, pressed && { opacity: 0.85 }]}
-        >
-          <Text style={styles.changeFlightText}>CHANGE FLIGHT</Text>
-        </Pressable>
+        {waitingMatchId ? (
+          <Pressable
+            onPress={() => { haptics.buttonTap(); router.push({ pathname: '/(app)/match', params: { match_id: waitingMatchId } }) }}
+            style={({ pressed }) => [styles.pendingBannerBtn, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.pendingBannerTriangle}>{'▶'}</Text>
+            <Text style={styles.pendingBannerText}>MATCH PENDING — TAP TO VIEW</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={() => { haptics.buttonTap(); router.push('/(app)/flight') }}
+            style={({ pressed }) => [styles.changeFlightBtn, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.changeFlightText}>CHANGE FLIGHT</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   )
@@ -427,5 +486,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1.4,
+  },
+  pendingBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    width: '100%',
+  },
+  pendingBannerTriangle: {
+    fontSize: 9,
+    color: colors.accent,
+  },
+  pendingBannerText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.4,
+    color: colors.accent,
   },
 })

@@ -30,6 +30,11 @@ type MatchData = {
   theirIntent: string
   theirPurpose: string | null
   destinationIata: string | null
+  theirFlightIata: string | null
+  theirOriginIata: string | null
+  theirDepartureTime: string | null
+  theirGate: string | null
+  theirTerminal: string | null
   iAmA: boolean
   mySessionId: string
   theirSessionId: string
@@ -125,8 +130,16 @@ export default function MatchScreen() {
         .select(`
           id, status, point_of_connection,
           session_id_a, session_id_b,
-          session_a:sessions!session_id_a(user_id, connection_intent, travel_purpose, destination_iata),
-          session_b:sessions!session_id_b(user_id, connection_intent, travel_purpose, destination_iata)
+          session_a:sessions!session_id_a(
+            user_id, connection_intent, travel_purpose, destination_iata,
+            origin_iata, departure_time, gate, terminal,
+            flights(flight_iata)
+          ),
+          session_b:sessions!session_id_b(
+            user_id, connection_intent, travel_purpose, destination_iata,
+            origin_iata, departure_time, gate, terminal,
+            flights(flight_iata)
+          )
         `)
         .eq('id', match_id)
         .single()
@@ -147,6 +160,10 @@ export default function MatchScreen() {
       const iAmA = sessionA?.user_id === session.user.id
       const theirSession = iAmA ? sessionB : sessionA
 
+      const theirFlightRec = theirSession?.flights
+        ? (Array.isArray(theirSession.flights) ? theirSession.flights[0] : theirSession.flights)
+        : null
+
       setMatch({
         id: data.id,
         status: data.status,
@@ -154,6 +171,11 @@ export default function MatchScreen() {
         theirIntent: theirSession?.connection_intent ?? 'open',
         theirPurpose: theirSession?.travel_purpose ?? null,
         destinationIata: theirSession?.destination_iata ?? null,
+        theirFlightIata: (theirFlightRec as { flight_iata?: string } | null)?.flight_iata ?? null,
+        theirOriginIata: theirSession?.origin_iata ?? null,
+        theirDepartureTime: theirSession?.departure_time ?? null,
+        theirGate: theirSession?.gate ?? null,
+        theirTerminal: theirSession?.terminal ?? null,
         iAmA,
         mySessionId: iAmA ? data.session_id_a : data.session_id_b,
         theirSessionId: iAmA ? data.session_id_b : data.session_id_a,
@@ -320,8 +342,19 @@ export default function MatchScreen() {
   }
 
   if (phase === 'waiting') {
+    const theirDate = match.theirDepartureTime ? passDate(match.theirDepartureTime) : null
+    const theirTime = match.theirDepartureTime ? passTime(match.theirDepartureTime) : null
+
     return (
       <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
+        <Pressable
+          onPress={() => { haptics.buttonTap(); router.replace('/(app)/') }}
+          hitSlop={14}
+          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
+        >
+          <Text style={styles.triangleSubtle}>{'◀'}</Text>
+          <Text style={styles.backText}>BACK</Text>
+        </Pressable>
         <View style={styles.topRow}>
           <Text style={[type.eyebrow, styles.eyebrow]}>MATCH · WAITING</Text>
         </View>
@@ -335,13 +368,13 @@ export default function MatchScreen() {
               airline="STANDBY"
               classLabel="MEETUP PASS · PENDING"
               passenger={null}
-              origin={null}
-              destination={null}
-              flight={null}
-              date={null}
-              time={null}
-              gate={null}
-              terminal={null}
+              origin={match.theirOriginIata}
+              destination={match.destinationIata}
+              flight={match.theirFlightIata}
+              date={theirDate}
+              time={theirTime}
+              gate={match.theirGate}
+              terminal={match.theirTerminal}
               seat={null}
               stampSlot={<StandbyStamp label="PENDING" delayMs={400} angle={-12} />}
             />
@@ -420,6 +453,19 @@ export default function MatchScreen() {
       </View>
     </View>
   )
+}
+
+function passDate(iso: string): string | null {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
+  return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}`
+}
+
+function passTime(iso: string): string | null {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 const styles = StyleSheet.create({
