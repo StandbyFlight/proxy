@@ -17,8 +17,8 @@ const MORPH_MS = 400
 // Splash tagline — shown only to signed-out users. Mono, not flip cells, so
 // STANDBY stays the singular flip-board moment on this screen. Two lines so
 // "HAS A STORY" gets to land as the punchline.
-const TAGLINE_LINE_1 = 'EVERYONE AT THE GATE'
-const TAGLINE_LINE_2 = 'HAS A STORY'
+const TAGLINE_LINE_1 = 'EVERY TRAVELER IS CARRYING A STORY'
+const TAGLINE_LINE_2 = 'MOST NEVER GET TOLD'
 const TAGLINE_FADE_DELAY_MS = 400   // beat after STANDBY settles
 const TAGLINE_FADE_MS = 500
 const TAGLINE_HOLD_MS = 1800
