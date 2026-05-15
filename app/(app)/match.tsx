@@ -48,7 +48,7 @@ const PURPOSE_LABEL: Record<string, string> = {
 const INTENT_LABEL: Record<string, string> = {
   professional: 'professional connections',
   social: 'social connections',
-  open: 'open to anything',
+  open: 'anything',
 }
 
 function buildOneReason(match: MatchData): string {
