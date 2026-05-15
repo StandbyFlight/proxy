@@ -190,9 +190,9 @@ export default function HomeScreen() {
     }
   }, [])
 
-  // Curiosity-mode probe: after 90 seconds in 'searching' state, ask the matcher
+  // Curiosity-mode probe: after 15 seconds in 'searching' state, ask the matcher
   // to find someone the user might not have originally been looking for. The
-  // backend separately enforces that *both* users have waited 90s, so this is
+  // backend separately enforces that *both* users have waited 15s, so this is
   // safe to fire even if the partner just walked up. Re-arms whenever state
   // returns to 'searching' (e.g. after a curiosity match is declined).
   useEffect(() => {
@@ -201,7 +201,7 @@ export default function HomeScreen() {
       supabase.functions
         .invoke('match-sessions', { body: { ...matcherBody, curiosity_mode: true } })
         .catch(() => {})
-    }, 90_000)
+    }, 15_000)
     return () => clearTimeout(timer)
   }, [state, matcherBody])
 

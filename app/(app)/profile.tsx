@@ -237,8 +237,7 @@ export default function ProfileScreen() {
           <Pressable
             onPress={() => {
               haptics.buttonTap()
-              if (router.canGoBack()) router.back()
-              else router.replace('/(app)/')
+              router.replace('/(app)/')
             }}
             hitSlop={14}
             style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}

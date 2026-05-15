@@ -9,12 +9,15 @@ import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
+import { BoardingPass } from '../../components/BoardingPass'
 
 type TheirInfo = {
   firstName: string
   flightIata: string | null
+  originIata: string | null
   destinationIata: string | null
   gate: string | null
+  terminal: string | null
   departureTime: string | null
 }
 
@@ -47,12 +50,12 @@ export default function MeetupScreen() {
           point_of_connection,
           session_id_a, session_id_b,
           session_a:sessions!session_id_a(
-            user_id, departure_time, destination_iata, gate,
+            user_id, departure_time, origin_iata, destination_iata, gate, terminal,
             flights(flight_iata),
             users!user_id(first_name)
           ),
           session_b:sessions!session_id_b(
-            user_id, departure_time, destination_iata, gate,
+            user_id, departure_time, origin_iata, destination_iata, gate, terminal,
             flights(flight_iata),
             users!user_id(first_name)
           )
@@ -82,8 +85,10 @@ export default function MeetupScreen() {
       setTheir({
         firstName: theirUser?.first_name ?? 'Them',
         flightIata: theirFlight?.flight_iata ?? null,
+        originIata: theirSession?.origin_iata ?? null,
         destinationIata: theirSession?.destination_iata ?? null,
         gate: theirSession?.gate ?? null,
+        terminal: theirSession?.terminal ?? null,
         departureTime: theirSession?.departure_time ?? null,
       })
       setLoading(false)
@@ -172,12 +177,8 @@ export default function MeetupScreen() {
     }
   }
 
-  const flightLine = [
-    their.flightIata,
-    their.destinationIata ? `→ ${their.destinationIata}` : null,
-    their.gate ? `Gate ${their.gate}` : null,
-    theirDep ? formatDepTime(theirDep) : null,
-  ].filter(Boolean).join('  ·  ')
+  const theirPassDate = their.departureTime ? passDate(their.departureTime) : null
+  const theirPassTime = their.departureTime ? passTime(their.departureTime) : null
 
   return (
     <View style={styles.root}>
@@ -204,10 +205,19 @@ export default function MeetupScreen() {
           </View>
         ) : null}
 
-        <View style={styles.personBlock}>
-          <Text style={styles.theirName}>{their.firstName}.</Text>
-          {flightLine ? <Text style={styles.flightLine}>{flightLine}</Text> : null}
-        </View>
+        <BoardingPass
+          airline="STANDBY"
+          classLabel="THEIR PASS"
+          passenger={their.firstName}
+          origin={their.originIata}
+          destination={their.destinationIata}
+          flight={their.flightIata}
+          date={theirPassDate}
+          time={theirPassTime}
+          gate={their.gate}
+          terminal={their.terminal}
+          compact
+        />
 
         <View style={styles.directiveWrap}>
           <Text style={styles.directiveLabel}>WHERE TO MEET</Text>
@@ -250,13 +260,17 @@ export default function MeetupScreen() {
   )
 }
 
-function formatDepTime(d: Date): string {
-  let h = d.getHours()
-  const m = d.getMinutes()
-  const suffix = h >= 12 ? 'PM' : 'AM'
-  h = h % 12
-  if (h === 0) h = 12
-  return `${h}:${m.toString().padStart(2, '0')} ${suffix}`
+function passDate(iso: string): string | null {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
+  return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}`
+}
+
+function passTime(iso: string): string | null {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 const styles = StyleSheet.create({
@@ -287,16 +301,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     lineHeight: 22,
-  },
-
-  personBlock: { gap: 6 },
-  theirName: { ...type.headline, color: colors.text },
-  flightLine: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: colors.subtle,
   },
 
   directiveWrap: {

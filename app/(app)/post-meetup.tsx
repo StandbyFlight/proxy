@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
@@ -38,8 +38,20 @@ export default function PostMeetupScreen() {
   }
 
   return (
-    <View style={[styles.root, { paddingBottom: Math.max(insets.bottom, 32) }]}>
-      <View style={styles.inner}>
+    <View style={styles.root}>
+      <ScrollView
+        contentContainerStyle={[styles.inner, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 40 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable
+          onPress={() => { haptics.buttonTap(); router.replace('/(app)/') }}
+          hitSlop={14}
+          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
+        >
+          <Text style={styles.triangleSubtle}>{'◀'}</Text>
+          <Text style={styles.backText}>BACK</Text>
+        </Pressable>
+
         <Text style={styles.eyebrow}>After</Text>
         <Text style={styles.headline}>Did you{'\n'}meet up?</Text>
         <Text style={styles.subhead}>Just between us, this helps us improve.</Text>
@@ -64,14 +76,17 @@ export default function PostMeetupScreen() {
             <Text style={styles.secondaryBtnText}>No, it didn't work out</Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  inner: { flex: 1, paddingHorizontal: 24, justifyContent: 'center', gap: 16 },
+  inner: { paddingHorizontal: 24, gap: 16 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
+  triangleSubtle: { fontSize: 10, color: colors.subtle, includeFontPadding: false },
+  backText: { fontFamily: fonts.mono, fontSize: 12, color: colors.subtle, letterSpacing: 1.4 },
   eyebrow: { ...type.eyebrow, color: colors.subtle },
   headline: { ...type.headline, color: colors.text, marginTop: 4 },
   subhead: { ...type.subhead, color: colors.subtle, marginTop: 2 },

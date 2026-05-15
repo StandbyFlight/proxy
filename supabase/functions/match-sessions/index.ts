@@ -304,7 +304,7 @@ Deno.serve(async (req) => {
     // to something unexpected" — that only lands if both people are genuinely
     // in that holding pattern, not one impatient person paired with a fresh
     // arrival. See matching_algorithm.md §7.
-    const CURIOSITY_MIN_WAIT_MS = 90 * 1000
+    const CURIOSITY_MIN_WAIT_MS = 15 * 1000
 
     if (!sessionId || !userId || !originIata || !intent) {
       return new Response(
@@ -313,7 +313,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // In curiosity mode, verify the requester has actually been waiting ≥ 90s
+    // In curiosity mode, verify the requester has actually been waiting ≥ 15s
     // server-side, regardless of what the client claims. Cheap single-row query.
     if (isCuriosityMode) {
       const { data: requesterSession } = await supabase
@@ -328,7 +328,7 @@ Deno.serve(async (req) => {
 
       if (!requesterCreatedAt || Date.now() - requesterCreatedAt < CURIOSITY_MIN_WAIT_MS) {
         return new Response(
-          JSON.stringify({ matched: false, reason: 'curiosity: requester has not waited 90s' }),
+          JSON.stringify({ matched: false, reason: 'curiosity: requester has not waited 15s' }),
           { status: 200 }
         )
       }
