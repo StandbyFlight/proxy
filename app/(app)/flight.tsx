@@ -98,6 +98,7 @@ export default function FlightScreen() {
     setLookupMsg('')
     try {
       const date = departureDate || localDateString()
+      console.log('[flight] lookup', code, 'for date', date)
       const { data: fnData, error: fnErr } = await supabase.functions.invoke('lookup-flight', {
         body: { flight_iata: code, flight_date: date },
       })
@@ -114,18 +115,34 @@ export default function FlightScreen() {
       // AviationStack returns local airport time — grab HH:MM directly from the ISO string.
       const [datePart, rawTime] = scheduled.split('T')
       const time24 = rawTime ? rawTime.substring(0, 5) : ''
+
+      // Guard: AviationStack sometimes returns a historical record (e.g. 2024)
+      // for a flight number that also flies in the future. Don't overwrite the
+      // user's date if the API returned a past date — they almost certainly want
+      // today or tomorrow.
+      const today = localDateString()
+      const safeDate = datePart && datePart >= today ? datePart : null
+      if (datePart && !safeDate) {
+        console.warn('[flight] API returned past date', datePart, '— keeping user date', date)
+      }
+      console.log('[flight] lookup result: datePart=', datePart, 'safeDate=', safeDate, 'time24=', time24)
+
       setFields(prev => ({
         ...prev,
         flight_number: code,
         origin:         dep.iata     ?? prev.origin,
         destination:    arr.iata     ?? prev.destination,
-        departure_date: datePart     || prev.departure_date,
+        departure_date: safeDate     || prev.departure_date,
         departure_time: time24       || prev.departure_time,
         terminal:       dep.terminal ?? prev.terminal,
         gate:           dep.gate     ?? prev.gate,
       }))
-      setLookupMsg('Filled from live data — confirm before continuing.')
+      const msg = safeDate
+        ? 'Filled from live data — confirm before continuing.'
+        : 'Date auto-fill skipped (API returned a past date) — verify the date is correct.'
+      setLookupMsg(msg)
     } catch (err: any) {
+      console.error('[flight] lookup error:', err)
       setLookupMsg('Could not look up flight — fill in manually.')
     } finally {
       setLookupLoading(false)

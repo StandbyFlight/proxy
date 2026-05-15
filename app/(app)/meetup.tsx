@@ -15,6 +15,17 @@ const SLOTS = [
   { key: 'after', label: 'After landing', desc: 'Baggage claim, ~20 min after arrival' },
 ]
 
+function getMeetingLocationHint(
+  myTerminal: string | null,
+  theirTerminal: string | null,
+): string {
+  if (!myTerminal && !theirTerminal) return 'Meet at the main departures level'
+  if (myTerminal && !theirTerminal) return `Near Terminal ${myTerminal} — confirm with them`
+  if (!myTerminal && theirTerminal) return `Near Terminal ${theirTerminal} — confirm with them`
+  if (myTerminal === theirTerminal) return `Terminal ${myTerminal} — you're in the same terminal`
+  return `You're in Terminal ${myTerminal}, they're in Terminal ${theirTerminal} — check the airport map for the connector`
+}
+
 export default function MeetupScreen() {
   const { match_id } = useLocalSearchParams<{ match_id: string }>()
   const [wearing, setWearing] = useState('')
@@ -23,6 +34,14 @@ export default function MeetupScreen() {
   const [departureTime, setDepartureTime] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Partner context — revealed after mutual acceptance
+  const [partnerName, setPartnerName] = useState<string | null>(null)
+  const [partnerDestination, setPartnerDestination] = useState<string | null>(null)
+  const [myTerminal, setMyTerminal] = useState<string | null>(null)
+  const [theirTerminal, setTheirTerminal] = useState<string | null>(null)
+  const [pointOfConnection, setPointOfConnection] = useState<string | null>(null)
+
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
@@ -33,21 +52,50 @@ export default function MeetupScreen() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      const { data: match } = await supabase
+      const { data: match, error: matchErr } = await supabase
         .from('matches')
         .select(`
-          session_id_a,
-          session_a:sessions!session_id_a(user_id, departure_time)
+          session_id_a, session_id_b,
+          point_of_connection,
+          session_a:sessions!session_id_a(
+            user_id, departure_time, terminal, destination_iata,
+            users!user_id(first_name)
+          ),
+          session_b:sessions!session_id_b(
+            user_id, departure_time, terminal, destination_iata,
+            users!user_id(first_name)
+          )
         `)
         .eq('id', match_id)
         .single()
 
+      if (matchErr) {
+        console.error('[meetup] loadSide error:', matchErr)
+        return
+      }
       if (!match) return
+
       const sessionA = Array.isArray(match.session_a) ? match.session_a[0] : match.session_a
+      const sessionB = Array.isArray(match.session_b) ? match.session_b[0] : match.session_b
+
       const amA = sessionA?.user_id === session.user.id
       setIAmA(amA)
-      // Departure time is used to compute the meetup_time timestamp.
-      setDepartureTime(sessionA?.departure_time ?? null)
+
+      const mySession = amA ? sessionA : sessionB
+      const theirSession = amA ? sessionB : sessionA
+
+      const theirUser = theirSession?.users
+        ? (Array.isArray(theirSession.users) ? theirSession.users[0] : theirSession.users)
+        : null
+
+      setDepartureTime(mySession?.departure_time ?? null)
+      setMyTerminal(mySession?.terminal ?? null)
+      setTheirTerminal(theirSession?.terminal ?? null)
+      setPartnerName(theirUser?.first_name ?? null)
+      setPartnerDestination(theirSession?.destination_iata ?? null)
+      setPointOfConnection(match.point_of_connection ?? null)
+
+      console.log('[meetup] loaded: partnerName=', theirUser?.first_name, 'myTerminal=', mySession?.terminal, 'theirTerminal=', theirSession?.terminal)
     }
     loadSide()
   }, [match_id])
@@ -93,6 +141,8 @@ export default function MeetupScreen() {
     }
   }
 
+  const meetingHint = getMeetingLocationHint(myTerminal, theirTerminal)
+
   return (
     <View style={styles.root}>
       <ScrollView
@@ -102,6 +152,26 @@ export default function MeetupScreen() {
       >
         <Text style={styles.eyebrow}>Meetup</Text>
         <Text style={styles.headline}>Let's set{'\n'}a time.</Text>
+
+        {/* Partner context — shown once name is known (mutual match) */}
+        {partnerName ? (
+          <View style={styles.partnerCard}>
+            <Text style={styles.partnerName}>{partnerName}</Text>
+            {partnerDestination ? (
+              <Text style={styles.partnerDest}>Flying to {partnerDestination}</Text>
+            ) : null}
+            {pointOfConnection ? (
+              <Text style={styles.partnerConnection}>{pointOfConnection}</Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {/* Meeting location suggestion */}
+        <View style={styles.locationCard}>
+          <Text style={styles.locationLabel}>SUGGESTED MEETING POINT</Text>
+          <Text style={styles.locationHint}>{meetingHint}</Text>
+        </View>
+
         <Text style={styles.subhead}>Help them find you, pick a window.</Text>
 
         <View style={styles.section}>
@@ -163,10 +233,59 @@ export default function MeetupScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  inner: { paddingHorizontal: 24, gap: 24 },
+  inner: { paddingHorizontal: 24, gap: 20 },
   eyebrow: { ...type.eyebrow, color: colors.subtle },
   headline: { ...type.headline, color: colors.text, marginTop: 4 },
-  subhead: { ...type.subhead, color: colors.subtle, marginTop: 2 },
+  subhead: { ...type.subhead, color: colors.subtle, marginTop: -4 },
+
+  partnerCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    gap: 4,
+  },
+  partnerName: {
+    fontFamily: fonts.serifBold,
+    fontSize: 22,
+    color: colors.text,
+    letterSpacing: -0.2,
+  },
+  partnerDest: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    color: colors.subtle,
+    textTransform: 'uppercase',
+  },
+  partnerConnection: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 14,
+    color: colors.subtle,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+
+  locationCard: {
+    borderLeftWidth: 2,
+    borderLeftColor: colors.accent,
+    paddingLeft: 14,
+    gap: 4,
+  },
+  locationLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    letterSpacing: 1.8,
+    color: colors.subtle,
+  },
+  locationHint: {
+    fontFamily: fonts.mono,
+    fontSize: 13,
+    color: colors.text,
+    letterSpacing: 0.4,
+    lineHeight: 19,
+  },
+
   section: { gap: 12 },
   sectionLabel: {
     fontFamily: fonts.mono,

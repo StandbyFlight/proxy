@@ -111,12 +111,23 @@ function norm(s: string | null | undefined): string {
   return (s ?? '').toLowerCase().trim()
 }
 
-function scoreCandidate(me: SessionRecord, them: SessionRecord): ScoreResult {
+function scoreCandidate(me: SessionRecord, them: SessionRecord, myFlightIata?: string): ScoreResult {
   const signals: Signal[] = []
   const myUser = me.users
   const theirUser = them.users
 
   // ── Tier 1 — 5 pts — high specificity proper-noun signals ─────────────────
+
+  // Same physical flight: strongest possible proximity signal. Two users on the
+  // exact same aircraft have guaranteed co-presence, so this is tier-1 even
+  // though the algorithm generally treats flights as context. Without this
+  // signal, two flights leaving at the same time are indistinguishable.
+  const theirFlightRecord = Array.isArray(them.flights) ? them.flights[0] : them.flights
+  const theirFlightIata = theirFlightRecord?.flight_iata
+  if (myFlightIata && theirFlightIata && myFlightIata === theirFlightIata) {
+    signals.push({ type: 'same_flight', tier: 1, points: 5, label: `both on flight ${myFlightIata}` })
+  }
+
   if (me.event_id && them.event_id && norm(me.event_id) === norm(them.event_id)) {
     signals.push({ type: 'same_event', tier: 1, points: 5, label: `attending ${me.event_id}` })
   }
@@ -481,11 +492,17 @@ Deno.serve(async (req) => {
 
     const poolSize = available.length
 
+    console.log(`[match] scoring ${poolSize} candidates for session ${sessionId} (flight=${myFlightIata || 'none'})`)
+
     // Fix 8: break score ties by signal specificity (lower tier = more specific
     // signal wins), then by session recency (newer session wins) — prevents
     // systematic bias toward the earliest-inserted sessions at busy hubs.
     const scored = available
-      .map(c => ({ session: c, result: scoreCandidate(mySession, c) }))
+      .map(c => {
+        const result = scoreCandidate(mySession, c, myFlightIata || undefined)
+        console.log(`[match] candidate ${c.id} score=${result.score} best=${result.best_signal?.type ?? 'none'} breakdown=${JSON.stringify(result.breakdown.map(s => s.type))}`)
+        return { session: c, result }
+      })
       .sort((a, b) => {
         if (b.result.score !== a.result.score) return b.result.score - a.result.score
         const tierA = a.result.best_signal?.tier ?? 99
@@ -501,7 +518,10 @@ Deno.serve(async (req) => {
     // TODO: QUALITY_THRESHOLD may need tuning as real-world signal corpus grows
     const HIGH_CONFIDENCE_THRESHOLD = 3
 
+    console.log(`[match] best candidate score=${best.result.score} threshold=${HIGH_CONFIDENCE_THRESHOLD} curiosity=${isCuriosityMode}`)
+
     if (!isCuriosityMode && best.result.score < HIGH_CONFIDENCE_THRESHOLD) {
+      console.log(`[match] score ${best.result.score} below threshold ${HIGH_CONFIDENCE_THRESHOLD} — no match`)
       return new Response(
         JSON.stringify({ matched: false, reason: 'score below threshold', score: best.result.score }),
         { status: 200 }
@@ -566,6 +586,7 @@ Deno.serve(async (req) => {
     // concurrent invocation — return gracefully instead of throwing a 500.
     if (matchErr) {
       if ((matchErr as unknown as { code?: string }).code === '23505') {
+        console.log('[match] race condition — match already exists')
         return new Response(
           JSON.stringify({ matched: false, reason: 'race_condition' }),
           { status: 200 }
@@ -573,6 +594,8 @@ Deno.serve(async (req) => {
       }
       throw matchErr
     }
+
+    console.log(`[match] created match ${matchRow.id} type=${matchType} score=${best.result.score} signal=${bestSignal?.type}`)
 
     // Resolve partner's flight_iata for the stranger row on the manifest board
     const partnerFlight = Array.isArray(partner.flights) ? partner.flights[0] : partner.flights

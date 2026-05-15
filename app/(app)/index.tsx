@@ -98,6 +98,7 @@ export default function HomeScreen() {
           .maybeSingle()
         if (cancelled) return
         if (existingMatch) {
+          console.log('[home] focus: recovering match', existingMatch.id, 'status=', existingMatch.status)
           const flight = recentSession.flights as { flight_iata: string } | { flight_iata: string }[] | null
           const fIata = Array.isArray(flight) ? flight[0]?.flight_iata : flight?.flight_iata
           if (fIata) setFlightIata(fIata)
@@ -140,6 +141,7 @@ export default function HomeScreen() {
 
       channel.subscribe('match.created', (msg) => {
         const { match_id } = msg.data as { match_id: string }
+        console.log('[home] Ably match.created → navigating to match', match_id)
         router.push({ pathname: '/(app)/match', params: { match_id } })
       })
 
@@ -150,7 +152,11 @@ export default function HomeScreen() {
           flight_iata?: string
           origin_iata?: string
         }
-        if (declinedMatchIds.current.has(data.match_id)) return
+        console.log('[home] Ably curiosity.match received:', data)
+        if (declinedMatchIds.current.has(data.match_id)) {
+          console.log('[home] curiosity match already declined — ignoring')
+          return
+        }
         setCuriosity({
           match_id: data.match_id,
           winning_signal: data.winning_signal,
@@ -162,6 +168,7 @@ export default function HomeScreen() {
       })
 
       channel.subscribe('pool.exhausted', () => {
+        console.log('[home] Ably pool.exhausted')
         setState('exhausted')
         setCuriosity(null)
       })
@@ -202,20 +209,25 @@ export default function HomeScreen() {
     if (!curiosity) return
     haptics.selection()
     const matchId = curiosity.match_id
+    console.log('[home] dismissCuriosity (KEEP WAITING) match_id=', matchId)
     declinedMatchIds.current.add(matchId)
     setCuriosity(null)
     setState('searching')
     try {
-      await supabase
+      const { error } = await supabase
         .from('matches')
         .update({ status: 'declined' })
         .eq('id', matchId)
-    } catch (_) {}
+      if (error) console.error('[home] dismissCuriosity decline error:', error)
+    } catch (e) {
+      console.error('[home] dismissCuriosity threw:', e)
+    }
   }
 
   function openMatch() {
     if (!curiosity) return
     haptics.buttonTap()
+    console.log('[home] openMatch (I\'M IN) → match screen, match_id=', curiosity.match_id)
     router.push({ pathname: '/(app)/match', params: { match_id: curiosity.match_id } })
   }
 

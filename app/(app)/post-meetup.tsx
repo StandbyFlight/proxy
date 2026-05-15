@@ -34,7 +34,7 @@ export default function PostMeetupScreen() {
       await supabase.from('matches').update(update).eq('id', match_id)
     }
 
-    router.replace('/(app)/')
+    router.replace(met ? '/(app)/profile' : '/(app)/')
   }
 
   return (

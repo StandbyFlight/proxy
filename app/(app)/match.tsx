@@ -23,14 +23,6 @@ const PER_CELL_STAGGER_MS = 70
 const PER_LINE_DELAY_MS = 260
 const FIRST_LINE_OFFSET_MS = 500
 
-type TheirProfile = {
-  current_thinking: string | null
-  company: string | null
-  industry: string | null
-  hometown: string | null
-  travel_style: string | null
-}
-
 type MatchData = {
   id: string
   status: string
@@ -38,7 +30,6 @@ type MatchData = {
   theirIntent: string
   theirPurpose: string | null
   destinationIata: string | null
-  theirProfile: TheirProfile | null
   iAmA: boolean
   mySessionId: string
   theirSessionId: string
@@ -69,23 +60,6 @@ function buildOneReason(match: MatchData): string {
   return `someone open to ${intentStr}`
 }
 
-function buildConversationStarter(profile: TheirProfile | null): string | null {
-  if (!profile) return null
-  if (profile.current_thinking?.trim()) {
-    return `ask them about ${profile.current_thinking.trim().toLowerCase().replace(/\.$/, '')}`
-  }
-  if (profile.company?.trim()) {
-    return `ask them about their work at ${profile.company.trim()}`
-  }
-  if (profile.industry?.trim()) {
-    return `ask them what it's like working in ${profile.industry.trim().toLowerCase()}`
-  }
-  if (profile.hometown?.trim()) {
-    return `ask them about growing up in ${profile.hometown.trim()}`
-  }
-  return null
-}
-
 function wrapLines(text: string, maxLen: number): string[] {
   const words = text.toUpperCase().replace(/\s+/g, ' ').trim().split(' ')
   const lines: string[] = []
@@ -104,11 +78,15 @@ export default function MatchScreen() {
   const [match, setMatch] = useState<MatchData | null>(null)
   const [phase, setPhase] = useState<Phase>('loading')
   const [error, setError] = useState('')
+  const [respondError, setRespondError] = useState('')
   const [acting, setActing] = useState(false)
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
-  useEffect(() => { loadMatch() }, [match_id])
+  useEffect(() => {
+    console.log('[match] screen mounted, match_id=', match_id)
+    loadMatch()
+  }, [match_id])
 
   // Realtime subscription: fires only while in the 'waiting' phase.
   // Watches the match row for the other user's response.
@@ -122,6 +100,7 @@ export default function MatchScreen() {
         { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${match.id}` },
         (payload) => {
           const newStatus = (payload.new as { status: string }).status
+          console.log('[match] realtime status update:', newStatus)
           if (newStatus === 'mutual') {
             haptics.standbyStamp()
             router.replace({ pathname: '/(app)/meetup', params: { match_id: match.id } })
@@ -146,21 +125,27 @@ export default function MatchScreen() {
         .select(`
           id, status, point_of_connection,
           session_id_a, session_id_b,
-          session_a:sessions!session_id_a(user_id, connection_intent, travel_purpose, destination_iata, user:users!user_id(current_thinking, company, industry, hometown, travel_style)),
-          session_b:sessions!session_id_b(user_id, connection_intent, travel_purpose, destination_iata, user:users!user_id(current_thinking, company, industry, hometown, travel_style))
+          session_a:sessions!session_id_a(user_id, connection_intent, travel_purpose, destination_iata),
+          session_b:sessions!session_id_b(user_id, connection_intent, travel_purpose, destination_iata)
         `)
         .eq('id', match_id)
         .single()
 
       if (matchErr) throw matchErr
 
+      console.log('[match] loaded match status=', data.status, 'id=', data.id)
+
+      // If already declined, don't show the deciding UI — go back silently.
+      if (data.status === 'declined') {
+        console.log('[match] match already declined — returning home')
+        router.replace('/(app)/')
+        return
+      }
+
       const sessionA = Array.isArray(data.session_a) ? data.session_a[0] : data.session_a
       const sessionB = Array.isArray(data.session_b) ? data.session_b[0] : data.session_b
       const iAmA = sessionA?.user_id === session.user.id
       const theirSession = iAmA ? sessionB : sessionA
-      const theirUser = theirSession?.user
-        ? (Array.isArray(theirSession.user) ? theirSession.user[0] : theirSession.user)
-        : null
 
       setMatch({
         id: data.id,
@@ -169,7 +154,6 @@ export default function MatchScreen() {
         theirIntent: theirSession?.connection_intent ?? 'open',
         theirPurpose: theirSession?.travel_purpose ?? null,
         destinationIata: theirSession?.destination_iata ?? null,
-        theirProfile: theirUser ?? null,
         iAmA,
         mySessionId: iAmA ? data.session_id_a : data.session_id_b,
         theirSessionId: iAmA ? data.session_id_b : data.session_id_a,
@@ -191,6 +175,7 @@ export default function MatchScreen() {
         setPhase('deciding')
       }
     } catch (err: any) {
+      console.error('[match] loadMatch error:', err)
       setError(err.message ?? 'Could not load match.')
       setPhase('error')
     }
@@ -199,65 +184,108 @@ export default function MatchScreen() {
   async function respond(interested: boolean) {
     if (!match || acting) return
     setActing(true)
+    setRespondError('')
 
-    if (!interested) {
-      haptics.selection()
-      await supabase.from('matches').update({ status: 'declined' }).eq('id', match.id)
-      // Decrement declines_remaining so the session gate can enforce the cap.
-      const { data: sess } = await supabase
-        .from('sessions')
-        .select('declines_remaining')
-        .eq('id', match.mySessionId)
-        .single()
-      if (sess && sess.declines_remaining > 0) {
-        await supabase.from('sessions')
-          .update({ declines_remaining: sess.declines_remaining - 1 })
-          .eq('id', match.mySessionId)
+    console.log('[match] respond interested=', interested, 'match=', match.id, 'iAmA=', match.iAmA)
+
+    try {
+      if (!interested) {
+        haptics.selection()
+        const { error: declineErr } = await supabase
+          .from('matches').update({ status: 'declined' }).eq('id', match.id)
+        if (declineErr) {
+          console.error('[match] decline error:', declineErr)
+          // Still navigate away — match is stale regardless
+        }
+        // Decrement declines_remaining so the session gate can enforce the cap.
+        try {
+          const { data: sess } = await supabase
+            .from('sessions')
+            .select('declines_remaining')
+            .eq('id', match.mySessionId)
+            .single()
+          if (sess && sess.declines_remaining > 0) {
+            await supabase.from('sessions')
+              .update({ declines_remaining: sess.declines_remaining - 1 })
+              .eq('id', match.mySessionId)
+          }
+        } catch (e) {
+          console.warn('[match] declines_remaining update failed (non-fatal):', e)
+        }
+        router.replace('/(app)/')
+        return
       }
-      router.replace('/(app)/')
-      return
-    }
 
-    haptics.success()
+      haptics.success()
 
-    // Two-sided accept:
-    //   If I'm A: move pending → pending_b (B still needs to say yes)
-    //   If I'm B: move pending → pending_a (A still needs to say yes)
-    // If the other side already accepted (pending_a / pending_b flipped),
-    // we move directly to mutual.
-    const myPendingStatus = match.iAmA ? 'pending_b' : 'pending_a'
-    const theirPendingStatus = match.iAmA ? 'pending_a' : 'pending_b'
+      // Two-sided accept:
+      //   If I'm A: move pending → pending_b (B still needs to say yes)
+      //   If I'm B: move pending → pending_a (A still needs to say yes)
+      // If the other side already accepted (pending_a / pending_b flipped),
+      // we move directly to mutual.
+      const myPendingStatus = match.iAmA ? 'pending_b' : 'pending_a'
+      const theirPendingStatus = match.iAmA ? 'pending_a' : 'pending_b'
 
-    // Conditional update: only succeeds if status is still 'pending'.
-    const { data: updated } = await supabase
-      .from('matches')
-      .update({ status: myPendingStatus })
-      .eq('id', match.id)
-      .eq('status', 'pending')
-      .select('id')
+      // Conditional update: only succeeds if status is still 'pending'.
+      const { data: updated, error: updateErr } = await supabase
+        .from('matches')
+        .update({ status: myPendingStatus })
+        .eq('id', match.id)
+        .eq('status', 'pending')
+        .select('id')
 
-    if (updated && updated.length > 0) {
-      // I was first to accept — wait for the other side.
+      console.log('[match] conditional accept update: data=', updated, 'error=', updateErr)
+
+      if (updateErr) {
+        // Hard error (e.g. network, RLS) — show inline error, don't navigate away.
+        console.error('[match] accept update error:', updateErr)
+        setRespondError('Could not accept — please try again.')
+        setActing(false)
+        return
+      }
+
+      if (updated && updated.length > 0) {
+        // I was first to accept — wait for the other side.
+        setActing(false)
+        setPhase('waiting')
+        return
+      }
+
+      // The status was no longer 'pending' when I tried. Read current state.
+      const { data: current, error: readErr } = await supabase
+        .from('matches')
+        .select('status')
+        .eq('id', match.id)
+        .single()
+
+      console.log('[match] re-read status=', current?.status, 'readErr=', readErr)
+
+      if (current?.status === theirPendingStatus) {
+        // Other side already said yes — lock in as mutual.
+        const { error: mutualErr } = await supabase
+          .from('matches').update({ status: 'mutual' }).eq('id', match.id)
+        if (mutualErr) {
+          console.error('[match] mutual update error:', mutualErr)
+          setRespondError('Could not confirm mutual match — please try again.')
+          setActing(false)
+          return
+        }
+        haptics.standbyStamp()
+        router.replace({ pathname: '/(app)/meetup', params: { match_id: match.id } })
+      } else if (current?.status === 'pending') {
+        // Update returned empty AND status is still pending → silent RLS/permission failure.
+        console.error('[match] accept failed silently — status still pending (possible RLS issue)')
+        setRespondError('Could not accept — please try again.')
+        setActing(false)
+      } else {
+        // Match was declined or expired — go back without re-pushing.
+        console.log('[match] match no longer actionable, status=', current?.status)
+        router.replace('/(app)/')
+      }
+    } catch (err: any) {
+      console.error('[match] respond threw:', err)
+      setRespondError(err.message ?? 'Something went wrong — please try again.')
       setActing(false)
-      setPhase('waiting')
-      return
-    }
-
-    // The status was no longer 'pending' when I tried. Read current state.
-    const { data: current } = await supabase
-      .from('matches')
-      .select('status')
-      .eq('id', match.id)
-      .single()
-
-    if (current?.status === theirPendingStatus) {
-      // Other side already said yes — lock in as mutual.
-      await supabase.from('matches').update({ status: 'mutual' }).eq('id', match.id)
-      haptics.standbyStamp()
-      router.replace({ pathname: '/(app)/meetup', params: { match_id: match.id } })
-    } else {
-      // Match was declined or something unexpected — go back.
-      router.replace('/(app)/')
     }
   }
 
@@ -330,7 +358,6 @@ export default function MatchScreen() {
   // phase === 'deciding'
   const reason = buildOneReason(match)
   const lines = wrapLines(reason, MAX_CHARS_PER_LINE)
-  const starter = buildConversationStarter(match.theirProfile)
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
@@ -359,11 +386,8 @@ export default function MatchScreen() {
           ))}
         </View>
 
-        {starter ? (
-          <View style={styles.starterWrap}>
-            <Text style={styles.starterLabel}>CONVERSATION STARTER</Text>
-            <Text style={styles.starterText}>{starter}</Text>
-          </View>
+        {respondError ? (
+          <Text style={styles.respondErrorText}>{respondError}</Text>
         ) : null}
 
         <Text style={styles.privacyNote}>
@@ -431,8 +455,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
+  // width: '100%' ensures the parent always fills the full reveal width so
+  // alignItems: 'center' centers the FlipBoard deterministically from frame 1,
+  // eliminating the left-snap-then-center glitch caused by FlipBoard's own
+  // alignSelf: 'flex-start' interacting with an unconstrained parent width.
   lineWrap: {
     alignItems: 'center',
+    width: '100%',
   },
   privacyNote: {
     fontFamily: fonts.mono,
@@ -442,24 +471,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
-  starterWrap: {
-    alignSelf: 'stretch',
-    borderLeftWidth: 2,
-    borderLeftColor: colors.accent,
-    paddingLeft: 14,
-    gap: 4,
-  },
-  starterLabel: {
+  respondErrorText: {
     fontFamily: fonts.mono,
-    fontSize: 9,
-    letterSpacing: 1.8,
-    color: colors.subtle,
-  },
-  starterText: {
-    fontFamily: fonts.serifItalic,
-    fontSize: 16,
-    color: colors.text,
-    lineHeight: 22,
+    fontSize: 11,
+    letterSpacing: 1,
+    color: colors.error,
+    textAlign: 'center',
   },
   footer: {
     flexDirection: 'row',
