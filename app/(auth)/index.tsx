@@ -123,7 +123,7 @@ export default function LoginScreen() {
       title="Enter the code."
       subtitle={
         <Text style={[type.subhead, { color: colors.subtle }]}>
-          Sent to <Text style={styles.phoneInline}>+1 {formatPhonePretty(phone)}</Text>
+          Sent to   <Text style={styles.phoneInline}>+1 {formatPhonePretty(phone)}</Text>
         </Text>
       }
       onContinue={verifyOtp}

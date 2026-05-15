@@ -25,7 +25,7 @@ const COL_GAP = 14
 const STAGGER_MS = 90
 const COLUMN_DELAY = 350
 
-const FLIGHT_SLOTS = 6
+const FLIGHT_SLOTS = 3
 const FLIGHT_START = 0   // flight column settles first, before name
 const NAME_START = 500
 const STATUS_PAD = 250

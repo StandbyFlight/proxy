@@ -179,8 +179,7 @@ export default function FlightScreen() {
           <Pressable
             onPress={() => {
               haptics.buttonTap()
-              if (router.canGoBack()) router.back()
-              else router.replace('/(app)/')
+              router.replace('/(onboarding)/extras')
             }}
             hitSlop={14}
             style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
@@ -189,7 +188,7 @@ export default function FlightScreen() {
             <Text style={styles.backText}>BACK</Text>
           </Pressable>
           <Text style={[type.eyebrow, styles.eyebrow]}>
-            {phase === 'landing' ? 'ISSUE BOARDING PASS' : 'CONFIRM'}
+            {phase === 'landing' ? '' : ''}
           </Text>
           <View style={styles.spacer} />
         </View>

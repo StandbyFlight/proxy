@@ -157,11 +157,11 @@ export default function HomeScreen() {
   const headline =
     state === 'exhausted'
       ? "You've met the gate."
-      : 'Listening for someone worth meeting.'
+      : "Finding the person you would've walked past."
 
   const subhead =
     state === 'exhausted'
-      ? 'Check back closer to boarding — more people check in over time.'
+      ? 'The gate is quiet for now — more travelers arrive closer to departure.'
       : null
 
   const manifestStatus = state === 'exhausted' ? 'gate-quiet' : 'standby'
@@ -171,7 +171,9 @@ export default function HomeScreen() {
       {/* Top chrome — gear icon top-right. */}
       <View style={styles.topRow}>
         <View style={styles.eyebrowWrap}>
-          <Text style={[type.eyebrow, styles.eyebrow]}>{eyebrowLabel}</Text>
+          {state !== 'searching' ? (
+            <Text style={[type.eyebrow, styles.eyebrow]}>{eyebrowLabel}</Text>
+          ) : null}
         </View>
         <Pressable
           onPress={() => { haptics.buttonTap(); router.push('/(app)/profile') }}
@@ -243,10 +245,9 @@ export default function HomeScreen() {
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <Pressable
           onPress={() => { haptics.buttonTap(); router.push('/(app)/flight') }}
-          hitSlop={14}
-          style={({ pressed }) => [pressed && { opacity: 0.5 }]}
+          style={({ pressed }) => [styles.changeFlightBtn, pressed && { opacity: 0.85 }]}
         >
-          <Text style={styles.footerText}>CHANGE FLIGHT</Text>
+          <Text style={styles.changeFlightText}>CHANGE FLIGHT</Text>
         </Pressable>
       </View>
     </View>
@@ -287,7 +288,7 @@ const styles = StyleSheet.create({
   },
   headline: { color: colors.text },
   subhead: { color: colors.subtle, marginTop: -8 },
-  boardWrap: { marginTop: 8, alignSelf: 'flex-start' },
+  boardWrap: { marginTop: 8 },
   curiosityPanel: {
     marginTop: 8,
     gap: 14,
@@ -329,10 +330,18 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     alignItems: 'center',
   },
-  footerText: {
+  changeFlightBtn: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  changeFlightText: {
     fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.subtle,
-    letterSpacing: 1.6,
+    color: colors.bg,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.4,
   },
 })
