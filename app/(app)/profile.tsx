@@ -18,18 +18,23 @@ type Profile = {
   age: string
   base_city: string
   current_thinking: string
-  industry: string
-  company: string
   school: string
   hometown: string
   career_stage: string
   travel_style: string
+  currently_into: string
+  ask_me_about: string
+  next_on_list: string
+  know_a_lot_about: string
+  cities_know_well: string
+  moving_to_city: string
 }
 
 const EMPTY: Profile = {
   first_name: '', age: '', base_city: '', current_thinking: '',
-  industry: '', company: '', school: '', hometown: '',
-  career_stage: '', travel_style: '',
+  school: '', hometown: '', career_stage: '', travel_style: '',
+  currently_into: '', ask_me_about: '', next_on_list: '',
+  know_a_lot_about: '', cities_know_well: '', moving_to_city: '',
 }
 
 const CAREER_STAGES = [
@@ -48,12 +53,22 @@ const TRAVEL_STYLES = [
   { key: 'remote_worker', label: 'Remote / digital nomad' },
 ]
 
+const TRAVEL_MOTIVATIONS = [
+  { key: 'recharge',     label: 'Recharge alone' },
+  { key: 'meet_people',  label: 'Meet new people' },
+  { key: 'food_culture', label: 'Food & culture' },
+  { key: 'see_as_much',  label: 'See as much as possible' },
+  { key: 'slow_down',    label: 'Slow down & settle in' },
+]
+
 export default function ProfileScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
   const [profile, setProfile] = useState<Profile>(EMPTY)
   const [initial, setInitial] = useState<Profile>(EMPTY)
+  const [travelMotivations, setTravelMotivations] = useState<string[]>([])
+  const [initialMotivations, setInitialMotivations] = useState<string[]>([])
   const [flightInfo, setFlightInfo] = useState<{
     flight: string | null
     origin: string | null
@@ -76,24 +91,41 @@ export default function ProfileScreen() {
       if (!session || cancelled) return
       const { data } = await supabase
         .from('users')
-        .select('first_name, age, base_city, current_thinking, industry, company, school, hometown, career_stage, travel_style')
+        .select(`
+          first_name, age, base_city, current_thinking,
+          school, hometown, career_stage, travel_style,
+          currently_into, ask_me_about, next_on_list,
+          know_a_lot_about, cities_know_well, moving_to_city,
+          travel_motivations
+        `)
         .eq('id', session.user.id)
         .maybeSingle()
       if (cancelled || !data) { setLoading(false); return }
+
       const next: Profile = {
         first_name: data.first_name ?? '',
         age: data.age != null ? String(data.age) : '',
         base_city: data.base_city ?? '',
         current_thinking: data.current_thinking ?? '',
-        industry: data.industry ?? '',
-        company: data.company ?? '',
         school: data.school ?? '',
         hometown: data.hometown ?? '',
         career_stage: data.career_stage ?? '',
         travel_style: data.travel_style ?? '',
+        currently_into: data.currently_into ?? '',
+        ask_me_about: data.ask_me_about ?? '',
+        next_on_list: data.next_on_list ?? '',
+        know_a_lot_about: data.know_a_lot_about ?? '',
+        cities_know_well: data.cities_know_well ?? '',
+        moving_to_city: data.moving_to_city ?? '',
       }
+      const motivations: string[] = Array.isArray(data.travel_motivations)
+        ? data.travel_motivations
+        : []
+
       setProfile(next)
       setInitial(next)
+      setTravelMotivations(motivations)
+      setInitialMotivations(motivations)
 
       const { data: activeSession } = await supabase
         .from('sessions')
@@ -137,7 +169,18 @@ export default function ProfileScreen() {
     return (val: string) => setProfile(p => ({ ...p, [key]: val }))
   }
 
-  const dirty = (Object.keys(profile) as (keyof Profile)[]).some(k => profile[k] !== initial[k])
+  function toggleMotivation(key: string) {
+    haptics.selection()
+    setTravelMotivations(prev => {
+      if (prev.includes(key)) return prev.filter(k => k !== key)
+      if (prev.length >= 2) return prev
+      return [...prev, key]
+    })
+  }
+
+  const profileDirty = (Object.keys(profile) as (keyof Profile)[]).some(k => profile[k] !== initial[k])
+  const motivationsDirty = JSON.stringify([...travelMotivations].sort()) !== JSON.stringify([...initialMotivations].sort())
+  const dirty = profileDirty || motivationsDirty
 
   async function save() {
     if (!dirty || saving) return
@@ -154,12 +197,17 @@ export default function ProfileScreen() {
         age: ageNum,
         base_city: profile.base_city.trim() || null,
         current_thinking: profile.current_thinking.trim() || null,
-        industry: profile.industry.trim() || null,
-        company: profile.company.trim() || null,
         school: profile.school.trim() || null,
         hometown: profile.hometown.trim() || null,
         career_stage: profile.career_stage || null,
         travel_style: profile.travel_style || null,
+        currently_into: profile.currently_into.trim() || null,
+        ask_me_about: profile.ask_me_about.trim() || null,
+        next_on_list: profile.next_on_list.trim() || null,
+        know_a_lot_about: profile.know_a_lot_about.trim() || null,
+        cities_know_well: profile.cities_know_well.trim() || null,
+        moving_to_city: profile.moving_to_city.trim() || null,
+        travel_motivations: travelMotivations.length > 0 ? travelMotivations : null,
       })
       .eq('id', session.user.id)
 
@@ -167,6 +215,7 @@ export default function ProfileScreen() {
     if (updateErr) { haptics.error(); setError(updateErr.message); return }
     haptics.success()
     setInitial(profile)
+    setInitialMotivations(travelMotivations)
   }
 
   const iata = profile.base_city ? primaryIataForCity(profile.base_city) : '···'
@@ -230,7 +279,7 @@ export default function ProfileScreen() {
                 time={flightInfo?.time || null}
                 gate={flightInfo?.gate || null}
                 terminal={flightInfo?.terminal || null}
-                seat={profile.industry ? profile.industry.toUpperCase().slice(0, 3) : null}
+                seat={null}
                 stampSlot={profile.first_name ? <StandbyStamp label="STANDBY" /> : null}
               />
             </View>
@@ -240,12 +289,8 @@ export default function ProfileScreen() {
               <FieldLine label="FIRST NAME" value={profile.first_name} onChange={set('first_name')}
                 placeholder="ESTHER" autoCapitalize="characters" maxLength={20} />
 
-              <View style={styles.fieldRow}>
-                <FieldLine label="AGE" value={profile.age} onChange={set('age')}
-                  placeholder="21" maxLength={2} keyboardType="number-pad" half />
-                <FieldLine label="INDUSTRY" value={profile.industry} onChange={set('industry')}
-                  placeholder="Tech" autoCapitalize="words" maxLength={32} half />
-              </View>
+              <FieldLine label="AGE" value={profile.age} onChange={set('age')}
+                placeholder="21" maxLength={2} keyboardType="number-pad" />
 
               <View>
                 <FieldLine label="BASE CITY" value={profile.base_city} onChange={set('base_city')}
@@ -288,24 +333,52 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {/* ── Matching signals ──────────────────────────────────────── */}
-            <View style={styles.sectionDivider}>
-              <Text style={styles.sectionTitle}>MATCHING SIGNALS</Text>
-              <Text style={styles.sectionHint}>
-                Each field gives the algorithm one more reason to introduce you to someone specific.
-              </Text>
+            {/* ── Right Now ─────────────────────────────────────────────── */}
+            <SectionHeader
+              title="RIGHT NOW"
+              hint="What's active in your life on this trip."
+            />
+            <View style={styles.fields}>
+              <FieldLine
+                label="RIGHT NOW I'M INTO"
+                value={profile.currently_into}
+                onChange={set('currently_into')}
+                placeholder="planning my Patagonia trip"
+                maxLength={60}
+              />
+              <FieldLine
+                label="ASK ME ABOUT"
+                value={profile.ask_me_about}
+                onChange={set('ask_me_about')}
+                placeholder="venture capital, hiking the PCT…"
+                maxLength={60}
+              />
+              <FieldLine
+                label="NEXT ON MY LIST"
+                value={profile.next_on_list}
+                onChange={set('next_on_list')}
+                placeholder="Japan, finishing my first novel…"
+                maxLength={60}
+              />
             </View>
 
+            {/* ── About Me ──────────────────────────────────────────────── */}
+            <SectionHeader
+              title="ABOUT ME"
+              hint="Stable signals — set once, update rarely."
+            />
             <View style={styles.fields}>
-              <View style={styles.fieldRow}>
-                <FieldLine label="COMPANY" value={profile.company} onChange={set('company')}
-                  placeholder="Acme Corp" autoCapitalize="words" maxLength={48} half />
-                <FieldLine label="SCHOOL" value={profile.school} onChange={set('school')}
-                  placeholder="MIT" autoCapitalize="words" maxLength={48} half />
-              </View>
-
+              <FieldLine
+                label="I KNOW A LOT ABOUT"
+                value={profile.know_a_lot_about}
+                onChange={set('know_a_lot_about')}
+                placeholder="college football, French cuisine…"
+                maxLength={60}
+              />
               <FieldLine label="HOMETOWN" value={profile.hometown} onChange={set('hometown')}
                 placeholder="Memphis, TN" autoCapitalize="words" maxLength={48} />
+              <FieldLine label="SCHOOL" value={profile.school} onChange={set('school')}
+                placeholder="MIT" autoCapitalize="words" maxLength={48} />
             </View>
 
             <View style={styles.pickerSection}>
@@ -327,6 +400,55 @@ export default function ProfileScreen() {
                   </Pressable>
                 ))}
               </View>
+            </View>
+
+            {/* ── Travel ────────────────────────────────────────────────── */}
+            <SectionHeader
+              title="TRAVEL"
+              hint="How and why you travel — high signal for the matcher."
+            />
+
+            <View style={styles.pickerSection}>
+              <Text style={styles.fieldLabel}>I TRAVEL TO  <Text style={styles.chipHint}>(pick up to 2)</Text></Text>
+              <View style={styles.chips}>
+                {TRAVEL_MOTIVATIONS.map(tm => (
+                  <Pressable
+                    key={tm.key}
+                    onPress={() => toggleMotivation(tm.key)}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      travelMotivations.includes(tm.key) && styles.chipSelected,
+                      !travelMotivations.includes(tm.key) && travelMotivations.length >= 2 && styles.chipDisabled,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Text style={[
+                      styles.chipText,
+                      travelMotivations.includes(tm.key) && styles.chipTextSelected,
+                    ]}>
+                      {tm.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.fields}>
+              <FieldLine
+                label="CITIES I KNOW WELL"
+                value={profile.cities_know_well}
+                onChange={set('cities_know_well')}
+                placeholder="Chicago, Austin, Tokyo"
+                maxLength={80}
+              />
+              <FieldLine
+                label="I'M MOVING TO"
+                value={profile.moving_to_city}
+                onChange={set('moving_to_city')}
+                placeholder="San Francisco, Austin…"
+                autoCapitalize="words"
+                maxLength={48}
+              />
             </View>
 
             <View style={styles.pickerSection}>
@@ -375,6 +497,15 @@ export default function ProfileScreen() {
         )}
       </ScrollView>
     </KeyboardAvoidingView>
+  )
+}
+
+function SectionHeader({ title, hint }: { title: string; hint: string }) {
+  return (
+    <View style={styles.sectionDivider}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={styles.sectionHint}>{hint}</Text>
+    </View>
   )
 }
 
@@ -536,6 +667,13 @@ const styles = StyleSheet.create({
   },
 
   pickerSection: { gap: 10 },
+  chipHint: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: colors.subtle,
+    opacity: 0.6,
+  },
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -551,6 +689,9 @@ const styles = StyleSheet.create({
   chipSelected: {
     borderColor: colors.text,
     backgroundColor: colors.text,
+  },
+  chipDisabled: {
+    opacity: 0.35,
   },
   chipText: {
     fontFamily: fonts.mono,
