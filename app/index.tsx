@@ -15,10 +15,10 @@ const BEAT_MS = 600
 const MORPH_MS = 400
 
 // Splash tagline — shown only to signed-out users. Mono, not flip cells, so
-// STANDBY stays the singular flip-board moment on this screen. Two lines so
-// "HAS A STORY" gets to land as the punchline.
-const TAGLINE_LINE_1 = 'YOU\'VE FLOWN NEXT TO INTERESTING PEOPLE YOUR WHOLE LIFE.'
-const TAGLINE_LINE_2 = 'NOW YOU CAN MEET ONE.'
+// STANDBY stays the singular flip-board moment on this screen.
+const TAGLINE_LINE_1 = 'YOU\'VE FLOWN NEXT TO'
+const TAGLINE_LINE_2 = 'INTERESTING PEOPLE YOUR WHOLE LIFE.'
+const TAGLINE_LINE_3 = 'NOW YOU CAN MEET ONE.'
 const TAGLINE_FADE_DELAY_MS = 400   // beat after STANDBY settles
 const TAGLINE_FADE_MS = 500
 const TAGLINE_HOLD_MS = 1800
@@ -140,6 +140,7 @@ export default function Loading() {
       >
         <Text style={styles.taglineLine}>{TAGLINE_LINE_1}</Text>
         <Text style={styles.taglineLine}>{TAGLINE_LINE_2}</Text>
+        <Text style={styles.taglineLine}>{TAGLINE_LINE_3}</Text>
       </Animated.View>
     </View>
   )
