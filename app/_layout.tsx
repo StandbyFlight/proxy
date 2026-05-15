@@ -26,12 +26,15 @@ export default function RootLayout() {
     Fraunces_600SemiBold,
   })
 
+  // Hide native splash immediately — JS overlay (opacity 1) covers it so the
+  // native exit animation is invisible. We then fade the JS overlay separately.
+  useEffect(() => { SplashScreen.hideAsync() }, [])
+
   useEffect(() => {
     if (!fontsLoaded) return
-    SplashScreen.hideAsync()
     Animated.timing(fadeAnim, {
       toValue: 0,
-      duration: 500,
+      duration: 400,
       useNativeDriver: true,
     }).start(() => setOverlayVisible(false))
   }, [fontsLoaded])

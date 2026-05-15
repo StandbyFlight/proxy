@@ -82,11 +82,54 @@ export default function FlightScreen() {
   const [fields, setFields] = useState<Fields>(makeEmptyFields)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [lookupLoading, setLookupLoading] = useState(false)
+  const [lookupMsg, setLookupMsg] = useState('')
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
   function set(key: keyof Fields) {
     return (val: string) => setFields(f => ({ ...f, [key]: val }))
+  }
+
+  async function lookupFlight(flightNumber: string, departureDate: string) {
+    const code = flightNumber.trim().toUpperCase()
+    if (code.length < 4) return
+    setLookupLoading(true)
+    setLookupMsg('')
+    try {
+      const date = departureDate || localDateString()
+      const { data: fnData, error: fnErr } = await supabase.functions.invoke('lookup-flight', {
+        body: { flight_iata: code, flight_date: date },
+      })
+      if (fnErr) throw fnErr
+      const rows: any[] = fnData?.data ?? []
+      if (rows.length === 0) {
+        setLookupMsg('Flight not found — fill in manually.')
+        return
+      }
+      const f = rows[0]
+      const dep = f.departure ?? {}
+      const arr = f.arrival ?? {}
+      const scheduled: string = dep.scheduled ?? ''
+      // AviationStack returns local airport time — grab HH:MM directly from the ISO string.
+      const [datePart, rawTime] = scheduled.split('T')
+      const time24 = rawTime ? rawTime.substring(0, 5) : ''
+      setFields(prev => ({
+        ...prev,
+        flight_number: code,
+        origin:         dep.iata     ?? prev.origin,
+        destination:    arr.iata     ?? prev.destination,
+        departure_date: datePart     || prev.departure_date,
+        departure_time: time24       || prev.departure_time,
+        terminal:       dep.terminal ?? prev.terminal,
+        gate:           dep.gate     ?? prev.gate,
+      }))
+      setLookupMsg('Filled from live data — confirm before continuing.')
+    } catch (err: any) {
+      setLookupMsg('Could not look up flight — fill in manually.')
+    } finally {
+      setLookupLoading(false)
+    }
   }
 
   function handleParsed(data: BoardingPassData) {
@@ -258,14 +301,25 @@ export default function FlightScreen() {
             </View>
 
             <View style={styles.fieldList}>
-              <FieldLine
-                label="FLIGHT NO."
-                value={fields.flight_number}
-                onChange={set('flight_number')}
-                placeholder="AA1234"
-                maxLength={7}
-                autoCapitalize="characters"
-              />
+              <View>
+                <FieldLine
+                  label="FLIGHT NO."
+                  value={fields.flight_number}
+                  onChange={val => { set('flight_number')(val); setLookupMsg('') }}
+                  placeholder="AA1234"
+                  maxLength={7}
+                  autoCapitalize="characters"
+                  onBlur={() => lookupFlight(fields.flight_number, fields.departure_date)}
+                />
+                {lookupLoading ? (
+                  <View style={styles.lookupRow}>
+                    <ActivityIndicator size="small" color={colors.subtle} />
+                    <Text style={styles.lookupText}>Looking up flight…</Text>
+                  </View>
+                ) : lookupMsg ? (
+                  <Text style={styles.lookupText}>{lookupMsg}</Text>
+                ) : null}
+              </View>
 
               <View style={styles.fieldRow}>
                 <FieldLine label="FROM" value={fields.origin} onChange={set('origin')}
@@ -326,6 +380,7 @@ function FieldLine({
   autoCapitalize,
   keyboardType,
   half = false,
+  onBlur,
 }: {
   label: string
   value: string
@@ -335,6 +390,7 @@ function FieldLine({
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters'
   keyboardType?: 'default' | 'numbers-and-punctuation'
   half?: boolean
+  onBlur?: () => void
 }) {
   return (
     <View style={[styles.fieldLine, half && styles.fieldLineHalf]}>
@@ -343,6 +399,7 @@ function FieldLine({
         style={styles.fieldLineInput}
         value={value}
         onChangeText={onChange}
+        onBlur={onBlur}
         placeholder={placeholder}
         placeholderTextColor={colors.subtle}
         maxLength={maxLength}
@@ -445,5 +502,18 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serifItalic,
     fontSize: 14,
     color: colors.error,
+  },
+  lookupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  lookupText: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.subtle,
+    letterSpacing: 0.8,
+    marginTop: 6,
   },
 })
