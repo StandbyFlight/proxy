@@ -199,14 +199,14 @@ Define a `QUALITY_THRESHOLD` (initial value: best_signal.score must clear tier-2
 | State | Trigger | Surface |
 |---|---|---|
 | High-confidence match | top candidate.match_score >= threshold | Standard match card with point-of-connection sentence |
-| Curiosity match | waited > 2 min AND pool stable for >30s AND no candidate cleared threshold | Visually distinct card (see Section 8) |
-| Still searching | waited < 2 min OR pool still growing | Status pill: "We're still looking — we'll ping you when we find them" |
+| Curiosity match | **both** users have waited ≥ 90s AND pool stable for >30s AND no candidate cleared threshold | Visually distinct card (see Section 8) |
+| Still searching | either user has waited < 90s OR pool still growing | Waiting screen: "Finding the person you would've walked past." |
 
-**Trigger refinement:** "pool stable" matters. At small sizes you don't want to fire the curiosity match 30 seconds before someone strong joins the pool. Wait until pool stops growing.
+**Trigger refinement:** The mutual wait is intentional. A curiosity match only makes sense if both people are genuinely in "I haven't found anyone" territory — not one person who's been waiting a while paired with someone who just arrived. Pool stability still matters too: don't fire 30 seconds before a strong candidate might join.
 
 **Honest framing copy throughout:**
-- While searching: *"Looking for the right match — we'll ping you when we find them."*
-- On curiosity card: *"We didn't find a strong match yet, but here's someone who caught our eye."*
+- While searching: *"Finding the person you would've walked past."*
+- On curiosity card: *"We haven't found someone who fits your criteria yet — but we think you should meet this person anyway. You never know."*
 
 The product promise is *worth it*, not *available*. Protecting that early is more important than juicing match counts.
 
@@ -214,18 +214,26 @@ The product promise is *worth it*, not *available*. Protecting that early is mor
 
 ## 8. The Curiosity Card
 
-For low-confidence matches. The pool exists, the time window is valid, but no shared signal cleared the bar.
+For when no high-confidence match exists and both users have been waiting ≥ 90 seconds. The framing is openness and serendipity — not "here's your best option," but "be open to something you didn't originally select."
+
+**Trigger logic:**
+- Both `session_a.created_at` and `session_b.created_at` are ≥ 90s ago
+- Pool has been stable (no new entrants) for ≥ 30s
+- No candidate has cleared `QUALITY_THRESHOLD`
+- The pair hasn't already been shown to each other
 
 **Surface contract:**
-- Visually distinct from the standard match card — different color/typography/framing so users register the difference
+- Visually distinct from the standard match card — different framing so users register this is a different kind of suggestion
 - One single interesting fact about the other person, not a connection sentence
 - Reciprocal: each user shown a *different* fact about the other, weighted to feel like equal trades
 - LLM picks the fact (this is one of the few LLM calls the matcher makes — see Section 10)
-- Honest copy: *"We don't know much about what you have in common — but we think that's worth finding out. Here's one thing about them."*
+- Copy leans into serendipity, not apology: *"We haven't found someone who fits your criteria yet — but we think you should meet this person. You never know who you'll meet."*
+- User can **Accept** or **Keep waiting** (decline stays in the pool — does not end the session)
+- If **both** users accept → flows into the standard match screen (match.tsx), same as a high-confidence match
 
 **What makes a fact good for the card:** narrative density — concrete > abstract, unusual > common, verb-heavy > noun-heavy. "She was a Peace Corps volunteer in Mongolia" beats "she's based in Denver." The LLM scores fact candidates on this and picks the highest.
 
-**Profile-completeness nudge.** Users with thin profiles see curiosity cards more often. The card itself nudges enrichment: *"Connecting Spotify or telling us what you're nerding out about helps us find someone you'd actually want to meet."*
+**Profile-completeness nudge.** Users with thin profiles see curiosity cards more often. The card itself nudges enrichment: *"Connecting Spotify or telling us what you're thinking about helps us find someone you'd actually want to meet."*
 
 ---
 

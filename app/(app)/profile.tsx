@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   View, Text, TextInput, Pressable, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
@@ -54,13 +54,22 @@ export default function ProfileScreen() {
 
   const [profile, setProfile] = useState<Profile>(EMPTY)
   const [initial, setInitial] = useState<Profile>(EMPTY)
+  const [flightInfo, setFlightInfo] = useState<{
+    flight: string | null
+    origin: string | null
+    destination: string | null
+    date: string | null
+    time: string | null
+    gate: string | null
+    terminal: string | null
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [citySuggestions, setCitySuggestions] = useState<CityEntry[]>([])
   const [cityFocused, setCityFocused] = useState(false)
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let cancelled = false
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
@@ -85,11 +94,36 @@ export default function ProfileScreen() {
       }
       setProfile(next)
       setInitial(next)
+
+      const { data: activeSession } = await supabase
+        .from('sessions')
+        .select('origin_iata, destination_iata, departure_time, gate, terminal, flights(flight_iata)')
+        .eq('user_id', session.user.id)
+        .eq('status', 'active')
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (!cancelled && activeSession) {
+        const fl = activeSession.flights as { flight_iata: string } | { flight_iata: string }[] | null
+        const fIata = Array.isArray(fl) ? fl[0]?.flight_iata : fl?.flight_iata
+        const dep = activeSession.departure_time as string | null
+        setFlightInfo({
+          flight: fIata ?? null,
+          origin: activeSession.origin_iata ?? null,
+          destination: activeSession.destination_iata ?? null,
+          date: dep ? formatDepDate(dep) : null,
+          time: dep ? formatDepTime(dep) : null,
+          gate: (activeSession as any).gate ?? null,
+          terminal: (activeSession as any).terminal ?? null,
+        })
+      }
+
       setLoading(false)
     }
     load()
     return () => { cancelled = true }
-  }, [])
+  }, []))
 
   useEffect(() => {
     if (!cityFocused || profile.base_city.length < 1) {
@@ -189,13 +223,13 @@ export default function ProfileScreen() {
                 airline="STANDBY"
                 classLabel="STANDBY PASS"
                 passenger={profile.first_name || null}
-                origin={iata}
-                destination={null}
-                flight={null}
-                date={null}
-                time={null}
-                gate={null}
-                terminal={null}
+                origin={flightInfo?.origin || iata}
+                destination={flightInfo?.destination || null}
+                flight={flightInfo?.flight || null}
+                date={flightInfo?.date || null}
+                time={flightInfo?.time || null}
+                gate={flightInfo?.gate || null}
+                terminal={flightInfo?.terminal || null}
                 seat={profile.industry ? profile.industry.toUpperCase().slice(0, 3) : null}
                 stampSlot={profile.first_name ? <StandbyStamp label="STANDBY" /> : null}
               />
@@ -342,6 +376,19 @@ export default function ProfileScreen() {
       </ScrollView>
     </KeyboardAvoidingView>
   )
+}
+
+function formatDepDate(iso: string): string | null {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
+  return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}`
+}
+
+function formatDepTime(iso: string): string | null {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 function FieldLine({

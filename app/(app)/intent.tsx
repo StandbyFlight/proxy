@@ -62,6 +62,32 @@ export default function IntentScreen() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
+      // Changing flight invalidates the old session. Decline any pending matches
+      // on it (release the other party), then mark the session inactive so the
+      // active-session queries and the matcher edge function both ignore it.
+      const { data: oldSessions } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('status', 'active')
+
+      const oldSessionIds = (oldSessions ?? []).map(s => s.id)
+      if (oldSessionIds.length > 0) {
+        const orClause = oldSessionIds
+          .flatMap(id => [`session_id_a.eq.${id}`, `session_id_b.eq.${id}`])
+          .join(',')
+        await supabase
+          .from('matches')
+          .update({ status: 'declined' })
+          .or(orClause)
+          .in('status', ['pending', 'pending_a', 'pending_b'])
+
+        await supabase
+          .from('sessions')
+          .update({ status: 'inactive' })
+          .in('id', oldSessionIds)
+      }
+
       // Select the inserted row so we can pass it directly to the edge function.
       const { data: sessionRow, error: sessionErr } = await supabase
         .from('sessions')
@@ -79,8 +105,9 @@ export default function IntentScreen() {
           // Use the raw ISO string — not new Date().toISOString() — so the
           // value stored as UTC matches what the edge function will compare against.
           expires_at: params.departure_time || null,
+          status: 'active',
         })
-        .select('id, user_id, origin_iata, destination_iata, departure_time, terminal, connection_intent, travel_purpose, event_id')
+        .select('id, user_id, flight_id, origin_iata, destination_iata, departure_time, terminal, connection_intent, travel_purpose, event_id')
         .single()
 
       if (sessionErr) throw sessionErr

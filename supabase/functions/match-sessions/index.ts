@@ -288,11 +288,39 @@ Deno.serve(async (req) => {
     const intent: string = record.connection_intent
     const isCuriosityMode: boolean = body.curiosity_mode === true
 
+    // Both users must have been waiting at least this long before a curiosity
+    // match can fire. The framing is "we haven't found you a fit yet — be open
+    // to something unexpected" — that only lands if both people are genuinely
+    // in that holding pattern, not one impatient person paired with a fresh
+    // arrival. See matching_algorithm.md §7.
+    const CURIOSITY_MIN_WAIT_MS = 90 * 1000
+
     if (!sessionId || !userId || !originIata || !intent) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: id, user_id, origin_iata, connection_intent' }),
         { status: 400 }
       )
+    }
+
+    // In curiosity mode, verify the requester has actually been waiting ≥ 90s
+    // server-side, regardless of what the client claims. Cheap single-row query.
+    if (isCuriosityMode) {
+      const { data: requesterSession } = await supabase
+        .from('sessions')
+        .select('created_at')
+        .eq('id', sessionId)
+        .maybeSingle()
+
+      const requesterCreatedAt = requesterSession?.created_at
+        ? new Date(requesterSession.created_at as string).getTime()
+        : null
+
+      if (!requesterCreatedAt || Date.now() - requesterCreatedAt < CURIOSITY_MIN_WAIT_MS) {
+        return new Response(
+          JSON.stringify({ matched: false, reason: 'curiosity: requester has not waited 90s' }),
+          { status: 200 }
+        )
+      }
     }
 
     // ── Stage 1: find candidates ─────────────────────────────────────────────
@@ -401,13 +429,35 @@ Deno.serve(async (req) => {
       (pendingMatches ?? []).flatMap((m: MatchPair) => [m.session_id_a, m.session_id_b])
     )
 
-    const available = stage1.filter(c =>
+    let available = stage1.filter(c =>
       !excludedByMe.has(c.id) && !lockedInPending.has(c.id)
     )
 
     if (available.length === 0) {
-      await publishToAbly(userId, 'pool.exhausted', {})
+      // Don't fire pool.exhausted from the curiosity probe — it isn't really
+      // "no one's here," it's "no one new since the last probe." The user's
+      // earlier high-confidence search already drove that signal if relevant.
+      if (!isCuriosityMode) {
+        await publishToAbly(userId, 'pool.exhausted', {})
+      }
       return new Response(JSON.stringify({ matched: false, reason: 'pool exhausted' }), { status: 200 })
+    }
+
+    // Curiosity mode: only candidates who have also been waiting ≥ 90s are
+    // eligible. One impatient person paired with a fresh arrival defeats the
+    // whole "we've both been waiting, let's be open to each other" framing.
+    if (isCuriosityMode) {
+      const cutoff = Date.now() - CURIOSITY_MIN_WAIT_MS
+      available = available.filter(c => {
+        if (!c.created_at) return false
+        return new Date(c.created_at).getTime() <= cutoff
+      })
+      if (available.length === 0) {
+        return new Response(
+          JSON.stringify({ matched: false, reason: 'curiosity: no candidate has waited 90s' }),
+          { status: 200 }
+        )
+      }
     }
 
     // ── Stage 2: score all candidates ────────────────────────────────────────

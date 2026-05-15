@@ -480,7 +480,7 @@ Location data is **never stored server-side** — only used client-side for airp
 
 **The onboarding flow as built:**
 1. **Splash** — STANDBY flips in on a white field, holds, then either morphs to the section header (returning user) or fades out into the welcome cycle (signed-out user).
-2. **Welcome cycle** — board cycles through `A QUIET WAY` → `TO MEET` → `SOMEONE AT` → `THE AIRPORT`. ~6–7s, no CTA, strictly auto-advancing.
+2. **Welcome cycle** — TBD.
 3. **Check-in** — phone OTP, two steps with flip-cell digit entry.
 4. **Onboarding inputs** — Passenger / Age / Origin / Signal (4 steps).
 5. **Profile preview** — `MANIFEST` eyebrow; cinematic reveal of the user's row with the STANDBY caption fading in last.

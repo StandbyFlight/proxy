@@ -14,10 +14,12 @@ export function FlipCell({
   targetChar,
   stopAfter,
   cellSize = 58,
+  cellWidth,
 }: {
   targetChar: string
   stopAfter: number
   cellSize?: number
+  cellWidth?: number
 }) {
   const [char, setChar] = useState(CHARS[Math.floor(Math.random() * CHARS.length)])
   const scaleY = useRef(new Animated.Value(1)).current
@@ -69,7 +71,7 @@ export function FlipCell({
     }
   }, [targetChar, stopAfter])
 
-  const s = stylesFor(cellSize)
+  const s = stylesFor(cellSize, cellWidth)
   return (
     <View style={s.cell}>
       <Animated.View style={{ transform: [{ scaleY }] }}>
@@ -80,15 +82,16 @@ export function FlipCell({
   )
 }
 
-const cache: Record<number, ReturnType<typeof StyleSheet.create<any>>> = {}
-function stylesFor(cellSize: number) {
-  if (cache[cellSize]) return cache[cellSize]
-  const width = Math.round(cellSize * 0.69)
-  const fontSize = Math.round(cellSize * 0.66)
-  const lineHeight = Math.round(cellSize * 0.79)
+const cache: Record<string, ReturnType<typeof StyleSheet.create<any>>> = {}
+function stylesFor(cellSize: number, cellWidth?: number) {
+  const key = cellWidth != null ? `${cellSize}_${cellWidth}` : `${cellSize}`
+  if (cache[key]) return cache[key]
+  const width = cellWidth ?? Math.round(cellSize * 0.69)
+  const fontSize = cellWidth != null ? Math.round(cellWidth * 1.1) : Math.round(cellSize * 0.66)
+  const lineHeight = cellWidth != null ? Math.round(cellWidth * 1.4) : Math.round(cellSize * 0.79)
   const seamTop = Math.round(cellSize * 0.48)
   const seamHeight = Math.max(1, Math.round(cellSize * 0.034))
-  cache[cellSize] = StyleSheet.create({
+  cache[key] = StyleSheet.create({
     cell: {
       width,
       height: cellSize,
@@ -115,5 +118,5 @@ function stylesFor(cellSize: number) {
       backgroundColor: colors.boardSeam,
     },
   })
-  return cache[cellSize]
+  return cache[key]
 }

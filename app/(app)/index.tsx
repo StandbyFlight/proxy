@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { supabase } from '../../lib/supabase'
@@ -33,6 +33,9 @@ export default function HomeScreen() {
   const [state, setState] = useState<ScreenState>('searching')
   const [curiosity, setCuriosity] = useState<CuriosityData | null>(null)
   const [clockLabel, setClockLabel] = useState(formatClock(new Date()))
+  // Session record kept around so the curiosity timer can re-invoke match-sessions
+  // after 90s of waiting. Mirrors the body shape that intent.tsx hands off.
+  const [matcherBody, setMatcherBody] = useState<Record<string, unknown> | null>(null)
 
   // Live clock for the eyebrow — ticks every 30s so the minute stays current.
   useEffect(() => {
@@ -41,9 +44,9 @@ export default function HomeScreen() {
   }, [])
 
   // Load profile basics for the manifest row, and gate on an active session.
-  // If the user has no current standby session (expires_at in the future),
-  // route them to flight entry — you can't wait without a flight.
-  useEffect(() => {
+  // Runs on every focus so the board reflects a newly-entered flight without
+  // requiring a full app restart.
+  useFocusEffect(useCallback(() => {
     let cancelled = false
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
@@ -72,10 +75,11 @@ export default function HomeScreen() {
           .maybeSingle(),
         supabase
           .from('sessions')
-          .select('id, flights(flight_iata)')
+          .select('id, user_id, flight_id, origin_iata, destination_iata, departure_time, terminal, connection_intent, travel_purpose, event_id, flights(flight_iata)')
           .eq('user_id', session.user.id)
+          .eq('status', 'active')
           .gt('expires_at', nowIso)
-          .order('expires_at', { ascending: true })
+          .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
       ])
@@ -109,10 +113,17 @@ export default function HomeScreen() {
       const flight = activeSession.flights as { flight_iata: string } | { flight_iata: string }[] | null
       const fIata = Array.isArray(flight) ? flight[0]?.flight_iata : flight?.flight_iata
       if (fIata) setFlightIata(fIata)
+
+      // Capture the body the curiosity timer will need. Strip the embedded
+      // flights relation since the edge function looks up flight_iata itself.
+      const { flights: _flights, ...rest } = activeSession as Record<string, unknown> & {
+        flights?: unknown
+      }
+      setMatcherBody(rest)
     }
     load()
     return () => { cancelled = true }
-  }, [])
+  }, []))
 
   // Ably subscriptions for match events.
   useEffect(() => {
@@ -156,6 +167,7 @@ export default function HomeScreen() {
       // Subscriptions are live — safe to fire matching now.
       const pending = takePendingSession()
       if (pending) {
+        setMatcherBody(pending)
         supabase.functions.invoke('match-sessions', { body: pending }).catch(() => {})
       }
     }
@@ -168,6 +180,21 @@ export default function HomeScreen() {
       channelRef.current = null
     }
   }, [])
+
+  // Curiosity-mode probe: after 90 seconds in 'searching' state, ask the matcher
+  // to find someone the user might not have originally been looking for. The
+  // backend separately enforces that *both* users have waited 90s, so this is
+  // safe to fire even if the partner just walked up. Re-arms whenever state
+  // returns to 'searching' (e.g. after a curiosity match is declined).
+  useEffect(() => {
+    if (state !== 'searching' || !matcherBody) return
+    const timer = setTimeout(() => {
+      supabase.functions
+        .invoke('match-sessions', { body: { ...matcherBody, curiosity_mode: true } })
+        .catch(() => {})
+    }, 90_000)
+    return () => clearTimeout(timer)
+  }, [state, matcherBody])
 
   async function dismissCuriosity() {
     if (!curiosity) return
@@ -189,16 +216,22 @@ export default function HomeScreen() {
   }
 
   const eyebrowLabel =
-    state === 'exhausted' ? `THE GATE · ${clockLabel}` : `LISTENING · ${clockLabel}`
+    state === 'exhausted'
+      ? `THE GATE · ${clockLabel}`
+      : state === 'curiosity'
+        ? `CURIOSITY · ${clockLabel}`
+        : `LISTENING · ${clockLabel}`
 
   const headline =
     state === 'exhausted'
-      ? "You've met the gate."
-      : "Finding the person you would've walked past."
+      ? "We looked, nobody yet."
+      : state === 'curiosity'
+        ? 'Be open to someone unexpected.'
+        : "Finding the person you would've walked past."
 
   const subhead =
     state === 'exhausted'
-      ? 'The gate is quiet for now — more travelers arrive closer to departure.'
+      ? 'No new people are online right now — check back later, more show up as their flights approach.'
       : null
 
   const manifestStatus = state === 'exhausted' ? 'gate-quiet' : 'standby'
@@ -250,13 +283,11 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* Curiosity panel: italic line + MEET / KEEP LOOKING. */}
+        {/* Curiosity panel: serendipity line + I'M IN / KEEP WAITING. */}
         {state === 'curiosity' && curiosity ? (
           <View style={styles.curiosityPanel}>
             <Text style={[type.subhead, styles.curiosityLine]}>
-              {curiosity.winning_signal
-                ? `"${curiosity.winning_signal.toLowerCase()}"`
-                : 'someone curious is heading your way.'}
+              We haven't found someone who fits your criteria — but you never know who you'll meet.
             </Text>
             <View style={styles.curiosityActions}>
               <Pressable
@@ -264,14 +295,14 @@ export default function HomeScreen() {
                 style={({ pressed }) => [styles.meetBtn, pressed && { opacity: 0.85 }]}
               >
                 <Text style={styles.triangle}>{'▶'}</Text>
-                <Text style={styles.meetBtnText}>MEET THEM</Text>
+                <Text style={styles.meetBtnText}>I'M IN</Text>
               </Pressable>
               <Pressable
                 onPress={dismissCuriosity}
                 hitSlop={14}
                 style={({ pressed }) => [styles.dismissBtn, pressed && { opacity: 0.5 }]}
               >
-                <Text style={styles.dismissText}>KEEP LOOKING</Text>
+                <Text style={styles.dismissText}>KEEP WAITING</Text>
               </Pressable>
             </View>
           </View>

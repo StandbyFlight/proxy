@@ -25,7 +25,9 @@ const COL_GAP = 14
 const STAGGER_MS = 90
 const COLUMN_DELAY = 350
 
-const FLIGHT_SLOTS = 3
+const FLIGHT_SLOTS = 6
+const FLIGHT_CELL_GAP = 0
+const flightColWidth = FLIGHT_SLOTS * Math.round(CELL * 0.69) + (FLIGHT_SLOTS - 1) * FLIGHT_CELL_GAP
 const FLIGHT_START = 0   // flight column settles first, before name
 const NAME_START = 500
 const STATUS_PAD = 250
@@ -70,7 +72,7 @@ export function ManifestBoard({
       <View style={styles.board}>
         {/* Column headers */}
         <View style={[styles.row, { marginBottom: 8 }]}>
-          <View style={{ width: colWidth(FLIGHT_SLOTS) }}>
+          <View style={{ width: flightColWidth }}>
             <Text style={styles.colLabel}>FLIGHT</Text>
           </View>
           <View style={styles.colSep} />
@@ -85,8 +87,8 @@ export function ManifestBoard({
 
         {/* Your row */}
         <View style={styles.row}>
-          {/* FLIGHT — FlipCells when we have a flight, dim dots otherwise */}
-          <View style={[styles.cellsRow, { width: colWidth(FLIGHT_SLOTS) }]}>
+          {/* FLIGHT — full-size cells packed tight so the code reads as one block */}
+          <View style={[styles.cellsRow, { width: flightColWidth, gap: FLIGHT_CELL_GAP }]}>
             {flightIata
               ? flightIata.toUpperCase().padEnd(FLIGHT_SLOTS, ' ').slice(0, FLIGHT_SLOTS).split('').map((c, i) =>
                   c === ' ' ? (
@@ -102,7 +104,7 @@ export function ManifestBoard({
                     />
                   )
                 )
-              : <Text style={styles.flightDashes}>─ ─ ─ ─</Text>
+              : <Text style={styles.flightDashes}>─ ─ ─</Text>
             }
           </View>
           <View style={styles.colSep} />
@@ -204,7 +206,7 @@ function StrangerRow({
 
   return (
     <Animated.View style={[styles.row, styles.strangerRow, { opacity, transform: [{ translateY }] }]}>
-      <View style={[styles.cellsRow, { width: colWidth(FLIGHT_SLOTS) }]}>
+      <View style={[styles.cellsRow, { width: flightColWidth, gap: FLIGHT_CELL_GAP }]}>
         {flightPadded.split('').map((c, i) =>
           c === ' ' ? (
             <View key={`sf-${i}`} style={{ width: Math.round(CELL * 0.69), height: CELL, backgroundColor: colors.board }}>
