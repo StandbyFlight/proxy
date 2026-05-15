@@ -68,7 +68,7 @@ export default function City() {
 
   return (
     <OnboardingChrome
-      eyebrow="Origin · 03 / 04"
+      eyebrow=""
       step={3}
       total={4}
       title="Where do you call home?"

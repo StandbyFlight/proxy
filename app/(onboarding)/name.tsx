@@ -52,11 +52,11 @@ export default function Name() {
 
   return (
     <OnboardingChrome
-      eyebrow="Passenger · 01 / 04"
+      eyebrow=""
       step={1}
       total={4}
-      title="How should we list you?"
-      subtitle="Only your first name is ever visible. Last names are never shown."
+      title="Your name?"
+      subtitle="So people know what to call you."
       onContinue={next}
       continueDisabled={!valid}
       continueLoading={loading}

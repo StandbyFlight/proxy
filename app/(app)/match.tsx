@@ -8,10 +8,12 @@ import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
 import { FlipBoard } from '../../components/FlipBoard'
 
-// Per app_plan §4.5: the match screen reveals exactly one curated point of
-// connection in natural language. No name, no industry, no destination — only
-// the one reason to sit down across from each other. Same shape for high-
-// confidence and curiosity matches; the philosophy says one reason, period.
+// Match status state machine:
+//   pending    — created, both users notified, neither has responded
+//   pending_b  — user A accepted; waiting for user B to decide
+//   pending_a  — user B accepted; waiting for user A to decide
+//   mutual     — both accepted; proceed to meetup
+//   declined   — at least one user declined
 
 const REVEAL_CELL_SIZE = 22
 const MAX_CHARS_PER_LINE = 14
@@ -21,11 +23,17 @@ const FIRST_LINE_OFFSET_MS = 500
 
 type MatchData = {
   id: string
+  status: string
   pointOfConnection: string | null
   theirIntent: string
   theirPurpose: string | null
   destinationIata: string | null
+  iAmA: boolean
+  mySessionId: string
+  theirSessionId: string
 }
+
+type Phase = 'loading' | 'deciding' | 'waiting' | 'error'
 
 const PURPOSE_LABEL: Record<string, string> = {
   conference: 'a conference',
@@ -41,9 +49,6 @@ const INTENT_LABEL: Record<string, string> = {
   open: 'open to anything',
 }
 
-// Server-side `point_of_connection` is the canonical reason. If the algorithm
-// hasn't provided one, fall back to a single short sentence built from intent
-// + destination — never expose name, industry, or other identifying detail.
 function buildOneReason(match: MatchData): string {
   if (match.pointOfConnection) return match.pointOfConnection
   const intentStr = INTENT_LABEL[match.theirIntent] ?? 'something new'
@@ -53,7 +58,6 @@ function buildOneReason(match: MatchData): string {
   return `someone open to ${intentStr}`
 }
 
-// Greedy word-wrap into lines of at most maxLen characters. Keeps words intact.
 function wrapLines(text: string, maxLen: number): string[] {
   const words = text.toUpperCase().replace(/\s+/g, ' ').trim().split(' ')
   const lines: string[] = []
@@ -70,13 +74,39 @@ function wrapLines(text: string, maxLen: number): string[] {
 export default function MatchScreen() {
   const { match_id } = useLocalSearchParams<{ match_id: string }>()
   const [match, setMatch] = useState<MatchData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [phase, setPhase] = useState<Phase>('loading')
   const [error, setError] = useState('')
   const [acting, setActing] = useState(false)
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
   useEffect(() => { loadMatch() }, [match_id])
+
+  // Realtime subscription: fires only while in the 'waiting' phase.
+  // Watches the match row for the other user's response.
+  useEffect(() => {
+    if (phase !== 'waiting' || !match) return
+
+    const channel = supabase
+      .channel(`match-status-${match.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${match.id}` },
+        (payload) => {
+          const newStatus = (payload.new as { status: string }).status
+          if (newStatus === 'mutual') {
+            haptics.standbyStamp()
+            router.replace({ pathname: '/(app)/meetup', params: { match_id: match.id } })
+          } else if (newStatus === 'declined') {
+            // Other side declined — release back to searching
+            router.replace('/(app)/')
+          }
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [phase, match?.id])
 
   async function loadMatch() {
     try {
@@ -86,7 +116,7 @@ export default function MatchScreen() {
       const { data, error: matchErr } = await supabase
         .from('matches')
         .select(`
-          id, point_of_connection,
+          id, status, point_of_connection,
           session_id_a, session_id_b,
           session_a:sessions!session_id_a(user_id, connection_intent, travel_purpose, destination_iata),
           session_b:sessions!session_id_b(user_id, connection_intent, travel_purpose, destination_iata)
@@ -103,35 +133,105 @@ export default function MatchScreen() {
 
       setMatch({
         id: data.id,
+        status: data.status,
         pointOfConnection: data.point_of_connection ?? null,
         theirIntent: theirSession?.connection_intent ?? 'open',
         theirPurpose: theirSession?.travel_purpose ?? null,
         destinationIata: theirSession?.destination_iata ?? null,
+        iAmA,
+        mySessionId: iAmA ? data.session_id_a : data.session_id_b,
+        theirSessionId: iAmA ? data.session_id_b : data.session_id_a,
       })
+
+      // If the match was already mutually accepted (e.g. deep-linking back to this
+      // screen), go straight to meetup rather than showing it again.
+      if (data.status === 'mutual') {
+        router.replace({ pathname: '/(app)/meetup', params: { match_id: data.id } })
+        return
+      }
+
+      // If the other side already said yes before we loaded, go to waiting
+      // so our Realtime subscription can catch the mutual update.
+      const myPendingStatus = iAmA ? 'pending_b' : 'pending_a'
+      if (data.status === myPendingStatus) {
+        setPhase('waiting')
+      } else {
+        setPhase('deciding')
+      }
     } catch (err: any) {
       setError(err.message ?? 'Could not load match.')
-    } finally {
-      setLoading(false)
+      setPhase('error')
     }
   }
 
   async function respond(interested: boolean) {
     if (!match || acting) return
     setActing(true)
-    if (interested) haptics.success()
-    else haptics.selection()
-    await supabase
+
+    if (!interested) {
+      haptics.selection()
+      await supabase.from('matches').update({ status: 'declined' }).eq('id', match.id)
+      // Decrement declines_remaining so the session gate can enforce the cap.
+      const { data: sess } = await supabase
+        .from('sessions')
+        .select('declines_remaining')
+        .eq('id', match.mySessionId)
+        .single()
+      if (sess && sess.declines_remaining > 0) {
+        await supabase.from('sessions')
+          .update({ declines_remaining: sess.declines_remaining - 1 })
+          .eq('id', match.mySessionId)
+      }
+      router.replace('/(app)/')
+      return
+    }
+
+    haptics.success()
+
+    // Two-sided accept:
+    //   If I'm A: move pending → pending_b (B still needs to say yes)
+    //   If I'm B: move pending → pending_a (A still needs to say yes)
+    // If the other side already accepted (pending_a / pending_b flipped),
+    // we move directly to mutual.
+    const myPendingStatus = match.iAmA ? 'pending_b' : 'pending_a'
+    const theirPendingStatus = match.iAmA ? 'pending_a' : 'pending_b'
+
+    // Conditional update: only succeeds if status is still 'pending'.
+    const { data: updated } = await supabase
       .from('matches')
-      .update({ status: interested ? 'accepted' : 'declined' })
+      .update({ status: myPendingStatus })
       .eq('id', match.id)
-    if (interested) {
+      .eq('status', 'pending')
+      .select('id')
+
+    if (updated && updated.length > 0) {
+      // I was first to accept — wait for the other side.
+      setActing(false)
+      setPhase('waiting')
+      return
+    }
+
+    // The status was no longer 'pending' when I tried. Read current state.
+    const { data: current } = await supabase
+      .from('matches')
+      .select('status')
+      .eq('id', match.id)
+      .single()
+
+    if (current?.status === theirPendingStatus) {
+      // Other side already said yes — lock in as mutual.
+      await supabase.from('matches').update({ status: 'mutual' }).eq('id', match.id)
+      haptics.standbyStamp()
       router.replace({ pathname: '/(app)/meetup', params: { match_id: match.id } })
     } else {
+      // Match was declined or something unexpected — go back.
       router.replace('/(app)/')
     }
   }
 
-  if (loading) {
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  if (phase === 'loading') {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
         <FlipBoard label="STANDBY" cellSize={32} initialFlipMs={900} staggerMs={120} />
@@ -139,7 +239,7 @@ export default function MatchScreen() {
     )
   }
 
-  if (error || !match) {
+  if (phase === 'error' || !match) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 24 }]}>
         <Pressable
@@ -159,17 +259,35 @@ export default function MatchScreen() {
     )
   }
 
+  if (phase === 'waiting') {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
+        <View style={styles.topRow}>
+          <Text style={[type.eyebrow, styles.eyebrow]}>MATCH · WAITING</Text>
+        </View>
+        <View style={styles.body}>
+          <FlipBoard label="STANDBY" cellSize={28} initialFlipMs={600} staggerMs={100} />
+          <Text style={[type.subhead, styles.waitSubhead]}>
+            You said yes.{'\n'}Waiting for them to decide.
+          </Text>
+          <Text style={styles.privacyNote}>
+            YOU'LL BE NOTIFIED THE MOMENT THEY RESPOND.
+          </Text>
+        </View>
+      </View>
+    )
+  }
+
+  // phase === 'deciding'
   const reason = buildOneReason(match)
   const lines = wrapLines(reason, MAX_CHARS_PER_LINE)
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-      {/* Top chrome */}
       <View style={styles.topRow}>
         <Text style={[type.eyebrow, styles.eyebrow]}>MATCH · 01</Text>
       </View>
 
-      {/* Body — sentence flips in */}
       <View style={styles.body}>
         <Text style={[type.subhead, styles.subhead]}>
           one reason to sit down across from each other.
@@ -196,7 +314,6 @@ export default function MatchScreen() {
         </Text>
       </View>
 
-      {/* Footer — MEET THEM / SKIP */}
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
         <Pressable
           onPress={() => respond(false)}
@@ -238,6 +355,11 @@ const styles = StyleSheet.create({
   subhead: {
     color: colors.subtle,
     textAlign: 'center',
+  },
+  waitSubhead: {
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: 16,
   },
   reveal: {
     alignSelf: 'stretch',

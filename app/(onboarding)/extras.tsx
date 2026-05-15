@@ -127,12 +127,12 @@ export default function Extras() {
       <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
         <View style={styles.topChrome}>
           <ProgressDashes step={4} total={4} />
-          <Text style={[type.eyebrow, styles.eyebrow]}>Duty Free · Optional</Text>
+          <Text style={[type.eyebrow, styles.eyebrow]}></Text>
         </View>
 
         <View style={styles.scroll}>
           <Text style={[type.headline, styles.title]}>
-            A few more shots on goal.
+            A few more departures to log.
           </Text>
           <Text style={[type.subhead, styles.subtitle]}>
             Each connection gives us one more reason to introduce you to someone.

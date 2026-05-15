@@ -109,7 +109,7 @@ export default function Prompt() {
 
   return (
     <OnboardingChrome
-      eyebrow="Signal · 04 / 04"
+      eyebrow=""
       step={4}
       total={4}
       title="What's been on your mind lately?"

@@ -20,7 +20,9 @@ export default function MeetupScreen() {
   const [wearing, setWearing] = useState('')
   const [slot, setSlot] = useState<string | null>(null)
   const [iAmA, setIAmA] = useState<boolean | null>(null)
+  const [departureTime, setDepartureTime] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
@@ -33,13 +35,19 @@ export default function MeetupScreen() {
 
       const { data: match } = await supabase
         .from('matches')
-        .select('session_id_a, session_a:sessions!session_id_a(user_id)')
+        .select(`
+          session_id_a,
+          session_a:sessions!session_id_a(user_id, departure_time)
+        `)
         .eq('id', match_id)
         .single()
 
       if (!match) return
       const sessionA = Array.isArray(match.session_a) ? match.session_a[0] : match.session_a
-      setIAmA(sessionA?.user_id === session.user.id)
+      const amA = sessionA?.user_id === session.user.id
+      setIAmA(amA)
+      // Departure time is used to compute the meetup_time timestamp.
+      setDepartureTime(sessionA?.departure_time ?? null)
     }
     loadSide()
   }, [match_id])
@@ -47,14 +55,42 @@ export default function MeetupScreen() {
   async function confirm() {
     if (!canConfirm || iAmA === null) return
     setSaving(true)
+    setError('')
 
-    const update = iAmA
-      ? { wearing_a: wearing.trim() }
-      : { wearing_b: wearing.trim() }
+    try {
+      // Compute a concrete meetup_time from the slot + departure so the
+      // post-meetup prompt cron has a timestamp to schedule against.
+      let meetup_time: string | null = null
+      if (slot && departureTime) {
+        const dep = new Date(departureTime)
+        if (slot === 'before') {
+          // Meet 45 min before the gate closes.
+          meetup_time = new Date(dep.getTime() - 45 * 60 * 1000).toISOString()
+        } else {
+          // 'after' — rough estimate: ~2 hrs post-departure for landing + deplaning.
+          meetup_time = new Date(dep.getTime() + 2 * 60 * 60 * 1000).toISOString()
+        }
+      }
 
-    await supabase.from('matches').update(update).eq('id', match_id)
-    haptics.success()
-    router.replace({ pathname: '/(app)/post-meetup', params: { match_id } })
+      const update = iAmA
+        ? { wearing_a: wearing.trim(), meetup_time }
+        : { wearing_b: wearing.trim(), meetup_time }
+
+      const { error: updateErr } = await supabase
+        .from('matches')
+        .update(update)
+        .eq('id', match_id)
+
+      if (updateErr) throw updateErr
+
+      haptics.success()
+      router.replace({ pathname: '/(app)/post-meetup', params: { match_id } })
+    } catch (err: any) {
+      haptics.error()
+      setError(err.message ?? 'Something went wrong. Try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -101,6 +137,8 @@ export default function MeetupScreen() {
             </Pressable>
           ))}
         </View>
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
@@ -169,6 +207,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   optionDescSelected: { color: 'rgba(249,248,246,0.7)' },
+  errorText: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 14,
+    color: colors.error,
+  },
   footer: {
     paddingHorizontal: 24,
     paddingTop: 12,

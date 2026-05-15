@@ -48,11 +48,11 @@ export default function Age() {
 
   return (
     <OnboardingChrome
-      eyebrow="Age · 02 / 04"
+      eyebrow=""
       step={2}
       total={4}
-      title="And how old are you?"
-      subtitle="Helps us match you with someone in the same chapter of life."
+      title="Your age?"
+      subtitle="Find someone in the same chapter of life."
       onContinue={next}
       continueDisabled={!valid}
       continueLoading={loading}

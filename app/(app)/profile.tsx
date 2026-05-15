@@ -13,24 +13,40 @@ import { BoardingPass } from '../../components/BoardingPass'
 import { StandbyStamp } from '../../components/StandbyStamp'
 import { primaryIataForCity, searchCities, type CityEntry } from '../../lib/cities'
 
-// The user's STANDBY boarding pass — a stable artifact showing who they are.
-// Editable fields below let them flesh out their profile after onboarding.
-
 type Profile = {
   first_name: string
-  age: string                // stored as number in DB; string for input
+  age: string
   base_city: string
   current_thinking: string
   industry: string
+  company: string
+  school: string
+  hometown: string
+  career_stage: string
+  travel_style: string
 }
 
 const EMPTY: Profile = {
-  first_name: '',
-  age: '',
-  base_city: '',
-  current_thinking: '',
-  industry: '',
+  first_name: '', age: '', base_city: '', current_thinking: '',
+  industry: '', company: '', school: '', hometown: '',
+  career_stage: '', travel_style: '',
 }
+
+const CAREER_STAGES = [
+  { key: 'student',   label: 'Student' },
+  { key: 'early',     label: 'Early (0–3 yrs)' },
+  { key: 'mid',       label: 'Mid (3–8 yrs)' },
+  { key: 'senior',    label: 'Senior (8+ yrs)' },
+  { key: 'founder',   label: 'Founder' },
+  { key: 'executive', label: 'Executive' },
+]
+
+const TRAVEL_STYLES = [
+  { key: 'light_packer',  label: 'Light packer' },
+  { key: 'carry_on_only', label: 'Carry-on only' },
+  { key: 'frequent_flyer', label: 'Frequent flyer' },
+  { key: 'remote_worker', label: 'Remote / digital nomad' },
+]
 
 export default function ProfileScreen() {
   const router = useRouter()
@@ -51,7 +67,7 @@ export default function ProfileScreen() {
       if (!session || cancelled) return
       const { data } = await supabase
         .from('users')
-        .select('first_name, age, base_city, current_thinking, industry')
+        .select('first_name, age, base_city, current_thinking, industry, company, school, hometown, career_stage, travel_style')
         .eq('id', session.user.id)
         .maybeSingle()
       if (cancelled || !data) { setLoading(false); return }
@@ -61,6 +77,11 @@ export default function ProfileScreen() {
         base_city: data.base_city ?? '',
         current_thinking: data.current_thinking ?? '',
         industry: data.industry ?? '',
+        company: data.company ?? '',
+        school: data.school ?? '',
+        hometown: data.hometown ?? '',
+        career_stage: data.career_stage ?? '',
+        travel_style: data.travel_style ?? '',
       }
       setProfile(next)
       setInitial(next)
@@ -100,6 +121,11 @@ export default function ProfileScreen() {
         base_city: profile.base_city.trim() || null,
         current_thinking: profile.current_thinking.trim() || null,
         industry: profile.industry.trim() || null,
+        company: profile.company.trim() || null,
+        school: profile.school.trim() || null,
+        hometown: profile.hometown.trim() || null,
+        career_stage: profile.career_stage || null,
+        travel_style: profile.travel_style || null,
       })
       .eq('id', session.user.id)
 
@@ -134,7 +160,13 @@ export default function ProfileScreen() {
             <Text style={styles.backText}>BACK</Text>
           </Pressable>
           <Text style={[type.eyebrow, styles.eyebrow]}>BOARDING PASS</Text>
-          <View style={styles.spacer} />
+          <Pressable
+            onPress={() => { haptics.selection(); router.push('/(app)/settings') }}
+            hitSlop={14}
+            style={({ pressed }) => [pressed && { opacity: 0.5 }]}
+          >
+            <Text style={styles.settingsLink}>SETTINGS</Text>
+          </Pressable>
         </View>
 
         {loading ? (
@@ -145,7 +177,7 @@ export default function ProfileScreen() {
           <>
             <Text style={[type.headline, styles.headline]}>Your pass.</Text>
             <Text style={[type.subhead, styles.subhead]}>
-              Your STANDBY pass. Fill it in over time — more reasons to be matched well.
+              Fill in over time — more signals means better matches.
             </Text>
 
             <View style={styles.passWrap}>
@@ -165,6 +197,7 @@ export default function ProfileScreen() {
               />
             </View>
 
+            {/* ── Basic profile ─────────────────────────────────────────── */}
             <View style={styles.fields}>
               <FieldLine label="FIRST NAME" value={profile.first_name} onChange={set('first_name')}
                 placeholder="ESTHER" autoCapitalize="characters" maxLength={20} />
@@ -179,21 +212,22 @@ export default function ProfileScreen() {
               <View>
                 <FieldLine label="BASE CITY" value={profile.base_city} onChange={set('base_city')}
                   placeholder="Raleigh, NC" autoCapitalize="words" maxLength={48}
-                  onFocus={() => setCityFocused(true)} onBlur={() => setTimeout(() => setCityFocused(false), 150)} />
+                  onFocus={() => setCityFocused(true)}
+                  onBlur={() => setTimeout(() => setCityFocused(false), 150)} />
                 {cityFocused && citySuggestions.length > 0 ? (
                   <View style={styles.suggestions}>
                     {citySuggestions.map(s => (
                       <Pressable
-                        key={s.label}
+                        key={`${s.name}-${s.state}`}
                         onPress={() => {
                           haptics.selection()
-                          set('base_city')(s.label)
+                          set('base_city')(`${s.name}, ${s.state}`)
                           setCityFocused(false)
                         }}
                         style={({ pressed }) => [styles.suggestion, pressed && { opacity: 0.5 }]}
                       >
-                        <Text style={styles.suggestionLabel}>{s.label.toUpperCase()}</Text>
-                        <Text style={styles.suggestionIata}>{s.iatas[0] ?? ''}</Text>
+                        <Text style={styles.suggestionLabel}>{`${s.name}, ${s.state}`.toUpperCase()}</Text>
+                        <Text style={styles.suggestionIata}>{s.airports[0] ?? ''}</Text>
                       </Pressable>
                     ))}
                   </View>
@@ -213,6 +247,68 @@ export default function ProfileScreen() {
                   selectionColor={colors.accent}
                 />
                 <View style={styles.fieldLineRule} />
+              </View>
+            </View>
+
+            {/* ── Matching signals ──────────────────────────────────────── */}
+            <View style={styles.sectionDivider}>
+              <Text style={styles.sectionTitle}>MATCHING SIGNALS</Text>
+              <Text style={styles.sectionHint}>
+                Each field gives the algorithm one more reason to introduce you to someone specific.
+              </Text>
+            </View>
+
+            <View style={styles.fields}>
+              <View style={styles.fieldRow}>
+                <FieldLine label="COMPANY" value={profile.company} onChange={set('company')}
+                  placeholder="Acme Corp" autoCapitalize="words" maxLength={48} half />
+                <FieldLine label="SCHOOL" value={profile.school} onChange={set('school')}
+                  placeholder="MIT" autoCapitalize="words" maxLength={48} half />
+              </View>
+
+              <FieldLine label="HOMETOWN" value={profile.hometown} onChange={set('hometown')}
+                placeholder="Memphis, TN" autoCapitalize="words" maxLength={48} />
+            </View>
+
+            <View style={styles.pickerSection}>
+              <Text style={styles.fieldLabel}>CAREER STAGE</Text>
+              <View style={styles.chips}>
+                {CAREER_STAGES.map(cs => (
+                  <Pressable
+                    key={cs.key}
+                    onPress={() => { haptics.selection(); set('career_stage')(profile.career_stage === cs.key ? '' : cs.key) }}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      profile.career_stage === cs.key && styles.chipSelected,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Text style={[styles.chipText, profile.career_stage === cs.key && styles.chipTextSelected]}>
+                      {cs.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.pickerSection}>
+              <Text style={styles.fieldLabel}>TRAVEL STYLE</Text>
+              <View style={styles.chips}>
+                {TRAVEL_STYLES.map(ts => (
+                  <Pressable
+                    key={ts.key}
+                    onPress={() => { haptics.selection(); set('travel_style')(profile.travel_style === ts.key ? '' : ts.key) }}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      profile.travel_style === ts.key && styles.chipSelected,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Text style={[styles.chipText, profile.travel_style === ts.key && styles.chipTextSelected]}>
+                      {ts.label}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
             </View>
 
@@ -245,16 +341,8 @@ export default function ProfileScreen() {
 }
 
 function FieldLine({
-  label,
-  value,
-  onChange,
-  placeholder,
-  maxLength,
-  autoCapitalize,
-  keyboardType,
-  half = false,
-  onFocus,
-  onBlur,
+  label, value, onChange, placeholder, maxLength,
+  autoCapitalize, keyboardType, half = false, onFocus, onBlur,
 }: {
   label: string
   value: string
@@ -310,14 +398,19 @@ const styles = StyleSheet.create({
     color: colors.subtle,
     letterSpacing: 1.4,
   },
+  settingsLink: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.subtle,
+    letterSpacing: 1.4,
+  },
   eyebrow: { color: colors.subtle },
-  spacer: { width: 64 },
 
   headline: { color: colors.text, marginTop: 4 },
   subhead: { color: colors.subtle, marginTop: -2 },
   passWrap: { marginTop: 12 },
 
-  fields: { gap: 16, marginTop: 8 },
+  fields: { gap: 16 },
   fieldRow: { flexDirection: 'row', gap: 14 },
   field: { flex: 1 },
   fieldHalf: { flex: 1 },
@@ -370,6 +463,52 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.subtle,
     letterSpacing: 1.4,
+  },
+
+  sectionDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(10,10,10,0.12)',
+    paddingTop: 18,
+    gap: 6,
+  },
+  sectionTitle: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    letterSpacing: 2,
+    color: colors.subtle,
+  },
+  sectionHint: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 14,
+    color: colors.subtle,
+    lineHeight: 20,
+  },
+
+  pickerSection: { gap: 10 },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
+  },
+  chipSelected: {
+    borderColor: colors.text,
+    backgroundColor: colors.text,
+  },
+  chipText: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 1,
+    color: colors.text,
+  },
+  chipTextSelected: {
+    color: colors.bg,
   },
 
   saveBtn: {

@@ -61,23 +61,35 @@ export default function IntentScreen() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
-      const { error: sessionErr } = await supabase.from('sessions').insert({
-        user_id: session.user.id,
-        flight_id: params.flight_id,
-        origin_iata: params.origin_iata || null,
-        destination_iata: params.destination_iata || null,
-        departure_time: params.departure_time || null,
-        terminal: params.terminal || null,
-        gate: params.gate || null,
-        connection_intent: intent!,
-        travel_purpose: purpose ?? null,
-        event_id: eventId.trim() || null,
-        expires_at: params.departure_time
-          ? new Date(params.departure_time).toISOString()
-          : null,
-      })
+      // Select the inserted row so we can pass it directly to the edge function.
+      const { data: sessionRow, error: sessionErr } = await supabase
+        .from('sessions')
+        .insert({
+          user_id: session.user.id,
+          flight_id: params.flight_id,
+          origin_iata: params.origin_iata || null,
+          destination_iata: params.destination_iata || null,
+          departure_time: params.departure_time || null,
+          terminal: params.terminal || null,
+          gate: params.gate || null,
+          connection_intent: intent!,
+          travel_purpose: purpose ?? null,
+          event_id: eventId.trim() || null,
+          // Use the raw ISO string — not new Date().toISOString() — so the
+          // value stored as UTC matches what the edge function will compare against.
+          expires_at: params.departure_time || null,
+        })
+        .select('id, user_id, origin_iata, destination_iata, departure_time, terminal, connection_intent, travel_purpose, event_id')
+        .single()
 
       if (sessionErr) throw sessionErr
+
+      // Fire-and-forget: kick off matching immediately without blocking navigation.
+      // The edge function publishes the result to the user's Ably channel, and
+      // the home screen is already subscribed by the time navigation completes.
+      supabase.functions.invoke('match-sessions', { body: sessionRow }).catch(() => {
+        // Matching failure is non-fatal — the user can still wait at the gate.
+      })
 
       const departureDate = params.departure_time
         ? params.departure_time.split('T')[0]
@@ -85,11 +97,11 @@ export default function IntentScreen() {
 
       const ably = getAblyClient(session.user.id)
       const channel = ably.channels.get(flightChannelName(params.flight_iata, departureDate))
-      await channel.presence.enter({
+      channel.presence.enter({
         intent: intent!,
         travel_purpose: purpose ?? null,
         checked_in_at: new Date().toISOString(),
-      })
+      }).catch(() => {}) // presence is informational — don't block on it
 
       haptics.success()
       router.replace('/(app)/')

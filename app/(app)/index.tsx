@@ -163,7 +163,7 @@ export default function HomeScreen() {
           <Text style={[type.eyebrow, styles.eyebrow]}>{eyebrowLabel}</Text>
         </View>
         <Pressable
-          onPress={() => { haptics.buttonTap(); router.push('/(app)/settings') }}
+          onPress={() => { haptics.buttonTap(); router.push('/(app)/profile') }}
           hitSlop={14}
           style={({ pressed }) => [styles.passengerBadge, pressed && { opacity: 0.5 }]}
         >
