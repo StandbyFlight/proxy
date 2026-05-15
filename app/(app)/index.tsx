@@ -6,6 +6,7 @@ import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { supabase } from '../../lib/supabase'
 import { getAblyClient, userChannelName } from '../../lib/ably'
+import { takePendingSession } from '../../lib/pendingMatch'
 import { haptics } from '../../lib/haptics'
 import { ManifestBoard } from '../../components/ManifestBoard'
 import { InputFlipCell } from '../../components/InputFlipCell'
@@ -110,6 +111,12 @@ export default function HomeScreen() {
         setState('exhausted')
         setCuriosity(null)
       })
+
+      // Subscriptions are live — safe to fire matching now.
+      const pending = takePendingSession()
+      if (pending) {
+        supabase.functions.invoke('match-sessions', { body: pending }).catch(() => {})
+      }
     }
 
     subscribe()

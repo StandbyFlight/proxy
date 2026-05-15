@@ -10,6 +10,7 @@ import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
 import { getAblyClient, flightChannelName } from '../../lib/ably'
+import { setPendingSession } from '../../lib/pendingMatch'
 
 const INTENTS = [
   { key: 'professional', label: 'Professional', desc: 'Career-adjacent connections' },
@@ -84,12 +85,9 @@ export default function IntentScreen() {
 
       if (sessionErr) throw sessionErr
 
-      // Fire-and-forget: kick off matching immediately without blocking navigation.
-      // The edge function publishes the result to the user's Ably channel, and
-      // the home screen is already subscribed by the time navigation completes.
-      supabase.functions.invoke('match-sessions', { body: sessionRow }).catch(() => {
-        // Matching failure is non-fatal — the user can still wait at the gate.
-      })
+      // Store the session so the home screen fires match-sessions AFTER its
+      // Ably subscription is active — avoids dropping the pool.exhausted event.
+      setPendingSession(sessionRow)
 
       const departureDate = params.departure_time
         ? params.departure_time.split('T')[0]

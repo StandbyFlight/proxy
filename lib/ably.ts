@@ -30,8 +30,15 @@ export function getAblyClient(userId: string): Ably.Realtime {
           })
 
           if (error) {
-            // data may contain the error body even on non-2xx
-            console.error('Ably auth edge function error:', error.message, 'body:', JSON.stringify(data))
+            // Read the actual response body from the FunctionsHttpError context
+            let errorBody: unknown = data
+            const ctx = (error as unknown as { context?: Response }).context
+            if (ctx instanceof Response) {
+              try { errorBody = await ctx.clone().json() } catch (_) {
+                try { errorBody = await ctx.clone().text() } catch (_) {}
+              }
+            }
+            console.error('Ably auth edge function error:', error.message, 'body:', JSON.stringify(errorBody))
             throw error
           }
 
