@@ -42,7 +42,7 @@ export default function PostMeetupScreen() {
       <View style={styles.inner}>
         <Text style={styles.eyebrow}>After</Text>
         <Text style={styles.headline}>Did you{'\n'}meet up?</Text>
-        <Text style={styles.subhead}>Just between us — this helps us improve.</Text>
+        <Text style={styles.subhead}>Just between us, this helps us improve.</Text>
 
         <View style={styles.actions}>
           <Pressable

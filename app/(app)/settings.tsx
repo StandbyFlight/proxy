@@ -25,7 +25,11 @@ export default function Settings() {
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
       <View style={styles.topRow}>
         <Pressable
-          onPress={() => { haptics.buttonTap(); router.back() }}
+          onPress={() => {
+            haptics.buttonTap()
+            if (router.canGoBack()) router.back()
+            else router.replace('/(app)/')
+          }}
           hitSlop={14}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
         >

@@ -152,7 +152,11 @@ export default function ProfileScreen() {
         {/* Top chrome */}
         <View style={styles.topRow}>
           <Pressable
-            onPress={() => { haptics.buttonTap(); router.back() }}
+            onPress={() => {
+              haptics.buttonTap()
+              if (router.canGoBack()) router.back()
+              else router.replace('/(app)/')
+            }}
             hitSlop={14}
             style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
           >
@@ -177,7 +181,7 @@ export default function ProfileScreen() {
           <>
             <Text style={[type.headline, styles.headline]}>Your pass.</Text>
             <Text style={[type.subhead, styles.subhead]}>
-              Fill in over time — more signals means better matches.
+              Fill in over time: more signals means better matches.
             </Text>
 
             <View style={styles.passWrap}>

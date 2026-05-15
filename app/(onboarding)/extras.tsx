@@ -127,7 +127,6 @@ export default function Extras() {
       <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
         <View style={styles.topChrome}>
           <ProgressDashes step={4} total={4} />
-          <Text style={[type.eyebrow, styles.eyebrow]}></Text>
         </View>
 
         <View style={styles.scroll}>

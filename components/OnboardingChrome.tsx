@@ -50,7 +50,9 @@ export function OnboardingChrome({
       <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
         <View style={styles.topChrome}>
           <ProgressDashes step={step} total={total} />
-          <Text style={[type.eyebrow, styles.eyebrow]}>{eyebrow}</Text>
+          {eyebrow ? (
+            <Text style={[type.eyebrow, styles.eyebrow]}>{eyebrow}</Text>
+          ) : null}
         </View>
 
         <ScrollView
@@ -76,7 +78,12 @@ export function OnboardingChrome({
             <View style={styles.footerSpacer} />
           ) : (
             <Pressable
-              onPress={() => { haptics.buttonTap(); (onBack ?? (() => router.back()))() }}
+              onPress={() => {
+                haptics.buttonTap()
+                if (onBack) { onBack(); return }
+                if (router.canGoBack()) router.back()
+                else router.replace('/(onboarding)/name')
+              }}
               hitSlop={16}
               style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
             >

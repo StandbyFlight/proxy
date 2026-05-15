@@ -104,7 +104,10 @@ export default function DevScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.inner}>
-      <TouchableOpacity onPress={() => router.back()}>
+      <TouchableOpacity onPress={() => {
+        if (router.canGoBack()) router.back()
+        else router.replace('/(app)/settings')
+      }}>
         <Text style={styles.back}>Back</Text>
       </TouchableOpacity>
 

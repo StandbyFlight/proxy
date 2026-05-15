@@ -43,7 +43,7 @@ export default function Preview() {
 
   return (
     <OnboardingChrome
-      eyebrow="Manifest"
+      eyebrow=""
       step={4}
       total={4}
       title="You're on the board."

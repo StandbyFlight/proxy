@@ -3,24 +3,48 @@ import { supabase } from './supabase'
 
 let _client: Ably.Realtime | null = null
 
-// Uses server-issued short-lived tokens so the root API key is never shipped
-// in the app bundle. The ably-auth edge function scopes the token to only the
-// channels this user needs.
 export function getAblyClient(userId: string): Ably.Realtime {
   if (!_client) {
     _client = new Ably.Realtime({
+      clientId: userId,
+
       authCallback: async (_tokenParams, callback) => {
         try {
-          const { data, error } = await supabase.functions.invoke('ably-auth')
-          if (error) throw error
-          callback(null, data)
+          const {
+            data: { session },
+            error: sessionError,
+          } = await supabase.auth.getSession()
+
+          if (sessionError) {
+            throw sessionError
+          }
+
+          if (!session?.access_token) {
+            throw new Error('No Supabase session available for Ably auth')
+          }
+
+          const { data, error } = await supabase.functions.invoke('ably-auth', {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          })
+
+          if (error) {
+            throw error
+          }
+
+          callback(null, data as Ably.TokenDetails)
         } catch (e) {
-          callback(e instanceof Error ? e.message : String(e), null as unknown as Ably.TokenDetails)
+          console.error('Ably auth failed:', e)
+          callback(
+            e instanceof Error ? e.message : String(e),
+            null as unknown as Ably.TokenDetails
+          )
         }
       },
-      clientId: userId,
     })
   }
+
   return _client
 }
 

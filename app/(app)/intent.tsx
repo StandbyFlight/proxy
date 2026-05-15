@@ -120,7 +120,11 @@ export default function IntentScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Pressable
-          onPress={() => { haptics.buttonTap(); router.back() }}
+          onPress={() => {
+            haptics.buttonTap()
+            if (router.canGoBack()) router.back()
+            else router.replace('/(app)/flight')
+          }}
           hitSlop={12}
           style={styles.back}
         >

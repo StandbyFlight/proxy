@@ -18,10 +18,13 @@ function buildDepartureISO(date: string, time: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null
   const match = time.match(/^(\d{1,2}):(\d{2})$/)
   if (!match) return null
+  const [y, mo, d] = date.split('-').map(Number)
   const h = parseInt(match[1], 10)
   const m = parseInt(match[2], 10)
   if (h > 23 || m > 59) return null
-  return `${date}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`
+  // Interpret the wall time as the device's local time and convert to UTC so
+  // Postgres timestamptz comparisons line up with the user's "now".
+  return new Date(y, mo - 1, d, h, m, 0).toISOString()
 }
 
 function formatPassDate(iso: string): string | null {
@@ -174,7 +177,11 @@ export default function FlightScreen() {
         {/* Top chrome */}
         <View style={styles.topRow}>
           <Pressable
-            onPress={() => { haptics.buttonTap(); router.back() }}
+            onPress={() => {
+              haptics.buttonTap()
+              if (router.canGoBack()) router.back()
+              else router.replace('/(app)/')
+            }}
             hitSlop={14}
             style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
           >
