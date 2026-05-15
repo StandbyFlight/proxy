@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   View, Text, TextInput, Pressable, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions, ScrollView,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -70,10 +70,16 @@ export default function Extras() {
   function handleRowPress(key: RowKey) {
     const row = ROWS.find(r => r.key === key)!
     if (row.comingSoon) {
+      if (states[key] === 'coming_soon') return
       setStates(s => ({ ...s, [key]: 'connecting' }))
-      setNotes(n => ({ ...n, [key]: 'available soon — helps us match you on this signal' }))
-      setTimeout(() => {
+      setNotes(n => ({ ...n, [key]: '' }))
+      setTimeout(async () => {
         setStates(s => ({ ...s, [key]: 'coming_soon' }))
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          const col = `${key}_interest` as const
+          await supabase.from('users').update({ [col]: true }).eq('id', session.user.id)
+        }
       }, 350)
       return
     }
@@ -112,16 +118,15 @@ export default function Extras() {
     router.replace('/(app)/flight')
   }
 
-  function handleStoryTap(e: { nativeEvent: { pageX: number } }) {
+  function handleBackTap(e: { nativeEvent: { pageX: number } }) {
     if (e.nativeEvent.pageX < SCREEN_WIDTH * 0.4) {
       haptics.buttonTap()
       if (router.canGoBack()) router.back()
       else router.replace('/(onboarding)/preview')
-    } else {
-      haptics.buttonTap()
-      done()
     }
   }
+
+  const anyEngaged = Object.values(states).some(s => s !== 'idle')
 
   return (
     <KeyboardAvoidingView
@@ -129,12 +134,17 @@ export default function Extras() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-        {/* Header — story-tappable */}
-        <Pressable onPress={handleStoryTap} style={styles.topChrome} android_ripple={null}>
+        {/* Header — left-tap = back only; right side does nothing on this page */}
+        <Pressable onPress={handleBackTap} style={styles.topChrome} android_ripple={null}>
           <ProgressDashes step={4} total={4} />
         </Pressable>
 
-        <View style={styles.scroll}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={[type.headline, styles.title]}>
             A few more departures to log.
           </Text>
@@ -189,7 +199,7 @@ export default function Extras() {
               </View>
             ))}
           </View>
-        </View>
+        </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
           <Pressable
@@ -209,7 +219,9 @@ export default function Extras() {
             onPress={done}
             style={({ pressed }) => [styles.doneBtn, pressed && { opacity: 0.85 }]}
           >
-            <Text style={styles.doneBtnText}>SKIP FOR NOW</Text>
+            <Text style={styles.doneBtnText}>
+              {anyEngaged ? 'TO YOUR FLIGHT' : 'SKIP FOR NOW'}
+            </Text>
             <Text style={styles.triangleFwd}>{'▶'}</Text>
           </Pressable>
         </View>
@@ -223,6 +235,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
   topChrome: { marginBottom: 24 },
   scroll: { flex: 1 },
+  scrollContent: { paddingBottom: 24 },
   title: { color: colors.text },
   subtitle: { color: colors.subtle, marginTop: 10 },
   list: { marginTop: 28 },
@@ -266,8 +279,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(10,10,10,0.08)',
   },
   backBtn: {
     flexDirection: 'row',
