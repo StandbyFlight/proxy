@@ -30,6 +30,8 @@ export function getAblyClient(userId: string): Ably.Realtime {
           })
 
           if (error) {
+            // data may contain the error body even on non-2xx
+            console.error('Ably auth edge function error:', error.message, 'body:', JSON.stringify(data))
             throw error
           }
 
