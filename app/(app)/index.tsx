@@ -26,6 +26,7 @@ export default function HomeScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const channelRef = useRef<Ably.RealtimeChannel | null>(null)
+  const declinedMatchIds = useRef(new Set<string>())
 
   const [firstName, setFirstName] = useState('')
   const [iata, setIata] = useState('···')
@@ -149,6 +150,7 @@ export default function HomeScreen() {
           flight_iata?: string
           origin_iata?: string
         }
+        if (declinedMatchIds.current.has(data.match_id)) return
         setCuriosity({
           match_id: data.match_id,
           winning_signal: data.winning_signal,
@@ -199,14 +201,16 @@ export default function HomeScreen() {
   async function dismissCuriosity() {
     if (!curiosity) return
     haptics.selection()
+    const matchId = curiosity.match_id
+    declinedMatchIds.current.add(matchId)
+    setCuriosity(null)
+    setState('searching')
     try {
       await supabase
         .from('matches')
         .update({ status: 'declined' })
-        .eq('id', curiosity.match_id)
+        .eq('id', matchId)
     } catch (_) {}
-    setCuriosity(null)
-    setState('searching')
   }
 
   function openMatch() {
