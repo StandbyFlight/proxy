@@ -25,6 +25,8 @@ const COL_GAP = 14
 const STAGGER_MS = 90
 const COLUMN_DELAY = 350
 
+const FLIGHT_SLOTS = 6
+const FLIGHT_START = 0   // flight column settles first, before name
 const NAME_START = 500
 const STATUS_PAD = 250
 
@@ -68,7 +70,7 @@ export function ManifestBoard({
       <View style={styles.board}>
         {/* Column headers */}
         <View style={[styles.row, { marginBottom: 8 }]}>
-          <View style={styles.flightCol}>
+          <View style={{ width: colWidth(FLIGHT_SLOTS) }}>
             <Text style={styles.colLabel}>FLIGHT</Text>
           </View>
           <View style={styles.colSep} />
@@ -83,12 +85,25 @@ export function ManifestBoard({
 
         {/* Your row */}
         <View style={styles.row}>
-          <View style={[styles.flightCol, styles.rowAlign]}>
-            {flightIata ? (
-              <Text style={styles.flightCode}>{flightIata.toUpperCase().slice(0, 6)}</Text>
-            ) : (
-              <Text style={styles.flightDashes}>─ ─ ─ ─</Text>
-            )}
+          {/* FLIGHT — FlipCells when we have a flight, dim dots otherwise */}
+          <View style={[styles.cellsRow, { width: colWidth(FLIGHT_SLOTS) }]}>
+            {flightIata
+              ? flightIata.toUpperCase().padEnd(FLIGHT_SLOTS, ' ').slice(0, FLIGHT_SLOTS).split('').map((c, i) =>
+                  c === ' ' ? (
+                    <View key={`f-${i}`} style={{ width: Math.round(CELL * 0.69), height: CELL, backgroundColor: colors.board }}>
+                      <Text style={styles.dimGlyph}>·</Text>
+                    </View>
+                  ) : (
+                    <FlipCell
+                      key={`f-${i}`}
+                      targetChar={c}
+                      stopAfter={isStatic ? 0 : FLIGHT_START + i * STAGGER_MS}
+                      cellSize={CELL}
+                    />
+                  )
+                )
+              : <Text style={styles.flightDashes}>─ ─ ─ ─</Text>
+            }
           </View>
           <View style={styles.colSep} />
 
@@ -183,14 +198,22 @@ function StrangerRow({
     ]).start()
   }, [])
 
-  const flight = flightIata.toUpperCase().padEnd(6, ' ').slice(0, 6)
+  const flightPadded = flightIata.toUpperCase().padEnd(FLIGHT_SLOTS, ' ').slice(0, FLIGHT_SLOTS)
   const origin = originIata.toUpperCase().padEnd(ORIGIN_SLOTS, ' ').slice(0, ORIGIN_SLOTS)
   const passengerPlaceholder = '─'.repeat(nameSlots)
 
   return (
     <Animated.View style={[styles.row, styles.strangerRow, { opacity, transform: [{ translateY }] }]}>
-      <View style={[styles.flightCol, styles.rowAlign]}>
-        <Text style={styles.flightCode}>{flight.trim()}</Text>
+      <View style={[styles.cellsRow, { width: colWidth(FLIGHT_SLOTS) }]}>
+        {flightPadded.split('').map((c, i) =>
+          c === ' ' ? (
+            <View key={`sf-${i}`} style={{ width: Math.round(CELL * 0.69), height: CELL, backgroundColor: colors.board }}>
+              <Text style={styles.dimGlyph}>·</Text>
+            </View>
+          ) : (
+            <FlipCell key={`sf-${i}`} targetChar={c} stopAfter={120 + i * STAGGER_MS} cellSize={CELL} />
+          )
+        )}
       </View>
       <View style={styles.colSep} />
 
