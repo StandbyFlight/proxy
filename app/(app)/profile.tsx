@@ -89,7 +89,7 @@ export default function ProfileScreen() {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session || cancelled) return
-      const { data } = await supabase
+      const { data, error: userErr } = await supabase
         .from('users')
         .select(`
           first_name, age, base_city, current_thinking,
@@ -100,6 +100,8 @@ export default function ProfileScreen() {
         `)
         .eq('id', session.user.id)
         .maybeSingle()
+      console.log('[profile] users query', { id: session.user.id, data, error: userErr })
+      if (userErr) console.error('[profile] users query error:', userErr)
       if (cancelled || !data) { setLoading(false); return }
 
       const next: Profile = {
@@ -127,15 +129,18 @@ export default function ProfileScreen() {
       setTravelMotivations(motivations)
       setInitialMotivations(motivations)
 
-      const { data: activeSession } = await supabase
+      const nowIso = new Date().toISOString()
+      const { data: activeSession, error: sessErr } = await supabase
         .from('sessions')
-        .select('origin_iata, destination_iata, departure_time, gate, terminal, flights(flight_iata)')
+        .select('id, status, expires_at, origin_iata, destination_iata, departure_time, gate, terminal, flights(flight_iata)')
         .eq('user_id', session.user.id)
         .eq('status', 'active')
-        .gt('expires_at', new Date().toISOString())
+        .gt('expires_at', nowIso)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
+      console.log('[profile] sessions query', { user_id: session.user.id, nowIso, data: activeSession, error: sessErr })
+      if (sessErr) console.error('[profile] sessions query error:', sessErr)
       if (!cancelled && activeSession) {
         const fl = activeSession.flights as { flight_iata: string } | { flight_iata: string }[] | null
         const fIata = Array.isArray(fl) ? fl[0]?.flight_iata : fl?.flight_iata
