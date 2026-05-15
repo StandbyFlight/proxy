@@ -10,13 +10,16 @@ export function getAblyClient(userId: string): Ably.Realtime {
 
       authCallback: async (_tokenParams, callback) => {
         try {
-          const {
-            data: { session },
-            error: sessionError,
-          } = await supabase.auth.getSession()
+          let { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-          if (sessionError) {
-            throw sessionError
+          if (sessionError) throw sessionError
+
+          // Session may be null if AsyncStorage hasn't finished loading or the
+          // token expired — try a refresh before giving up.
+          if (!session?.access_token) {
+            const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession()
+            if (refreshErr) throw refreshErr
+            session = refreshed.session
           }
 
           if (!session?.access_token) {

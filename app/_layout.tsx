@@ -11,6 +11,7 @@ import {
   Fraunces_600SemiBold,
 } from '@expo-google-fonts/fraunces'
 import { supabase } from '../lib/supabase'
+import { disconnectAbly } from '../lib/ably'
 import { colors } from '../lib/theme'
 
 SplashScreen.preventAutoHideAsync()
@@ -47,6 +48,7 @@ export default function RootLayout() {
         return
       }
       if (event === 'SIGNED_OUT') {
+        disconnectAbly()
         router.replace('/')
       }
     })
