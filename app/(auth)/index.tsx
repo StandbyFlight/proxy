@@ -83,7 +83,7 @@ export default function LoginScreen() {
   if (step === 'phone') {
     return (
       <OnboardingChrome
-        eyebrow="Check-in · 01 / 02"
+        eyebrow=""
         step={1}
         total={2}
         title="What's your number?"
@@ -117,7 +117,7 @@ export default function LoginScreen() {
 
   return (
     <OnboardingChrome
-      eyebrow="Check-in · 02 / 02"
+      eyebrow=""
       step={2}
       total={2}
       title="Enter the code."
