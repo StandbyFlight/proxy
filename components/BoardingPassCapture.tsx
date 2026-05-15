@@ -153,7 +153,7 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
     <View style={styles.center}>
       <Text style={styles.eyebrow}></Text>
       <Text style={styles.headline}>Add your{'\n'}boarding pass.</Text>
-      <Text style={styles.subhead}>Take a photo or upload one you already have.</Text>
+      <Text style={styles.subhead}>Take a photo or upload a screenshot of one you already have.</Text>
 
       <View style={styles.btnGroup}>
         <Pressable

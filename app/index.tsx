@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
+import { View, Text, StyleSheet, Animated } from 'react-native'
 import { useRouter } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { FlipBoard } from '../components/FlipBoard'
-import { HEADER_CELL_SIZE, HEADER_PADDING_X, HEADER_PADDING_TOP } from '../components/SectionHeader'
 import { supabase } from '../lib/supabase'
 import { colors } from '../lib/theme'
 import { fonts } from '../lib/typography'
@@ -14,7 +12,7 @@ const INITIAL_FLIP_MS = 2000
 const STAGGER_MS = 200
 const SETTLE_MS = INITIAL_FLIP_MS + (LABEL.length - 1) * STAGGER_MS + 200
 const BEAT_MS = 600
-const MORPH_MS = 700
+const MORPH_MS = 400
 
 // Splash tagline — shown only to signed-out users. Mono, not flip cells, so
 // STANDBY stays the singular flip-board moment on this screen. Two lines so
@@ -38,12 +36,6 @@ type Phase = 'standby' | 'tagline' | 'morph'
 
 export default function Loading() {
   const router = useRouter()
-  const insets = useSafeAreaInsets()
-
-  const wrapRef = useRef<View>(null)
-  const translateX = useRef(new Animated.Value(0)).current
-  const translateY = useRef(new Animated.Value(0)).current
-  const scale = useRef(new Animated.Value(1)).current
   const fade = useRef(new Animated.Value(1)).current
   const taglineOpacity = useRef(new Animated.Value(0)).current
 
@@ -119,60 +111,21 @@ export default function Loading() {
     })
   }, [phase])
 
-  // Morph animation for signed-in users.
+  // Fade out and navigate for signed-in users.
   useEffect(() => {
     if (phase !== 'morph' || !destination) return
-    const node = wrapRef.current
-    if (!node) {
+    Animated.timing(fade, {
+      toValue: 0,
+      duration: MORPH_MS,
+      useNativeDriver: true,
+    }).start(() => {
       router.replace(destination.path as any)
-      return
-    }
-    node.measure((_x, _y, w, h, pageX, pageY) => {
-      const SCALE_TO = HEADER_CELL_SIZE / BIG_CELL
-      const targetTopLeftX = HEADER_PADDING_X
-      const targetTopLeftY = insets.top + HEADER_PADDING_TOP
-      const currentCenterX = pageX + w / 2
-      const currentCenterY = pageY + h / 2
-      const scaledW = w * SCALE_TO
-      const scaledH = h * SCALE_TO
-      const targetCenterX = targetTopLeftX + scaledW / 2
-      const targetCenterY = targetTopLeftY + scaledH / 2
-      const tx = targetCenterX - currentCenterX
-      const ty = targetCenterY - currentCenterY
-
-      Animated.parallel([
-        Animated.timing(translateX, {
-          toValue: tx, duration: MORPH_MS,
-          easing: Easing.inOut(Easing.cubic), useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: ty, duration: MORPH_MS,
-          easing: Easing.inOut(Easing.cubic), useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: SCALE_TO, duration: MORPH_MS,
-          easing: Easing.inOut(Easing.cubic), useNativeDriver: true,
-        }),
-      ]).start(() => {
-        Animated.timing(fade, {
-          toValue: 0, duration: 120, useNativeDriver: true,
-        }).start(() => {
-          router.replace(destination.path as any)
-        })
-      })
     })
   }, [phase])
 
   return (
     <View style={styles.container}>
-      <Animated.View
-        ref={wrapRef}
-        collapsable={false}
-        style={[
-          styles.wrap,
-          { opacity: fade, transform: [{ translateX }, { translateY }, { scale }] },
-        ]}
-      >
+      <Animated.View style={[styles.wrap, { opacity: fade }]}>
         <FlipBoard
           label={LABEL}
           cellSize={BIG_CELL}
