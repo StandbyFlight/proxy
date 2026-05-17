@@ -497,6 +497,31 @@ export default function ProfileScreen() {
                 )
               }
             </Pressable>
+
+            <View style={styles.moreSection}>
+              <Text style={styles.sectionTitle}>MORE</Text>
+              <Pressable
+                onPress={() => { haptics.selection(); router.push('/(app)/profile/integrations') }}
+                style={({ pressed }) => [styles.moreLink, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={styles.moreLinkLabel}>INTEGRATIONS</Text>
+                <Text style={styles.moreLinkChevron}>{'▸'}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { haptics.selection(); router.push('/(app)/profile/history') }}
+                style={({ pressed }) => [styles.moreLink, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={styles.moreLinkLabel}>SESSION HISTORY</Text>
+                <Text style={styles.moreLinkChevron}>{'▸'}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { haptics.selection(); router.push('/(app)/settings') }}
+                style={({ pressed }) => [styles.moreLink, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={styles.moreLinkLabel}>SETTINGS</Text>
+                <Text style={styles.moreLinkChevron}>{'▸'}</Text>
+              </Pressable>
+            </View>
           </>
         )}
       </ScrollView>
@@ -731,5 +756,32 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serifItalic,
     fontSize: 14,
     color: colors.error,
+  },
+
+  moreSection: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(10,10,10,0.12)',
+    paddingTop: 18,
+    gap: 0,
+    marginTop: 14,
+  },
+  moreLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(10,10,10,0.08)',
+  },
+  moreLinkLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.text,
+    letterSpacing: 1.4,
+  },
+  moreLinkChevron: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.subtle,
   },
 })
