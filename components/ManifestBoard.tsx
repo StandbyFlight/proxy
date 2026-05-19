@@ -22,6 +22,7 @@ const CELL_GAP = 2
 const NAME_MIN_SLOTS = 6
 const ORIGIN_SLOTS = 3
 const COL_GAP = 14
+const ROW_WRAP_GAP = 10
 const STAGGER_MS = 90
 const COLUMN_DELAY = 350
 
@@ -52,6 +53,7 @@ export function ManifestBoard({
   const nameUpper = firstName.toUpperCase()
   const nameSlots = Math.max(NAME_MIN_SLOTS, nameUpper.length)
   const namePadded = nameUpper.padEnd(nameSlots, ' ').slice(0, nameSlots)
+  const passengerColWidth = colWidth(nameSlots)
   const iataPadded = iata.toUpperCase().padEnd(ORIGIN_SLOTS, ' ').slice(0, ORIGIN_SLOTS)
 
   // Origin cells start settling after the last name cell does, plus a beat.
@@ -70,22 +72,23 @@ export function ManifestBoard({
   return (
     <View>
       <View style={styles.board}>
-        {/* Column headers */}
+        {/* Column headers — wrap as units, mirrors the data row below so the
+            FLIGHT label sits above its cells even after wrap. */}
         <View style={[styles.row, { marginBottom: 8 }]}>
           <View style={{ width: flightColWidth }}>
             <Text style={styles.colLabel}>FLIGHT</Text>
           </View>
-          <View style={styles.colSep} />
-          <View style={{ width: colWidth(nameSlots) }}>
+          <View style={{ width: passengerColWidth }}>
             <Text style={styles.colLabel}>PASSENGER</Text>
           </View>
-          <View style={styles.colSep} />
           <View style={{ width: colWidth(ORIGIN_SLOTS) }}>
             <Text style={styles.colLabel}>ORIGIN</Text>
           </View>
         </View>
 
-        {/* Your row */}
+        {/* Your row — FLIGHT / PASSENGER / ORIGIN as flex children of a
+            wrapping row. When the trio overflows the board, the right-most
+            column drops to a new line starting at the left edge. */}
         <View style={styles.row}>
           {/* FLIGHT — full-size cells packed tight so the code reads as one block */}
           <View style={[styles.cellsRow, { width: flightColWidth, gap: FLIGHT_CELL_GAP }]}>
@@ -107,10 +110,9 @@ export function ManifestBoard({
               : <Text style={styles.flightDashes}>─ ─ ─</Text>
             }
           </View>
-          <View style={styles.colSep} />
 
           {/* PASSENGER */}
-          <View style={[styles.cellsRow, { width: colWidth(nameSlots) }]}>
+          <View style={[styles.cellsRow, { width: passengerColWidth }]}>
             {namePadded.split('').map((c, i) =>
               c === ' ' ? (
                 <View key={`n-${i}`} style={{ width: Math.round(CELL * 0.69), height: CELL, backgroundColor: colors.board }}>
@@ -126,7 +128,6 @@ export function ManifestBoard({
               )
             )}
           </View>
-          <View style={styles.colSep} />
 
           {/* ORIGIN */}
           <View style={[styles.cellsRow, { width: colWidth(ORIGIN_SLOTS) }]}>
@@ -155,7 +156,8 @@ export function ManifestBoard({
           <StrangerRow
             flightIata={stranger.flightIata}
             originIata={stranger.originIata}
-            nameSlots={nameSlots}
+            passengerColWidth={passengerColWidth}
+            passengerSlots={nameSlots}
           />
         ) : null}
       </View>
@@ -175,11 +177,13 @@ export function ManifestBoard({
 function StrangerRow({
   flightIata,
   originIata,
-  nameSlots,
+  passengerColWidth,
+  passengerSlots,
 }: {
   flightIata: string
   originIata: string
-  nameSlots: number
+  passengerColWidth: number
+  passengerSlots: number
 }) {
   const translateY = useRef(new Animated.Value(8)).current
   const opacity = useRef(new Animated.Value(0)).current
@@ -202,7 +206,9 @@ function StrangerRow({
 
   const flightPadded = flightIata.toUpperCase().padEnd(FLIGHT_SLOTS, ' ').slice(0, FLIGHT_SLOTS)
   const origin = originIata.toUpperCase().padEnd(ORIGIN_SLOTS, ' ').slice(0, ORIGIN_SLOTS)
-  const passengerPlaceholder = '─'.repeat(nameSlots)
+  // Match the visual width of the live passenger column — never the raw name
+  // length, since that would re-introduce the right-edge overflow.
+  const passengerPlaceholder = '─'.repeat(passengerSlots)
 
   return (
     <Animated.View style={[styles.row, styles.strangerRow, { opacity, transform: [{ translateY }] }]}>
@@ -217,12 +223,10 @@ function StrangerRow({
           )
         )}
       </View>
-      <View style={styles.colSep} />
 
-      <View style={[styles.cellsRow, { width: colWidth(nameSlots) }]}>
+      <View style={[styles.cellsRow, { width: passengerColWidth }]}>
         <Text style={styles.passengerPlaceholder}>{passengerPlaceholder}</Text>
       </View>
-      <View style={styles.colSep} />
 
       <View style={[styles.cellsRow, { width: colWidth(ORIGIN_SLOTS) }]}>
         {origin.split('').map((c, i) =>
@@ -307,10 +311,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     alignSelf: 'flex-start',
     borderRadius: 4,
+    // Hard right boundary — the board cannot grow past its parent's content
+    // width, regardless of what's inside. Combined with flexWrap on the row,
+    // any column that doesn't fit drops to a new line starting at the left.
+    maxWidth: '100%',
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    // Top-align so a wrapped second line of columns hangs below cleanly.
+    alignItems: 'flex-start',
+    columnGap: COL_GAP,
+    rowGap: ROW_WRAP_GAP,
   },
   rowAlign: { height: CELL, justifyContent: 'center' },
   colSep: { width: COL_GAP },
