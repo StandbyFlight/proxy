@@ -112,7 +112,7 @@ export default function DevScreen() {
       </TouchableOpacity>
 
       <View style={styles.badge}>
-        <Text style={styles.badgeText}>DEV ONLY — remove before launch</Text>
+        <Text style={styles.badgeText}>DEV ONLY · remove before launch</Text>
       </View>
 
       <Text style={styles.heading}>Account</Text>
@@ -120,9 +120,9 @@ export default function DevScreen() {
       <View style={styles.card}>
         {userInfo ? (
           <>
-            <Row label="Name" value={userInfo.first_name ?? '—'} />
-            <Row label="City" value={userInfo.base_city ?? '—'} />
-            <Row label="Phone" value={userInfo.phone ?? '—'} />
+            <Row label="Name" value={userInfo.first_name ?? '-'} />
+            <Row label="City" value={userInfo.base_city ?? '-'} />
+            <Row label="Phone" value={userInfo.phone ?? '-'} />
             <Row label="Trust score" value={String(userInfo.trust_score)} />
             <Row label="User ID" value={userInfo.id.slice(0, 16) + '...'} />
           </>

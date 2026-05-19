@@ -131,7 +131,9 @@ export default function IntentScreen() {
       }).catch(() => {}) // presence is informational — don't block on it
 
       haptics.success()
-      router.replace('/(app)/')
+      // Land directly on the searching screen — it owns the matcher trigger
+      // and the Ably subscriptions. Home no longer absorbs that role.
+      router.replace('/(app)/match/searching')
     } catch (err: any) {
       haptics.error()
       setError(err.message ?? 'Something went wrong. Try again.')

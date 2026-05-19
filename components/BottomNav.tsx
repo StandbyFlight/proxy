@@ -14,7 +14,6 @@ type TabKey = 'home' | 'session' | 'match' | 'events' | 'profile'
 type Tab = {
   key: TabKey
   label: string
-  href: string
   // A pathname prefix that means "this tab is active". Tap deep-links inside
   // a tab keep the right one highlighted (e.g. /(app)/session/location lights
   // up Session).
@@ -22,19 +21,47 @@ type Tab = {
 }
 
 const TABS: Tab[] = [
-  { key: 'home',    label: 'HOME',    href: '/(app)/',                matchPrefix: '/(app)' },
-  { key: 'session', label: 'SESSION', href: '/(app)/flight',          matchPrefix: '/(app)/session' },
-  { key: 'match',   label: 'MATCH',   href: '/(app)/match/searching', matchPrefix: '/(app)/match' },
-  { key: 'events',  label: 'EVENTS',  href: '/(app)/events',          matchPrefix: '/(app)/events' },
-  { key: 'profile', label: 'PROFILE', href: '/(app)/profile',         matchPrefix: '/(app)/profile' },
+  { key: 'home',    label: 'HOME',    matchPrefix: '/(app)' },
+  { key: 'session', label: 'SESSION', matchPrefix: '/(app)/session' },
+  { key: 'match',   label: 'MATCH',   matchPrefix: '/(app)/match' },
+  { key: 'events',  label: 'EVENTS',  matchPrefix: '/(app)/events' },
+  { key: 'profile', label: 'PROFILE', matchPrefix: '/(app)/profile' },
 ]
 
 type Badges = Partial<Record<TabKey, number | 'dot'>>
 
-export function BottomNav({ badges }: { badges?: Badges }) {
+type NavState = {
+  hasActiveSession: boolean
+  activeMatchId: string | null
+}
+
+// Smart-routing: Session and Match converge once a session exists, because
+// "manage my session" and "look at my match" are the same activity at that
+// point. With no session, Session is the entry to flight setup and Match
+// hands the user off to start one.
+function hrefForTab(tab: TabKey, state: NavState): string {
+  if (tab === 'home')    return '/(app)/'
+  if (tab === 'events')  return '/(app)/events'
+  if (tab === 'profile') return '/(app)/profile'
+  if (tab === 'session') return state.hasActiveSession ? '/(app)/match/searching' : '/(app)/flight'
+  if (tab === 'match') {
+    if (state.activeMatchId) return `/(app)/match/room?match_id=${state.activeMatchId}`
+    return '/(app)/match/searching'
+  }
+  return '/(app)/'
+}
+
+export function BottomNav({
+  badges,
+  navState,
+}: {
+  badges?: Badges
+  navState?: NavState
+}) {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const pathname = usePathname()
+  const state: NavState = navState ?? { hasActiveSession: false, activeMatchId: null }
 
   // Home tab is exclusively the root — anything deeper belongs to its sub-stack.
   function isActive(tab: Tab): boolean {
@@ -53,7 +80,7 @@ export function BottomNav({ badges }: { badges?: Badges }) {
 
   function go(tab: Tab) {
     haptics.selection()
-    router.push(tab.href as never)
+    router.push(hrefForTab(tab.key, state) as never)
   }
 
   return (

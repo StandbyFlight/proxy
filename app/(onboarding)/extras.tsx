@@ -146,7 +146,7 @@ export default function Extras() {
     if (row.comingSoon) {
       if (states[key] === 'coming_soon') return
       setStates(s => ({ ...s, [key]: 'connecting' }))
-      setNotes(n => ({ ...n, [key]: 'available soon — helps us match you on this signal' }))
+      setNotes(n => ({ ...n, [key]: 'available soon, helps us match you on this signal' }))
       setTimeout(async () => {
         setStates(s => ({ ...s, [key]: 'coming_soon' }))
         const { data: { session } } = await supabase.auth.getSession()

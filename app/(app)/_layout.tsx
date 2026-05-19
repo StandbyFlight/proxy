@@ -32,13 +32,16 @@ export default function AppLayout() {
     match?: number
     profile?: 'dot'
   }>({})
+  const [navState, setNavState] = useState<{
+    hasActiveSession: boolean
+    activeMatchId: string | null
+  }>({ hasActiveSession: false, activeMatchId: null })
 
-  // Re-query badge state whenever the route changes — cheap, and keeps the
-  // dot / count honest as the user moves through flows. Heavier real-time
-  // updates can be layered in later via Ably without restructuring this.
+  // Refresh badges + smart-route state on every route change. Light queries
+  // and worth it for the consistency: tab destinations always match reality.
   useFocusEffect(useCallback(() => {
     let cancelled = false
-    async function loadBadges() {
+    async function loadState() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session || cancelled) return
 
@@ -50,6 +53,7 @@ export default function AppLayout() {
           .eq('user_id', session.user.id)
           .eq('status', 'active')
           .gt('expires_at', nowIso)
+          .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
         supabase
@@ -60,13 +64,17 @@ export default function AppLayout() {
       ])
       if (cancelled) return
 
+      let activeMatchId: string | null = null
       let pendingMatchCount = 0
       if (activeSession?.id) {
-        const { count } = await supabase
+        const { data: matchRow, count } = await supabase
           .from('matches')
-          .select('id', { count: 'exact', head: true })
+          .select('id', { count: 'exact' })
           .or(`session_id_a.eq.${activeSession.id},session_id_b.eq.${activeSession.id}`)
-          .in('status', ['pending', 'pending_a', 'pending_b'])
+          .in('status', ['pending', 'pending_a', 'pending_b', 'mutual'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+        if (matchRow && matchRow.length > 0) activeMatchId = matchRow[0].id
         pendingMatchCount = count ?? 0
       }
       if (cancelled) return
@@ -84,8 +92,12 @@ export default function AppLayout() {
         match: pendingMatchCount > 0 ? pendingMatchCount : undefined,
         profile: profileComplete ? undefined : 'dot',
       })
+      setNavState({
+        hasActiveSession: !!activeSession,
+        activeMatchId,
+      })
     }
-    loadBadges()
+    loadState()
     return () => { cancelled = true }
   }, [pathname]))
 
@@ -96,7 +108,7 @@ export default function AppLayout() {
       <View style={styles.body}>
         <Slot />
       </View>
-      {hideNav ? null : <BottomNav badges={badges} />}
+      {hideNav ? null : <BottomNav badges={badges} navState={navState} />}
     </View>
   )
 }

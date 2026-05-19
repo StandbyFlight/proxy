@@ -261,7 +261,7 @@ export default function MatchScreen() {
       if (updateErr) {
         // Hard error (e.g. network, RLS) — show inline error, don't navigate away.
         console.error('[match] accept update error:', updateErr)
-        setRespondError('Could not accept — please try again.')
+        setRespondError('Could not accept. Please try again.')
         setActing(false)
         return
       }
@@ -288,7 +288,7 @@ export default function MatchScreen() {
           .from('matches').update({ status: 'mutual' }).eq('id', match.id)
         if (mutualErr) {
           console.error('[match] mutual update error:', mutualErr)
-          setRespondError('Could not confirm mutual match — please try again.')
+          setRespondError('Could not confirm mutual match. Please try again.')
           setActing(false)
           return
         }
@@ -297,7 +297,7 @@ export default function MatchScreen() {
       } else if (current?.status === 'pending') {
         // Update returned empty AND status is still pending → silent RLS/permission failure.
         console.error('[match] accept failed silently — status still pending (possible RLS issue)')
-        setRespondError('Could not accept — please try again.')
+        setRespondError('Could not accept. Please try again.')
         setActing(false)
       } else {
         // Match was declined or expired — go back without re-pushing.
@@ -306,7 +306,7 @@ export default function MatchScreen() {
       }
     } catch (err: any) {
       console.error('[match] respond threw:', err)
-      setRespondError(err.message ?? 'Something went wrong — please try again.')
+      setRespondError(err.message ?? 'Something went wrong. Please try again.')
       setActing(false)
     }
   }

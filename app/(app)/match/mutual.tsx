@@ -53,7 +53,7 @@ export default function MutualScreen() {
           : null
 
         setData({
-          theirFirstName: (theirUser as { first_name?: string } | null)?.first_name ?? '—',
+          theirFirstName: (theirUser as { first_name?: string } | null)?.first_name ?? '-',
           pointOfConnection: row.point_of_connection ?? 'You both said yes.',
           suggestedLocation: row.suggested_meetup_location ?? null,
         })

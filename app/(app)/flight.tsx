@@ -105,7 +105,7 @@ export default function FlightScreen() {
       if (fnErr) throw fnErr
       const rows: any[] = fnData?.data ?? []
       if (rows.length === 0) {
-        setLookupMsg('Flight not found — fill in manually.')
+        setLookupMsg('Flight not found. Fill in manually.')
         return
       }
       const f = rows[0]
@@ -138,12 +138,12 @@ export default function FlightScreen() {
         gate:           dep.gate     ?? prev.gate,
       }))
       const msg = safeDate
-        ? 'Filled from live data — confirm before continuing.'
-        : 'Date auto-fill skipped (API returned a past date) — verify the date is correct.'
+        ? 'Filled from live data. Confirm before continuing.'
+        : 'Date auto-fill skipped (API returned a past date). Verify the date is correct.'
       setLookupMsg(msg)
     } catch (err: any) {
       console.error('[flight] lookup error:', err)
-      setLookupMsg('Could not look up flight — fill in manually.')
+      setLookupMsg('Could not look up flight. Fill in manually.')
     } finally {
       setLookupLoading(false)
     }

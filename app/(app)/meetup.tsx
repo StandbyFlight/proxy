@@ -162,7 +162,7 @@ export default function MeetupScreen() {
   if (iWalk) {
     if (their.gate) {
       directive = `Head to Gate ${their.gate}.`
-      directiveSub = `Their flight leaves first — meet them there.`
+      directiveSub = `Their flight leaves first. Meet them there.`
     } else {
       directive = `Find ${their.firstName} at their gate.`
       directiveSub = `Their flight leaves first.`
@@ -170,7 +170,7 @@ export default function MeetupScreen() {
   } else {
     if (myGate) {
       directive = `${their.firstName} is coming to Gate ${myGate}.`
-      directiveSub = `Your flight leaves first — stay put.`
+      directiveSub = `Your flight leaves first. Stay put.`
     } else {
       directive = `${their.firstName} is coming to you.`
       directiveSub = `Your flight leaves first.`

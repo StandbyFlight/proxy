@@ -73,14 +73,14 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
       if (!res.ok) {
         const text = await res.text()
         console.error('[boarding-pass] edge function error', res.status, text)
-        throw new Error(`Server error ${res.status} — try again.`)
+        throw new Error(`Server error ${res.status}. Try again.`)
       }
 
       const data = await res.json()
       console.log('[boarding-pass] parsed result:', JSON.stringify(data))
 
       if (!data?.flight_number) {
-        throw new Error("Couldn't read the boarding pass — try a clearer, well-lit photo.")
+        throw new Error("Couldn't read the boarding pass. Try a clearer, well-lit photo.")
       }
 
       haptics.success()

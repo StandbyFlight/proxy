@@ -369,7 +369,7 @@ export default function ProfileScreen() {
             {/* ── About Me ──────────────────────────────────────────────── */}
             <SectionHeader
               title="ABOUT ME"
-              hint="Stable signals — set once, update rarely."
+              hint="Stable signals. Set once, update rarely."
             />
             <View style={styles.fields}>
               <FieldLine
@@ -409,7 +409,7 @@ export default function ProfileScreen() {
             {/* ── Travel ────────────────────────────────────────────────── */}
             <SectionHeader
               title="TRAVEL"
-              hint="How and why you travel — high signal for the matcher."
+              hint="How and why you travel. High signal for the matcher."
             />
 
             <View style={styles.pickerSection}>

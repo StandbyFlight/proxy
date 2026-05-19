@@ -91,7 +91,7 @@ export default function EventsIndex() {
         <View style={styles.placeholderBlock}>
           <Text style={styles.placeholderLabel}>HEADS UP</Text>
           <Text style={styles.placeholderBody}>
-            This list is hand-picked while the events backend ships. If your event isn't here, name it in the session flow — it still flags you as a match.
+            This list is hand-picked while the events backend ships. If your event isn't here, name it in the session flow. It still flags you as a match.
           </Text>
         </View>
       </ScrollView>

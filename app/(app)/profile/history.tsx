@@ -85,7 +85,7 @@ export default function History() {
 
         <Text style={[type.headline, styles.headline]}>Where you've been.</Text>
         <Text style={[type.subhead, styles.subhead]}>
-          Flights, not faces. The people you met aren't kept here — that's by design.
+          Flights, not faces. The people you met aren't kept here. That's by design.
         </Text>
 
         {rows === null ? (
@@ -104,11 +104,11 @@ export default function History() {
             </View>
             {rows.map(r => (
               <View key={r.id} style={styles.row}>
-                <Text style={[styles.cell, { flex: 1 }]}>{r.origin ?? '—'}</Text>
-                <Text style={[styles.cell, { flex: 1.4 }]}>{r.date ?? '—'}</Text>
-                <Text style={[styles.cell, { flex: 1.2 }]}>{r.flight ?? '—'}</Text>
+                <Text style={[styles.cell, { flex: 1 }]}>{r.origin ?? '-'}</Text>
+                <Text style={[styles.cell, { flex: 1.4 }]}>{r.date ?? '-'}</Text>
+                <Text style={[styles.cell, { flex: 1.2 }]}>{r.flight ?? '-'}</Text>
                 <Text style={[styles.cell, { flex: 1.3, textAlign: 'right' }]}>
-                  {r.intent ? (INTENT_LABEL[r.intent] ?? r.intent.toUpperCase()) : '—'}
+                  {r.intent ? (INTENT_LABEL[r.intent] ?? r.intent.toUpperCase()) : '-'}
                 </Text>
               </View>
             ))}

@@ -24,8 +24,8 @@ const QUESTIONS: Question[] = [
     key: 'ideal_seat',
     prompt: "What's your ideal seat?",
     options: [
-      { value: 'window',      label: 'Window — I want to look out and disappear into my own head.' },
-      { value: 'aisle',       label: 'Aisle — I like getting up and being in the flow of things.' },
+      { value: 'window',      label: 'Window. I want to look out and disappear into my own head.' },
+      { value: 'aisle',       label: 'Aisle. I like getting up and being in the flow of things.' },
       { value: 'middle_talk', label: 'Wherever I end up, as long as someone interesting is next to me.' },
     ],
   },
@@ -34,7 +34,7 @@ const QUESTIONS: Question[] = [
     prompt: 'A stranger sits down at your gate. What\'s your move?',
     options: [
       { value: 'wait_signal', label: 'Wait for them to make eye contact first.' },
-      { value: 'comment',     label: 'Say something about the delay, the gate, the city — anything light.' },
+      { value: 'comment',     label: 'Say something about the delay, the gate, the city. Anything light.' },
       { value: 'ask_about',   label: 'Ask where they\'re headed. People love being asked where they\'re going.' },
     ],
   },

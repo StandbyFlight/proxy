@@ -18,10 +18,10 @@ type Provider = {
 }
 
 const PROVIDERS: Provider[] = [
-  { key: 'spotify',    label: 'SPOTIFY',    tagline: 'Music taste — shows up when it matters.' },
+  { key: 'spotify',    label: 'SPOTIFY',    tagline: 'Music taste. Shows up when it matters.' },
   { key: 'goodreads',  label: 'GOODREADS',  tagline: 'What you read says a lot.' },
   { key: 'letterboxd', label: 'LETTERBOXD', tagline: 'Film taste, no judgement.' },
-  { key: 'beli',       label: 'BELI',       tagline: 'Restaurants you love — helps us suggest where to meet.' },
+  { key: 'beli',       label: 'BELI',       tagline: 'Restaurants you love. Helps us suggest where to meet.' },
   { key: 'linkedin',   label: 'LINKEDIN',   tagline: 'Headline only. We do not surface your job to strangers.' },
   { key: 'twitter',    label: 'TWITTER / X', tagline: 'Who you follow as a quiet interest signal.' },
 ]
@@ -59,7 +59,7 @@ export default function Integrations() {
 
         <Text style={[type.headline, styles.headline]}>Connect what's yours.</Text>
         <Text style={[type.subhead, styles.subhead]}>
-          Each connection sharpens the matcher. None of it is shown to other travelers — only the single point of connection it produces.
+          Each connection sharpens the matcher. None of it is shown to other travelers, only the single point of connection it produces.
         </Text>
 
         <View style={styles.list}>
@@ -70,7 +70,7 @@ export default function Integrations() {
               tagline={p.tagline}
               state={states[p.key] ?? 'idle'}
               onPress={() => tap(p.key)}
-              note={states[p.key] === 'coming_soon' ? 'Wiring this up — not live yet.' : undefined}
+              note={states[p.key] === 'coming_soon' ? 'Wiring this up. Not live yet.' : undefined}
             />
           ))}
         </View>

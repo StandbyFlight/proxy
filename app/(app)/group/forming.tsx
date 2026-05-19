@@ -74,7 +74,7 @@ export default function GroupForming() {
         <View style={styles.placeholderBlock}>
           <Text style={styles.placeholderLabel}>HEADS UP</Text>
           <Text style={styles.placeholderBody}>
-            Group mode is still being seated — solo matches are live. You'll get a push the moment your table fills.
+            Group mode is still being seated. Solo matches are live, and you'll get a push the moment your table fills.
           </Text>
         </View>
       </View>

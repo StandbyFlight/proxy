@@ -54,7 +54,7 @@ export default function GroupMutual() {
             <View key={name + idx} style={styles.seatRow}>
               <Text style={styles.seatName}>{name}</Text>
               <Text style={styles.seatStatus}>
-                {idx === 0 && confirmed ? 'CONFIRMED' : idx === 0 ? '—' : 'PENDING'}
+                {idx === 0 && confirmed ? 'CONFIRMED' : idx === 0 ? '-' : 'PENDING'}
               </Text>
             </View>
           ))}
