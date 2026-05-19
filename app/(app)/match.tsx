@@ -106,6 +106,7 @@ export default function MatchScreen() {
         (payload) => {
           const newStatus = (payload.new as { status: string }).status
           console.log('[match] realtime status update:', newStatus)
+          console.log('[match realtime]', { newStatus, match_id: match.id })
           if (newStatus === 'mutual') {
             haptics.standbyStamp()
             router.replace({ pathname: '/(app)/meetup', params: { match_id: match.id } })
@@ -205,6 +206,7 @@ export default function MatchScreen() {
 
   async function respond(interested: boolean) {
     if (!match || acting) return
+    console.log('[match respond]', { accept: interested, match_id: match.id, phase })
     setActing(true)
     setRespondError('')
 
