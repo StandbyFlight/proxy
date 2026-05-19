@@ -61,10 +61,12 @@ That openness goes to waste. Airports concentrate enormous latent richness — p
 
 ## 2. Core User Flow
 
+The primary flow is a solo 1:1 match. Event mode is an additional path available when a user is traveling to a specific event.
+
 ```
 Open app at airport
         ↓
-Create / log into profile (Apple, Google, or phone OTP)
+Create / log into profile (phone OTP; Apple / Google deferred)
         ↓
 Verify flight (boarding pass scan or manual flight number entry)
         ↓
@@ -74,36 +76,44 @@ Select connection intent:
 (If Professional or Social) → Select travel purpose:
   e.g. conference / work trip / solo travel / leisure / relocating
         ↓
-Signal availability ("I'm open to meeting someone")
+(If conference or event selected) → Attach event to session?
+  [ Find one person — solo match ]  [ Meet others going to this event — event mode ]
         ↓
-App matches you with one person
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SOLO MATCH (primary)         EVENT MODE (additional)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Signal availability          Enter event pool
+        ↓                            ↓
+App matches you         Two people matched → seed pair
+with one person         30-min join window opens
+        ↓                            ↓
+Point of connection     Others in event mode can
+revealed                join (see headcount + names,
+        ↓               get location on commit)
+Accept or decline                    ↓
+(max 3 declines)        Chat: 1:1 until 3+ join,
+        ↓               then group chat
+Mutual confirmation              ↓
+required                Seed pair sets meetup location
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        ↓                            ↓
+        ↓←———————————————————————————↓
         ↓
-App presents: "Here's your point of connection"
-  — same conference, overlapping interests, shared background, complementary travel context, etc.
-        ↓
-User accepts or declines (max 3 declines per airport session)
-        ↓
-If declined → new match surfaced (up to 3 total declines, then session is done)
-If accepted → awaits mutual confirmation from the other party
-        ↓
-On mutual match:
-  - First name revealed to both
+Meetup confirmed:
+  - First name(s) revealed
   - Suggested meet-up spot (terminal landmark or café — never the gate)
-  - Each user optionally inputs what they're wearing
-  - Temporary in-app message thread (logistics only, fallback)
-  - Suggested meeting time slots
-        ↓
-Both confirm a time slot → meetup created
+  - "What I'm wearing" input
+  - Temporary messaging thread (logistics fallback)
         ↓
 They meet
         ↓
 ~30 min after meetup time:
-  - Push to both: "Did you meet [first name]?"
-  - If both say yes → trust score increments + optional contact exchange
-  - If either says no → no penalty at MVP, just logged
+  - Push to both / all: "Did you meet?"
+  - If yes → trust score increments + optional contact exchange
+  - If no → no penalty at MVP, logged
         ↓
 After flight departure → connection expires
-  - Match record archived; messages purged
+  - Records archived; messages purged
   - No persistent profile visible to others
 ```
 
@@ -407,22 +417,38 @@ Per-airport pool channel:    airport:{origin_iata}:{departure_date_iso}:{hour_bu
 Per-match channel:           match:{match_id}
                              Used for messaging + state changes
                              (mutual confirm, meetup slot picks, etc.)
+
+Per-event pool channel:      event:{event_id}:{origin_iata}:{departure_date_iso}
+                             e.g. event:abc123:JFK:2025-07-25
+                             Used for event mode: presence in event pool, seed match formation,
+                             new member joins, location updates, 30-min window state
 ```
 
 ### 9.2 Presence
 
 ```
-User signals availability ("I'm open to meeting someone")
+Solo match — user signals availability:
   → subscribe to airport:{origin_iata}:{date}:{hour_bucket}
   → enter presence with payload:
       { user_id, session_id, checked_in_at, departure_time, terminal, intent, travel_purpose }
 
-Ably Reactor webhook fires on presence.enter
-  → POST to Edge Function: generate-next-match
-  → Function reads all presence members + active sessions in pool
-  → Runs scoring against current user
-  → Writes match record (status = pending_a)
-  → Pushes notification: "We found someone for you"
+  Ably Reactor webhook fires on presence.enter
+    → POST to Edge Function: generate-next-match
+    → Function reads all presence members + active sessions in pool
+    → Runs scoring against current user
+    → Writes match record (status = pending_a)
+    → Pushes notification: "We found someone for you"
+
+Event mode — user opts into event pool:
+  → subscribe to event:{event_id}:{origin_iata}:{date}
+  → enter presence with payload:
+      { user_id, session_id, event_id, departure_time, terminal }
+
+  On second user entering same event presence:
+    → POST to Edge Function: create-group
+    → Writes group record (status = forming, window_expires_at = now + 30 min)
+    → Notifies both users: seed match formed, navigate to meetup setup
+    → Window open event broadcast to remaining event pool members
 ```
 
 ### 9.3 Connection Handling (Poor Airport WiFi)
@@ -628,6 +654,7 @@ CREATE TABLE sessions (
   connection_intent     TEXT NOT NULL,                -- professional | social | open
   travel_purpose        TEXT,                         -- conference | work_trip | solo_travel | leisure | relocating | other
   travel_purpose_detail TEXT,                         -- e.g. conference name
+  event_id              UUID REFERENCES events(id),   -- set if user opted into event mode
   status                TEXT DEFAULT 'active',        -- active | matched | expired
   declines_remaining    INTEGER DEFAULT 3,
   created_at            TIMESTAMPTZ DEFAULT NOW(),
@@ -658,23 +685,65 @@ CREATE TABLE matches (
   expires_at            TIMESTAMPTZ
 );
 
--- Ephemeral messaging
+-- Events (conferences, hackathons, etc.)
+CREATE TABLE events (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                  TEXT NOT NULL,                -- "YC AI Startup School"
+  start_date            DATE,
+  end_date              DATE,
+  city                  TEXT,
+  primary_airport_iata  TEXT,                         -- closest airport for matching purposes
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Event mode groups
+CREATE TABLE groups (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id              UUID REFERENCES events(id),
+  origin_iata           TEXT,
+  seed_session_id_a     UUID REFERENCES sessions(id), -- original pair
+  seed_session_id_b     UUID REFERENCES sessions(id),
+  meetup_location       TEXT,                         -- set by seed pair, updatable by them only
+  status                TEXT DEFAULT 'forming',       -- forming | active | expired
+  window_expires_at     TIMESTAMPTZ,                  -- seed match confirmed_at + 30 min
+  created_at            TIMESTAMPTZ DEFAULT NOW(),
+  expires_at            TIMESTAMPTZ
+);
+
+-- Group members (seed pair + all who joined)
+CREATE TABLE group_members (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id              UUID REFERENCES groups(id) ON DELETE CASCADE,
+  session_id            UUID REFERENCES sessions(id),
+  joined_at             TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Ephemeral messaging (solo match and group)
 CREATE TABLE messages (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  match_id              UUID REFERENCES matches(id) ON DELETE CASCADE,
+  match_id              UUID REFERENCES matches(id) ON DELETE CASCADE,  -- set for solo match
+  group_id              UUID REFERENCES groups(id) ON DELETE CASCADE,   -- set for group chat
   sender_id             UUID REFERENCES users(id),
   content               TEXT,
   sent_at               TIMESTAMPTZ DEFAULT NOW(),
-  read_at               TIMESTAMPTZ
+  read_at               TIMESTAMPTZ,
+  CHECK (
+    (match_id IS NOT NULL AND group_id IS NULL) OR
+    (match_id IS NULL AND group_id IS NOT NULL)
+  )
 );
 
 -- Indexes
 CREATE INDEX ON sessions (origin_iata, departure_time, status);
 CREATE INDEX ON sessions (user_id);
+CREATE INDEX ON sessions (event_id);
 CREATE INDEX ON matches (session_id_a);
 CREATE INDEX ON matches (session_id_b);
 CREATE INDEX ON flights (flight_iata, departure_scheduled);
+CREATE INDEX ON groups (event_id, origin_iata, status);
+CREATE INDEX ON group_members (group_id);
 CREATE INDEX ON messages (match_id, sent_at);
+CREATE INDEX ON messages (group_id, sent_at);
 ```
 
 ---
@@ -881,23 +950,21 @@ Build these only after answering: **"Will strangers actually meet through this?"
 
 ## 21. Go-To-Market
 
-**Phase 1 — MVP + Early Users**
-- University hackathons — build + demo in the hackathon context
-- Word of mouth among students migrating to NYC / SF for summer internships
-- Target: students traveling alone and open to spontaneous connection
+> Full detail in `launch_plan.md`. This section is a summary.
 
-**Phase 2 — Event-Specific Activation**
-- Academic conferences
-- Industry conferences (finance, tech, venture)
-- Alumni travel events
-- Target events:
-  - AI Hackathon @ Berkeley — June 20
-  - YC AI Startup School — July 25
+**Phase 1 — Beta**
+App Store launch gated behind an access code. Code distributed through the official channels of target events (Discord, Slack, mailing lists). First targets: AI Hackathon @ Berkeley (June 20) and YC AI Startup School (July 25). Goal: validate the core match → meetup loop and generate real `meetup_completed` data for the investor pitch.
 
-**Phase 3 — Airport-Native Growth**
-- Venue / lounge partnerships (airport lounges, terminal cafés)
-- SMS verification via Bandwidth for identity trust without social profiles
-- Campus launch (UNC Chapel Hill) with partner venues
+**Phase 2 — Funding Bridge**
+Use beta data to raise marketing funding. The pitch is built around meetup completion rate and the airport unlock mechanic as a defensible cold-start strategy.
+
+**Phase 3 — Full Launch**
+Airport-by-airport unlock. Each airport unlocks once it hits a signup threshold (completed profiles with home airport set), tiered by terminal count. A public progress bar turns the waitlist into a referral mechanic. See `launch_plan.md` for threshold numbers and launch sequence.
+
+**Future marketing**
+- Venue and lounge partnerships (airport cafés, terminal lounges) as physical touchpoints
+- Campus launches (UNC Chapel Hill and others) with partner venues
+- SMS / Bandwidth identity verification for trust at scale
 
 **Positioning:** Always lead with the human story, not the tech. The product is the excuse; the connection is the point.
 
