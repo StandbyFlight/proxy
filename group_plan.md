@@ -203,8 +203,9 @@ All session screens share a progress bar (4 steps). Completing step 4 forks into
 ### `session/event`
 - **Required state:** `flight_id`, `terminal`, `intent`
 - **Primary action (attach event):** user searches event name → selects from list → event stored to local state → Continue →
+  - UI makes clear upfront: opting into event mode means others can join your match and grow it into a group
   - Call `create-session` edge function with `event_id` attached
-  - Navigate to `group/forming`
+  - Navigate to `group/searching`
 - **Primary action (skip):** "No event" or Continue with no selection →
   - Call `create-session` edge function with no `event_id`
   - Navigate to `session/availability`
@@ -270,33 +271,45 @@ All session screens share a progress bar (4 steps). Completing step 4 forks into
 
 ## Group Stack `group/`
 
-### `group/forming`
-- **Required state:** active session with `event_id`, group created or being created
-- **Rendered when:** user attached an event and session was created
-- **Passive:** listens on `group:{group_id}` Ably channel for member joins →
-  - Updates live member count on screen
-  - On `status = locked` (quorum met + lock time reached): navigate to `group/mutual`
-- **Displays:** event name · airport · live member count (e.g. "3 of 8") · first names of members so far
-- **Edge case — group hits 8:** screen shows "Group full" · user is already in it if they got one of 8 spots
-- **Edge case — user is 9th+:** screen shows waitlist state · if waitlist hits 3, Ably event fires and new `group_id` is pushed → navigate replaces with new `group/forming`
+Event mode connects travelers going to the same event. Two people form a seed match; others in event mode for the same event can join the growing group within a 30-minute window.
+
+### `group/searching`
+- **Required state:** active session with `event_id`, event mode selected
+- **Rendered when:** user opted into event mode and either no active group exists for this event, or all existing groups' 30-minute windows have closed
+- **Displays:** event name · standby state · count of others also waiting
+- **Passive:** listens on `event:{event_id}` Ably channel →
+  - If another user enters event mode for same event and no open group exists: algorithm pairs them as seed match → navigate to `meetup/setup` (group variant) as original pair
+  - If an active group with an open window exists: surfaces join prompt → navigate to `group/join`
+- **No user-initiated action**
+- **Edge case — window closes while waiting:** user remains in pool as a potential new seed pair
 
 ---
 
-### `group/mutual`
-- **Required state:** `group_id`, status = `locked`, full member list readable
-- **Primary action:** "I'll be there" → write `group_members.confirmed = true` → stay on screen, show confirmed count update
-- **Displays:** locked member list (first names) · suggested meetup location · suggested time · confirmed count
-- **On all members confirmed OR lock time reached:** navigate to `meetup/setup` (group variant)
-- **No back**
+### `group/join`
+- **Required state:** active `group_id` with open 30-minute window
+- **Rendered when:** newcomer in event mode is shown an existing active group
+- **Displays:** event name · headcount · first names of current members · "People are gathering — join them?"
+- **Location not shown yet** (revealed only after committing)
+- **Primary action (join):** write `group_members` row → navigate to `group/room`, receive meetup location
+- **Primary action (stay in pool):** dismiss → return to `group/searching`, remain as seed pool candidate
+- **No back gesture**
 
 ---
 
 ### `group/room`
+- **Required state:** active `group_id`
+- **Rendered when:** original seed pair confirmed, or newcomer joined
+- **Displays:**
+  - Event name · meetup location pin · member list (first names + headcount)
+  - 30-minute join window countdown (visible only while window is open)
+  - Chat: 1:1 between original pair until 3+ members, then expands to group chat
+- **Primary action (update location) — original pair only:** tap location pin → edit meetup spot → write to `groups.meetup_location` → all member screens refresh passively
+- **Passive:** listens on `group:{group_id}` Ably channel →
+  - New member joins → member list updates; if 3rd member, chat expands to group chat
+  - Location updated by original pair → meetup pin refreshes for all
+- **Window closes at 30 min** from initial seed match confirmation — `group/join` no longer surfaced; new arrivals enter `group/searching` as a fresh seed pair
+- **Future:** GPS-based arrival confirmation to unlock location editing for all members (not just original pair)
 - **Alias:** deep-links here from Home pill and Match tab when group is active
-- **Redirects** based on group status:
-  - `forming` → `group/forming`
-  - `locked` → `group/mutual`
-  - meetup confirmed → `meetup/active`
 
 ---
 
@@ -306,7 +319,7 @@ All session screens share a progress bar (4 steps). Completing step 4 forks into
 - **Required state:** mutual match or locked group
 - **Renders two variants:**
   - **Solo:** time slot picker (2 options) · "what I'm wearing" text input · suggested location shown
-  - **Group:** single suggested time · "what I'm wearing" text input · suggested location shown
+  - **Group (original seed pair only):** "what I'm wearing" text input · location picker to set the group meetup pin · this location is broadcast to all members who join
 - **Primary action:** confirm slot + wearing description → write to `matches` or `groups` → navigate to `meetup/active`
 - **Passive for solo:** if other user picks a different slot, Ably event fires showing conflict → "They preferred [slot B] — switch?" prompt
 - **No back**

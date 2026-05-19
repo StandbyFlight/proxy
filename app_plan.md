@@ -161,6 +161,29 @@ Followed by travel purpose:
 - Messages purged 30 days post-meetup
 - No match history surfaced to other users; no persistent social graph
 
+### 3.7 Event Mode
+
+Events — conferences, hackathons, alumni gatherings — are a special case. When two travelers are both heading to YC Startup School, the app doesn't need to find a connection. The connection is already written. Event mode is built for this.
+
+**The idea:** Instead of surfacing a curated point-of-connection phrase from a pool of signals, event mode uses the shared event itself as the reason to meet. Two people who opt in form a seed match, and others attending the same event can join the growing group within a 30-minute window. It starts as a 1:1 and snowballs.
+
+**How it works:**
+
+- During session setup, a user attending a conference or event can attach it to their session and opt into event mode. The UI makes clear upfront: you may end up in a group, and others can join after you.
+- If no one else is in event mode for that event yet, the user waits in standby — same idle state as solo searching.
+- When two people in event mode for the same event are waiting, they're matched as a **seed pair**, and a **30-minute join window** opens.
+- Other users in event mode for the same event see a prompt: headcount and first names of people already gathered, but not the location yet. They choose to join or stay in the pool as a potential new seed pair.
+- On joining: the newcomer receives the meetup location and enters the group.
+- **Chat:** 1:1 between the seed pair until a third person joins, then expands to a group chat automatically.
+- **Location:** set by the seed pair during meetup setup. Only they can update it. All members see location changes through a passive screen refresh — no push notification.
+- **Window closes at 30 minutes** from the seed match confirmation. New arrivals after that point form a fresh seed pair rather than joining the existing group.
+
+**Why 30 minutes:** long enough for people to get across a terminal; short enough to preserve urgency. The flight clock is always running.
+
+**Open question:** When a user selects a conference as their travel purpose, should the app automatically route them into event mode, or prompt them to choose between finding one person (solo match) and gathering with the group (event mode)? The prompt framing needs refinement before launch.
+
+**Future:** GPS-based arrival confirmation to unlock location editing for all members, not just the original seed pair.
+
 ---
 
 ## 4. Matching Logic
@@ -843,8 +866,6 @@ CREATE POLICY "own integrations" ON user_integrations
 
 ## 20. What Not to Build Yet
 
-- Events as a separate match context (event membership is a signal in the airport pool at MVP, not a standalone product surface)
-- Group mode (3–5 travelers, roundtable formation)
 - ML / vector embeddings for matching (rule-based + light LLM on phrasing is enough)
 - Calendar integration for meeting scheduling
 - In-app voice / video calls
@@ -898,8 +919,6 @@ Build these only after answering: **"Will strangers actually meet through this?"
 - [ ] Boarding-pass styled sign-in (Apple / Google / Phone) — see deferred Track 3
 
 ### Future Features
-- Events as a match context (YC Demo Day, conferences, etc.)
-- Group mode — 3 to 5 solo travelers at the same terminal
 - Venue partnerships — certified airport lounges / cafés trained to facilitate
 - SMS / Bandwidth identity verification
 - Expansion beyond airports: hackathons, coworking spaces, alumni events, cafés
