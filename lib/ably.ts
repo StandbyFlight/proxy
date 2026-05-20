@@ -72,3 +72,11 @@ export function flightChannelName(flightIata: string, departureDate: string) {
 export function userChannelName(userId: string) {
   return `user:${userId}`
 }
+
+export function eventPoolChannelName(eventId: string, originIata: string, departureDate: string) {
+  return `event:${eventId}:${originIata}:${departureDate}`
+}
+
+export function groupChannelName(groupId: string) {
+  return `group:${groupId}`
+}

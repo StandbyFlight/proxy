@@ -8,8 +8,8 @@ import { haptics } from '../../../lib/haptics'
 import { supabase } from '../../../lib/supabase'
 
 // Event detail — primary action depends on whether the user has an active
-// session: attach → group/forming, no session → kick off session/flight with
-// the event pre-filled.
+// session: attach → group/searching (event mode), no session → kick off
+// session/flight with the event pre-filled.
 
 const EVENT_DETAIL: Record<string, {
   name: string; dates: string; city: string; attending: number; blurb: string
@@ -90,7 +90,7 @@ export default function EventDetail() {
   function attach() {
     haptics.buttonTap()
     router.push({
-      pathname: '/(app)/group/forming',
+      pathname: '/(app)/group/searching',
       params: { event_id: String(id), event_name: detail.name },
     })
   }

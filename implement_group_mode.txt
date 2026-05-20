@@ -1,0 +1,238 @@
+STANDBY — Implement Event Mode (Group Feature)
+===============================================
+
+CONTEXT
+-------
+The group/ screens implement an old mechanic that no longer matches the product
+design. The old design had: a hard cap of 8 with a quorum before "locking", a
+separate mutual confirmation step, and a "table" metaphor throughout. All of
+that is being replaced.
+
+Read group_plan.md (the group/ stack section) and app_plan.md §3.7 before
+starting. They are the source of truth for the new mechanic.
+
+
+THE NEW MECHANIC (read this fully before writing any code)
+----------------------------------------------------------
+Event mode is a snowball — two people are the seed, others can join.
+
+1. User attaches an event during session setup and chooses event mode (not solo
+   match).
+2. If no one else is waiting for that event → user waits in standby
+   (group/searching).
+3. When two people are waiting for the same event → they form a seed match, a
+   30-minute join window opens, and they go to meetup/setup to set a location.
+4. Other users in event mode for the same event see a join prompt (group/join):
+   headcount + first names only. No location yet.
+5. On joining → location is revealed, user enters the active group room
+   (group/room).
+6. Chat: 1:1 between seed pair until 3+ members, then expands to group chat
+   (sender names shown above each message bubble when sender changes).
+7. Only the seed pair (original two) can update the meetup location. Everyone
+   else sees changes via passive screen refresh — no push notification.
+8. The window closes when either condition is met first: 30 minutes from seed
+   match confirmation, OR the group reaches 8 members. New arrivals after
+   either trigger form a fresh seed pair and go back to group/searching.
+
+There is no quorum. There is no "locked" state. There is no "table" metaphor
+anywhere. The cap of 8 closes the window the same way the timer does.
+
+
+FILES TO CHANGE
+---------------
+
+1. app/(app)/session/event.tsx
+
+After the user selects an event and taps ATTACH, don't immediately navigate to
+group/searching. Instead show a choice (inline or as a second step):
+
+  [ FIND ONE PERSON ]       [ MEET THE GROUP ]
+    Solo match —              Event mode —
+    the app finds you         gather with others
+    one good match            going to this event
+
+- "Find one person" → session/availability (same path as "no event" / skip)
+- "Meet the group" → group/searching with event_id and event_name as params
+
+Remove the note at the bottom of the screen: "Tables seat up to 8. You'll be
+matched with the next 7 people headed to the same place." This is the old
+mechanic. Remove it entirely.
+
+Update the subhead: remove "seat you at a small table" framing. Something like:
+"Find others going to the same place. You never know who's on the same flight."
+
+
+2. app/(app)/group/forming.tsx → DELETE and replace with group/searching.tsx
+
+Delete forming.tsx. Create searching.tsx.
+
+This is the event pool waiting screen — same quiet vibe as match/searching.tsx.
+
+What it shows:
+- Eyebrow: EVENT MODE · STANDBY
+- Headline: the event name (from param event_name)
+- A quiet standby state. No counter, no fake animation.
+- Subhead: something like "We're looking for others headed to [event]. You'll
+  hear from us."
+
+Ably listener (stub architecturally — won't fire yet, no backend):
+  Subscribe to event:{event_id}:{origin_iata}:{date}
+  On 'group.formed' event → navigate to group/room with group_id, is_seed=true
+  On 'group.open' event (active group with open window found) → navigate to
+    group/join
+
+Follow the subscribe/unsubscribe pattern in match/searching.tsx using
+getAblyClient and userChannelName from lib/ably. Don't fake events with timers.
+
+Back gesture is allowed — user can go back to session/event.
+
+
+3. app/(app)/group/mutual.tsx → DELETE and replace with group/join.tsx
+
+Delete mutual.tsx. Create join.tsx.
+
+This is what a newcomer sees when there's already an active group for their
+event. They have not committed yet.
+
+What it shows:
+- Eyebrow: EVENT MODE · JOIN
+- Headline: the event name
+- Headcount + first names of people already in the group. Use placeholder data
+  (['MAYA', 'JORDAN']) until the backend ships.
+- No location shown yet. Location is only revealed after committing to join.
+- Copy that feels open and serendipitous, e.g. "People are already gathering."
+
+Two actions:
+- Primary (red): JOIN THEM → → write join (stubbed), navigate to group/room
+  passing group_id, event_name, meetup_location, member_names, is_seed=false
+- Secondary: FIND MY OWN → navigate back to group/searching; user stays in
+  seed pool as a potential new seed pair
+
+No back gesture on this screen.
+
+
+4. app/(app)/group/room.tsx → FULL IMPLEMENTATION
+
+Currently just redirects to group/forming. Replace it entirely.
+
+This is the active group room — where you land after being part of the seed
+match or after joining.
+
+What it shows:
+
+  [Eyebrow]    EVENT · YC AI STARTUP SCHOOL
+  [Headline]   Hudson News café, Terminal B.
+  [Subhead]    Between gates B14 and B20.
+
+  ── if window still open ──────────────────────────
+  [Countdown]  OTHERS CAN JOIN FOR  12:34
+  [Spots]      5 SPOTS LEFT
+  ──────────────────────────────────────────────────
+
+  [Section]    WHO'S HERE
+               MAYA
+               JORDAN
+               YOU
+
+  [Section]    MESSAGES
+               [chat area]
+
+Location:
+- Accept meetup_location as a navigation param.
+- Seed pair (pass is_seed boolean param from navigation) gets an edit
+  affordance — tapping the location text opens an inline edit, saves to local
+  state, broadcasts via Ably (stubbed).
+- Non-seed members: location is read-only.
+
+Chat:
+- Member count < 3: render like chat.tsx but scoped to group_id. The messages
+  table doesn't have group_id in the live DB yet, so show the empty state:
+  "Just the two of you for now." with a disabled input.
+- Member count >= 3: group chat — show sender's first name above each message
+  bubble when the sender changes (same deduplication pattern as chat.tsx).
+
+30-minute countdown:
+- Accept window_expires_at as a navigation param (ISO string).
+- Calculate timeLeft = window_expires_at - Date.now().
+- Display as MM:SS, update every second via setInterval.
+- Hide the entire countdown section and spots line when timeLeft <= 0.
+
+Cap of 8:
+- Track member_count from the member list length.
+- When member_count reaches 8, hide the countdown and "spots left" line
+  immediately — same visual result as the timer expiring.
+- The Ably 'window.closed' event should trigger the same UI change regardless
+  of whether it was caused by the timer or the cap.
+- "X SPOTS LEFT" = 8 - member_count, shown while window is open.
+
+Ably listener (stub architecturally — won't fire yet):
+  Subscribe to group:{group_id}
+  On 'member.joined' → update member list; if count hits 3 switch to group
+    chat mode
+  On 'location.updated' → refresh meetup location display (passive, no alert)
+  On 'window.closed' → hide countdown, hide spots line
+
+No back gesture — this is the terminal screen for event mode.
+
+
+NAVIGATION WIRING SUMMARY
+--------------------------
+
+session/event
+  "Meet the group" selected  →  group/searching  (event_id, event_name)
+  "Find one person" selected →  session/availability
+
+group/searching
+  Ably group.formed event    →  group/room  (is_seed=true)
+  Ably group.open event      →  group/join
+
+group/join
+  JOIN THEM                  →  group/room  (is_seed=false)
+  FIND MY OWN                →  group/searching
+
+group/room
+  Terminal screen — no navigation out.
+
+
+WHAT TO STUB vs. WIRE UP
+-------------------------
+
+Stub with placeholder data:
+- Member list: ['MAYA', 'JORDAN'] passed via params or a local constant.
+- Ably listeners: write the subscribe/unsubscribe hooks correctly (correct
+  channel names and event names) — the events just won't fire yet.
+- window_expires_at: accept as a param. For testing use:
+  new Date(Date.now() + 29 * 60_000).toISOString()
+- is_seed: pass as a boolean param from navigation.
+
+Leave as visible placeholder:
+- Group chat message sending — the messages table doesn't have a group_id
+  column in the live DB yet. Show the empty state with a disabled input and
+  copy: "Chat coming once the group is set." Don't wire a broken query.
+
+
+DESIGN SYSTEM — match this exactly
+-----------------------------------
+Colors:      lib/theme.ts — colors.bg, colors.text, colors.subtle, colors.accent
+Typography:  lib/typography.ts — type.eyebrow, type.headline, type.subhead
+             fonts.mono for all labels/tags/eyebrows
+             fonts.serifBold for headlines
+             fonts.serifItalic for soft body copy
+Haptics:     lib/haptics.ts — haptics.buttonTap() on primary actions,
+             haptics.selection() on list picks
+Back button: ◀ BACK in the top row, same pattern as every other screen
+Primary btn: colors.accent background, ▶ triangle, mono text, no border radius
+Safe area:   always useSafeAreaInsets() for top/bottom padding
+
+
+WHAT NOT TO DO
+--------------
+- No "table" metaphor — remove "setting the table", "seat", "YOUR TABLE"
+- No mention of any member cap in copy — the 8-person limit is a backend
+  constraint, not something users need to read about
+- No quorum — nothing "locks"
+- No "I'll be there" confirmation step — joining IS the confirmation
+- No fake animated counters ticking upward
+- Do not keep group/forming.tsx or group/mutual.tsx alongside the new files —
+  delete them both
+- No back gesture on group/join or group/room

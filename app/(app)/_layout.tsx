@@ -8,15 +8,16 @@ import { BottomNav } from '../../components/BottomNav'
 
 // Routes that own the whole screen and should not show the nav bar.
 // Per group_plan §"Global Navigation Rules" back gestures are disabled on
-// match/card, match/mutual, group/mutual, post-meetup/confirm — the persistent
-// nav would defeat the same intent, so we hide it on those screens too.
-// Exact match only (no prefix), to avoid hiding it on sibling routes like
-// /match/searching or /match/room.
+// match/card, match/mutual, group/join, group/room, post-meetup/confirm — the
+// persistent nav would defeat the same intent, so we hide it on those screens
+// too. Exact match only (no prefix), to avoid hiding it on sibling routes like
+// /match/searching or /group/searching.
 const FULLSCREEN_EXACT = new Set([
   '/(app)/match',           // flat match.tsx — the decision card
   '/(app)/match/card',
   '/(app)/match/mutual',
-  '/(app)/group/mutual',
+  '/(app)/group/join',
+  '/(app)/group/room',
   '/(app)/post-meetup',     // flat post-meetup.tsx
   '/(app)/post-meetup/confirm',
 ])

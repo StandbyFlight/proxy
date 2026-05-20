@@ -271,11 +271,11 @@ All session screens share a progress bar (4 steps). Completing step 4 forks into
 
 ## Group Stack `group/`
 
-Event mode connects travelers going to the same event. Two people form a seed match; others in event mode for the same event can join the growing group within a 30-minute window.
+Event mode connects travelers going to the same event. Two people form a seed match; others in event mode for the same event can join the growing group until either 30 minutes have passed or the group hits 8 members — whichever comes first.
 
 ### `group/searching`
 - **Required state:** active session with `event_id`, event mode selected
-- **Rendered when:** user opted into event mode and either no active group exists for this event, or all existing groups' 30-minute windows have closed
+- **Rendered when:** user opted into event mode and either no active group exists for this event, or all existing groups have closed (30-minute window elapsed or 8-member cap reached)
 - **Displays:** event name · standby state · count of others also waiting
 - **Passive:** listens on `event:{event_id}` Ably channel →
   - If another user enters event mode for same event and no open group exists: algorithm pairs them as seed match → navigate to `meetup/setup` (group variant) as original pair
@@ -286,7 +286,7 @@ Event mode connects travelers going to the same event. Two people form a seed ma
 ---
 
 ### `group/join`
-- **Required state:** active `group_id` with open 30-minute window
+- **Required state:** active `group_id` with open window (< 30 min elapsed and < 8 members)
 - **Rendered when:** newcomer in event mode is shown an existing active group
 - **Displays:** event name · headcount · first names of current members · "People are gathering — join them?"
 - **Location not shown yet** (revealed only after committing)
@@ -307,7 +307,7 @@ Event mode connects travelers going to the same event. Two people form a seed ma
 - **Passive:** listens on `group:{group_id}` Ably channel →
   - New member joins → member list updates; if 3rd member, chat expands to group chat
   - Location updated by original pair → meetup pin refreshes for all
-- **Window closes at 30 min** from initial seed match confirmation — `group/join` no longer surfaced; new arrivals enter `group/searching` as a fresh seed pair
+- **Window closes** when either condition is met first: 30 min from seed match confirmation, or 8 members reached — `group/join` no longer surfaced to new arrivals; they enter `group/searching` as a fresh seed pair
 - **Future:** GPS-based arrival confirmation to unlock location editing for all members (not just original pair)
 - **Alias:** deep-links here from Home pill and Match tab when group is active
 

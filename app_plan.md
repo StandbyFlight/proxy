@@ -186,7 +186,7 @@ Events — conferences, hackathons, alumni gatherings — are a special case. Wh
 - On joining: the newcomer receives the meetup location and enters the group.
 - **Chat:** 1:1 between the seed pair until a third person joins, then expands to a group chat automatically.
 - **Location:** set by the seed pair during meetup setup. Only they can update it. All members see location changes through a passive screen refresh — no push notification.
-- **Window closes at 30 minutes** from the seed match confirmation. New arrivals after that point form a fresh seed pair rather than joining the existing group.
+- **Window closes** when either condition is met first: 30 minutes from seed match confirmation, or the group reaches 8 members. New arrivals after either trigger form a fresh seed pair.
 
 **Why 30 minutes:** long enough for people to get across a terminal; short enough to preserve urgency. The flight clock is always running.
 
