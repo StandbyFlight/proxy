@@ -49,7 +49,14 @@ export default function EventScreen() {
   function attach() {
     if (!attachedName) return
     haptics.buttonTap()
-    setStep('pick-mode')
+    router.push({
+      pathname: '/(app)/group/searching',
+      params: {
+        ...params,
+        event_id: attachedId,
+        event_name: attachedName,
+      },
+    })
   }
 
   function chooseSolo() {
@@ -75,7 +82,7 @@ export default function EventScreen() {
   function skip() {
     haptics.selection()
     router.push({
-      pathname: '/(app)/session/availability',
+      pathname: '/(app)/intent',
       params,
     })
   }

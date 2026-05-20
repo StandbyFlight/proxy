@@ -35,11 +35,8 @@ export default function MatchRoom() {
           return
         }
         if (match.status === 'mutual') {
-          if (match.meetup_confirmed_at) {
-            router.replace({ pathname: '/(app)/meetup', params: { match_id: match.id } })
-          } else {
-            router.replace({ pathname: '/(app)/meetup', params: { match_id: match.id } })
-          }
+          // previously branched on meetup_confirmed_at — both arms led here
+          router.replace({ pathname: '/(app)/meetup', params: { match_id: match.id } })
           return
         }
         if (match.status === 'declined' || match.status === 'expired') {

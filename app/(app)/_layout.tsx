@@ -14,12 +14,10 @@ import { BottomNav } from '../../components/BottomNav'
 // /match/searching or /group/searching.
 const FULLSCREEN_EXACT = new Set([
   '/(app)/match',           // flat match.tsx — the decision card
-  '/(app)/match/card',
   '/(app)/match/mutual',
   '/(app)/group/join',
   '/(app)/group/room',
   '/(app)/post-meetup',     // flat post-meetup.tsx
-  '/(app)/post-meetup/confirm',
 ])
 
 function shouldHideNav(pathname: string): boolean {

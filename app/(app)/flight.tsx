@@ -205,7 +205,7 @@ export default function FlightScreen() {
 
       haptics.success()
       router.push({
-        pathname: '/(app)/intent',
+        pathname: '/(app)/session/location',
         params: {
           flight_id: flightRow.id,
           flight_iata: fields.flight_number.toUpperCase(),
@@ -265,7 +265,11 @@ export default function FlightScreen() {
           <Pressable
             onPress={() => {
               haptics.buttonTap()
-              router.replace('/(onboarding)/extras')
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(app)/');
+              }
             }}
             hitSlop={14}
             style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}

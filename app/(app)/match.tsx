@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { View, Text, Pressable, StyleSheet, Alert } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
@@ -112,7 +112,8 @@ export default function MatchScreen() {
             router.replace({ pathname: '/(app)/meetup', params: { match_id: match.id } })
           } else if (newStatus === 'declined') {
             // Other side declined — release back to searching
-            router.replace('/(app)/')
+            Alert.alert('They passed — looking for someone else')
+            router.replace('/(app)/match/searching')
           }
         }
       )
@@ -295,7 +296,7 @@ export default function MatchScreen() {
           return
         }
         haptics.standbyStamp()
-        router.replace({ pathname: '/(app)/meetup', params: { match_id: match.id } })
+        router.replace({ pathname: '/(app)/match/mutual', params: { match_id: match.id } })
       } else if (current?.status === 'pending') {
         // Update returned empty AND status is still pending → silent RLS/permission failure.
         console.error('[match] accept failed silently — status still pending (possible RLS issue)')

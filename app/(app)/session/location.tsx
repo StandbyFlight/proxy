@@ -43,7 +43,7 @@ export default function LocationScreen() {
     if (!canContinue) return
     haptics.buttonTap()
     router.push({
-      pathname: '/(app)/intent',
+      pathname: '/(app)/session/event',
       params: {
         ...params,
         terminal: terminal.trim().toUpperCase(),

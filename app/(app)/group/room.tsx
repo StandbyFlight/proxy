@@ -3,7 +3,7 @@ import {
   View, Text, Pressable, TextInput, StyleSheet, ScrollView,
   KeyboardAvoidingView, Platform,
 } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../../lib/theme'
 import { fonts, type } from '../../../lib/typography'
@@ -37,7 +37,16 @@ export default function GroupRoom() {
     is_seed?: string
   }>()
   const insets = useSafeAreaInsets()
+  const router = useRouter()
   const channelRef = useRef<Ably.RealtimeChannel | null>(null)
+
+  useEffect(() => {
+    async function check() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.replace('/(auth)'); return }
+    }
+    check()
+  }, [])
 
   const groupId = params.group_id ?? ''
   const eventName = (params.event_name?.trim() || 'YOUR EVENT').toUpperCase()
@@ -165,6 +174,15 @@ export default function GroupRoom() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
+        <Pressable
+          onPress={() => { haptics.buttonTap(); router.replace('/(app)/') }}
+          hitSlop={14}
+          style={({ pressed }) => [styles.leaveBtn, pressed && { opacity: 0.5 }]}
+        >
+          <Text style={styles.triangleSubtle}>{'◀'}</Text>
+          <Text style={styles.leaveText}>LEAVE</Text>
+        </Pressable>
+
         <Text style={[type.eyebrow, styles.eyebrow]}>EVENT · {eventName}</Text>
 
         {editing ? (
@@ -270,6 +288,10 @@ const styles = StyleSheet.create({
   inner: { paddingHorizontal: 24, gap: 18 },
 
   eyebrow: { color: colors.subtle },
+
+  leaveBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
+  triangleSubtle: { fontSize: 10, color: colors.subtle, includeFontPadding: false },
+  leaveText: { fontFamily: fonts.mono, fontSize: 12, color: colors.subtle, letterSpacing: 1.4 },
 
   locationBlock: { gap: 4 },
   headline: { color: colors.text },

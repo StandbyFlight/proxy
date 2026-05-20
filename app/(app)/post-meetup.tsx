@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView } from 'react-native'
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView, Alert } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
@@ -19,7 +19,7 @@ export default function PostMeetupScreen() {
     else haptics.selection()
 
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { router.replace('/(app)/'); return }
+    if (!session) { Alert.alert('Session not found'); router.replace('/(app)/'); return }
 
     const { data: match } = await supabase
       .from('matches')
