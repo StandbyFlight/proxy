@@ -182,18 +182,53 @@ export default function SearchingScreen() {
     return () => clearTimeout(timer)
   }, [state, matcherBody])
 
-  async function dismissCuriosity() {
+  useEffect(() => {
+    if (state !== 'searching' || !matcherBody) return
+
+    const interval = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
+      const nowIso = new Date().toISOString()
+      const { data: activeSession } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('status', 'active')
+        .gt('expires_at', nowIso)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (!activeSession) return
+
+      const { data: existingMatch } = await supabase
+        .from('matches')
+        .select('id, status')
+        .or(`session_id_a.eq.${activeSession.id},session_id_b.eq.${activeSession.id}`)
+        .in('status', ['pending', 'pending_a', 'pending_b', 'mutual'])
+        .limit(1)
+        .maybeSingle()
+
+      if (existingMatch) {
+        clearInterval(interval)
+        router.replace({
+          pathname: '/(app)/match/room',
+          params: { match_id: existingMatch.id }
+        })
+      }
+    }, 4000)
+
+    return () => clearInterval(interval)
+  }, [state, matcherBody])
+
+  function dismissCuriosity() {
     if (!curiosity) return
     haptics.selection()
     const matchId = curiosity.match_id
     declinedMatchIds.current.add(matchId)
     setCuriosity(null)
     setState('searching')
-    try {
-      await supabase.from('matches').update({ status: 'declined' }).eq('id', matchId)
-    } catch (e) {
-      console.error('[searching] dismiss decline error:', e)
-    }
   }
 
   function openMatch() {

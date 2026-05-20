@@ -201,8 +201,7 @@ function scoreCandidate(me: SessionRecord, them: SessionRecord, myFlightIata?: s
   // TODO: QUALITY_THRESHOLD may need tuning as signal corpus grows.
   const sorted = [...signals].sort((a, b) => a.tier - b.tier || b.points - a.points)
   const best = sorted[0]
-  const additionalBonus = Math.min(signals.length - 1, 3)
-  const score = best.points + additionalBonus
+  const score = best.points
 
   return { score, best_signal: best, breakdown: signals }
 }
@@ -486,7 +485,7 @@ Deno.serve(async (req) => {
       users: myUserData ?? {
         id: userId, first_name: null, current_thinking: null, industry: null,
         company: null, school: null, hometown: null, base_city: null,
-        career_stage: null, travel_style: null,
+        career_stage: null, travel_style: null, spotify_top_artists: null,
       },
     }
 
@@ -516,7 +515,7 @@ Deno.serve(async (req) => {
 
     const best = scored[0]
     // TODO: QUALITY_THRESHOLD may need tuning as real-world signal corpus grows
-    const HIGH_CONFIDENCE_THRESHOLD = 3
+    const HIGH_CONFIDENCE_THRESHOLD = 2
 
     console.log(`[match] best candidate score=${best.result.score} threshold=${HIGH_CONFIDENCE_THRESHOLD} curiosity=${isCuriosityMode}`)
 

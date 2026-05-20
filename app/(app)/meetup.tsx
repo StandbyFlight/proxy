@@ -242,6 +242,13 @@ export default function MeetupScreen() {
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <Pressable
+          onPress={() => { haptics.buttonTap(); router.push({ pathname: '/(app)/chat', params: { match_id } }) }}
+          style={({ pressed }) => [styles.msgBtn, pressed && { opacity: 0.5 }]}
+        >
+          <Text style={styles.msgBtnText}>MESSAGES →</Text>
+        </Pressable>
+
+        <Pressable
           style={({ pressed }) => [
             styles.primaryBtn,
             (!canConfirm || saving) && styles.primaryBtnDisabled,
@@ -357,9 +364,17 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 24,
     paddingTop: 12,
+    gap: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(10,10,10,0.08)',
     backgroundColor: colors.bg,
+  },
+  msgBtn: { alignSelf: 'flex-start', paddingVertical: 4 },
+  msgBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1.4,
+    color: colors.subtle,
   },
   primaryBtn: {
     backgroundColor: colors.accent,
