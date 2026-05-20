@@ -188,7 +188,17 @@ export default function MeetupScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Pressable
-          onPress={() => { haptics.buttonTap(); router.replace('/(app)/') }}
+          onPress={async () => {
+            haptics.buttonTap()
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session) {
+              await supabase
+                .from('matches')
+                .update({ status: 'declined' })
+                .eq('id', match_id)
+            }
+            router.replace('/(app)/')
+          }}
           hitSlop={14}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
         >

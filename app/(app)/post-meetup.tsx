@@ -32,6 +32,13 @@ export default function PostMeetupScreen() {
       const iAmA = sessionA?.user_id === session.user.id
       const update = iAmA ? { user_a_met_confirmed: met } : { user_b_met_confirmed: met }
       await supabase.from('matches').update(update).eq('id', match_id)
+
+      if (!met) {
+        await supabase
+          .from('matches')
+          .update({ status: 'declined' })
+          .eq('id', match_id)
+      }
     }
 
     router.replace(met ? '/(app)/profile' : '/(app)/')
