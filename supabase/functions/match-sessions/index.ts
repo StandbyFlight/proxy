@@ -210,21 +210,46 @@ function scoreCandidate(me: SessionRecord, them: SessionRecord, myFlightIata?: s
 
 async function generatePointOfConnection(
   bestSignalLabel: string,
-  destination: string | null,
+  allSignals: Signal[],
+  initiator: { current_thinking: string | null, base_city: string | null, travel_purpose: string | null },
+  partner: { current_thinking: string | null, base_city: string | null, travel_purpose: string | null, destination_iata: string | null },
 ): Promise<string> {
-  const prompt = `You are writing display copy for a proximity-networking app used by air travelers at airports.
+  const signalList = allSignals.map(s => s.label).join(', ')
+  const initiatorContext = [
+    initiator.current_thinking ? `Currently thinking about: "${initiator.current_thinking}"` : null,
+    initiator.base_city ? `Based in ${initiator.base_city}` : null,
+    initiator.travel_purpose ? `Travel purpose: ${initiator.travel_purpose}` : null,
+  ].filter(Boolean).join('. ')
+  const partnerContext = [
+    partner.current_thinking ? `Currently thinking about: "${partner.current_thinking}"` : null,
+    partner.base_city ? `Based in ${partner.base_city}` : null,
+    partner.travel_purpose ? `Travel purpose: ${partner.travel_purpose}` : null,
+    partner.destination_iata ? `Heading to ${partner.destination_iata}` : null,
+  ].filter(Boolean).join('. ')
 
-Write a single punchy sentence (under 18 words) that a traveler would see on their phone describing WHY they should meet a stranger nearby. The shared reason is: "${bestSignalLabel}".${destination ? ` Both are heading to ${destination}.` : ''}
+  const prompt = `You are writing display copy for STANDBY, a proximity app that introduces two strangers at an airport before their flights.
+
+Write a single punchy sentence (under 18 words) that tells one traveler why they should meet the stranger nearby.
+
+Shared signal (lead with this): "${bestSignalLabel}"
+All matching signals: ${signalList || 'none beyond the lead signal'}
+${initiatorContext ? `About the person reading this: ${initiatorContext}` : ''}
+${partnerContext ? `About the stranger: ${partnerContext}` : ''}
 
 Rules:
-- One sentence only. No quotes. No filler ("I think", "It seems", "You might").
+- One sentence only. No quotes around the output. No filler words.
 - Lead with the shared signal — make it specific and concrete.
-- Warm, direct tone. Not sycophantic. Not corporate.
-- No names. The app hides names until both users agree.
-- Good example: "You both went to UT Austin — rare to find another Longhorn mid-flight."
-- Good example: "Both in fintech, both heading to SF — the overlap is too clean to ignore."
+- Do NOT mention destinations unless destination is the shared signal itself.
+- Do NOT assume they are going to the same place unless same_destination is in the signal list.
+- If current_thinking fields are available and thematically related, weave them in.
+- Warm, human, direct tone. Not corporate. Not sycophantic.
+- No names — the app hides names until both agree to meet.
+- Good example for same_school: "You both went to UT Austin — rare to find another Longhorn mid-flight."
+- Good example for same_base_city: "Both based in Brooklyn — you probably have ten people in common."
+- Good example for same_destination when it IS the signal: "Both heading to Austin for the first time — compare notes before you land."
+- Good example using current_thinking: "She's been thinking about climate tech too — might be worth thirty minutes."
 
-Respond with only the sentence.`
+Respond with only the sentence. No explanation.`
 
   // Fix 7: race Claude against a 4-second timeout so a slow or degraded Anthropic
   // API doesn't block the match — the match surfaces without a phrasing sentence.
@@ -240,7 +265,7 @@ Respond with only the sentence.`
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'claude-opus-4-7',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 80,
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -556,7 +581,18 @@ Deno.serve(async (req) => {
       try {
         pointOfConnection = await generatePointOfConnection(
           bestSignal.label,
-          partner.destination_iata ?? null,
+          best.result.breakdown,
+          {
+            current_thinking: myUserData?.current_thinking ?? null,
+            base_city: myUserData?.base_city ?? null,
+            travel_purpose: record.travel_purpose ?? null,
+          },
+          {
+            current_thinking: partner.users?.current_thinking ?? null,
+            base_city: partner.users?.base_city ?? null,
+            travel_purpose: partner.travel_purpose ?? null,
+            destination_iata: partner.destination_iata ?? null,
+          },
         )
       } catch (e) {
         console.error('Claude API failed, continuing without sentence:', e)

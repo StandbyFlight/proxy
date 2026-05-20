@@ -57,6 +57,6 @@ const styles = StyleSheet.create({
   board: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
   },
 })
