@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Standby — LinkedIn Banner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #2a2724;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .banner-outer {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    /* native 1584 × 396 — LinkedIn banner ratio */
+    .banner {
+      width: 1584px;
+      height: 396px;
+      background: #FFFFFF;
+      position: relative;
+      overflow: hidden;
+      transform-origin: top left;
+    }
+
+
+    /* ── board frame — right side ── */
+    .board-frame {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      right: 60px;
+      width: auto;
+      height: auto;
+      background: #0A0A0A;
+      border: none;
+      border-radius: 2px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 4px 3px;
+    }
+
+    /* ── Solari board structure ── */
+    .board {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .board-row {
+      display: flex;
+      gap: 2px;
+    }
+
+    .flap-cell {
+      --cell-w: 23px;  /* 0.69 × cell-h, matching app's cellSize * 0.69 */
+      --cell-h: 34px;
+      position: relative;
+      width: var(--cell-w);
+      height: var(--cell-h);
+      perspective: 260px;
+      flex: 0 0 auto;
+      border-radius: 1px;
+      overflow: hidden;
+    }
+
+    .card,
+    .flap {
+      position: absolute;
+      left: 0; right: 0;
+      height: 50%;
+      overflow: hidden;
+      background: #0A0A0A;
+      border: none;
+    }
+
+    .card.top, .flap.flap-top {
+      top: 0;
+      border-radius: 1px 1px 0 0;
+    }
+
+    .card.bottom, .flap.flap-bottom {
+      bottom: 0;
+      border-radius: 0 0 1px 1px;
+    }
+
+    /* seam — pure black line at 48% height, matching colors.boardSeam */
+    .card.top::after, .flap.flap-top::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 1px;
+      background: #000000;
+    }
+
+    .card.bottom::before, .flap.flap-bottom::before {
+      content: '';
+      position: absolute;
+      left: 0; right: 0; top: 0;
+      height: 1px;
+      background: #000000;
+    }
+
+    /* character — colors.boardText #F2F2F0, Menlo, accent glow #E4002B */
+    .glyph {
+      position: absolute;
+      left: 0; right: 0;
+      height: var(--cell-h);
+      font-family: 'Menlo Regular', Menlo, Consolas, monospace;
+      font-size: calc(var(--cell-h) * 0.66);  /* matches cellSize * 0.66 */
+      line-height: var(--cell-h);
+      text-align: center;
+      color: #F2F2F0;
+      text-shadow: 0 0 6px rgba(228, 0, 43, 0.4);
+      letter-spacing: 0.5px;
+      user-select: none;
+    }
+
+    .card.top .glyph, .flap.flap-top .glyph { top: 0; }
+    .card.bottom .glyph, .flap.flap-bottom .glyph { bottom: 0; }
+
+    /* ── flip animation ── */
+    .flap.flap-top {
+      transform-origin: 50% 100%;
+      transform: rotateX(0deg);
+      z-index: 3;
+      transition: none;
+      backface-visibility: hidden;
+    }
+
+    .flap.flap-bottom {
+      transform-origin: 50% 0%;
+      transform: rotateX(90deg);
+      z-index: 2;
+      transition: none;
+      backface-visibility: hidden;
+    }
+
+    .flap-cell.flipping .flap.flap-top {
+      transform: rotateX(-90deg);
+      transition: transform 85ms cubic-bezier(.42, 0, .68, .25);
+    }
+
+    .flap-cell.flipping .flap.flap-bottom {
+      transform: rotateX(0deg);
+      transition: transform 85ms cubic-bezier(.32, .9, .58, 1) 85ms;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="banner-outer">
+    <div class="banner">
+      <div class="board-frame">
+        <div id="board"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="solari.js"></script>
+  <script>
+    // Scale banner to fit viewport
+    function scaleBanner() {
+      const outer  = document.querySelector('.banner-outer');
+      const banner = document.querySelector('.banner');
+      const s = Math.min(window.innerWidth / 1584, window.innerHeight / 396) * 0.97;
+      outer.style.width  = (1584 * s) + 'px';
+      outer.style.height = (396  * s) + 'px';
+      banner.style.transform = 'scale(' + s + ')';
+    }
+    scaleBanner();
+    window.addEventListener('resize', scaleBanner);
+
+    // 2 rows × 13 cols
+    const ROWS = [
+      'WAITING AT   ',
+      'THE TERMINAL.',
+    ];
+
+    const board = new SolariBoard(
+      document.getElementById('board'),
+      { rows: 2, cols: 13 }
+    );
+
+    setTimeout(() => board.setText(ROWS, { align: 'left', stagger: 20 }), 500);
+  </script>
+</body>
+</html>

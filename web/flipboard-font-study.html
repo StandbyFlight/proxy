@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STANDBY — Flipboard Font Study</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=B612+Mono&family=Geist+Mono&family=Azeret+Mono&family=Doto&display=swap"
+      rel="stylesheet">
+<style>
+  @font-face {
+    font-family: 'Departure Mono';
+    src: url('DepartureMono-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+  }
+</style>
+
+<style>
+/* ─── Reset ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ─── Brand tokens ───────────────────────────────────────────────────── */
+:root {
+  --bg:         #FDFBF8;
+  --board:      #0A0A0A;
+  --board-text: #F2F2F0;
+  --seam:       #050505;
+  --text:       #0A0A0A;
+  --subtle:     #6B6B68;
+  --accent:     #E4002B;
+  --border:     rgba(10,10,10,0.10);
+}
+
+/* ─── Page ───────────────────────────────────────────────────────────── */
+body {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ─── Sticky header ──────────────────────────────────────────────────── */
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 48px 22px;
+}
+
+.page-eyebrow {
+  font-family: 'Menlo', 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 2.8px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 3px;
+}
+
+.page-title {
+  font-family: 'Menlo', 'Courier New', monospace;
+  font-size: 15px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.page-sub {
+  font-family: 'Menlo', 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  color: var(--subtle);
+  margin-bottom: 18px;
+  line-height: 1.6;
+}
+
+/* ─── Controls ───────────────────────────────────────────────────────── */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  font-family: 'Menlo', 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  padding: 10px 18px;
+  line-height: 1;
+  transition: opacity 0.12s;
+  border-radius: 0;
+}
+.btn:hover  { opacity: 0.7; }
+.btn:active { opacity: 0.4; }
+.btn-primary { background: var(--accent); color: #fff; }
+
+.speed-group { display: flex; border: 1px solid var(--border); }
+.speed-btn {
+  font-family: 'Menlo', 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--subtle);
+  border: none;
+  border-right: 1px solid var(--border);
+  padding: 10px 14px;
+  cursor: pointer;
+  line-height: 1;
+  transition: all 0.12s;
+}
+.speed-btn:last-child { border-right: none; }
+.speed-btn.active { background: var(--text); color: var(--bg); }
+.speed-btn:hover:not(.active) { background: rgba(10,10,10,0.05); }
+
+/* ─── Content ────────────────────────────────────────────────────────── */
+.page-content {
+  padding: 0 48px 80px;
+  max-width: 980px;
+}
+
+/* ─── Section ────────────────────────────────────────────────────────── */
+.font-section { padding-top: 52px; }
+
+.section-rule {
+  height: 1px;
+  background: var(--border);
+  margin-top: 52px;
+}
+
+.font-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.font-meta { flex: 1 1 0; }
+
+.font-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+
+/* Name is set in the section's own font — you judge the letterforms  */
+.font-name {
+  font-size: 16px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.font-tag {
+  font-family: 'Menlo', 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.font-note {
+  font-family: 'Menlo', 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--subtle);
+  line-height: 1.65;
+  max-width: 480px;
+}
+
+.replay-one-btn {
+  font-family: 'Menlo', 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--subtle);
+  border: 1px solid var(--border);
+  padding: 8px 13px;
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: all 0.12s;
+}
+.replay-one-btn:hover { border-color: var(--text); color: var(--text); }
+
+/* ─── Board row ──────────────────────────────────────────────────────── */
+.board-row-el {
+  display: inline-flex;
+  align-items: center;
+  background: var(--board);
+  border-radius: 4px;
+}
+
+/* ─── Secondary boards ───────────────────────────────────────────────── */
+.secondary-row {
+  display: flex;
+  gap: 20px;
+  margin-top: 14px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.board-col-label {
+  font-family: 'Menlo', 'Courier New', monospace;
+  font-size: 9px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--subtle);
+  opacity: 0.45;
+  margin-bottom: 6px;
+}
+
+/* ─── Space tile ─────────────────────────────────────────────────────── */
+.cell-space { background: transparent; flex-shrink: 0; }
+
+/* ─── Split-flap cell ─────────────────────────────────────────────────
+   Each cell has four layers:
+     card-top    — static; shows the top half of the current char
+     card-bot    — static; shows the bottom half of the current char
+     flap-top    — animated; falls forward revealing blank, then snaps away
+     flap-bot    — animated; arrives from behind showing the next char
+   The seam sits on top of everything at 50%.                           */
+.flap-cell {
+  position: relative;
+  flex-shrink: 0;
+  /* Width/height/radius/font-size set inline via JS */
+  background: var(--board);
+  overflow: hidden;     /* clips the static card halves */
+  /* perspective for 3-D flap depth on the animated halves */
+  perspective: 600px;
+  perspective-origin: 50% 50%;
+}
+
+/* Both static cards use overflow:hidden to clip their half */
+.flap-cell .card-top,
+.flap-cell .card-bot {
+  position: absolute;
+  left: 0; right: 0;
+  height: 50%;
+  overflow: hidden;
+}
+
+.flap-cell .card-top { top: 0; }
+.flap-cell .card-bot { bottom: 0; }
+
+/* Animated flap halves — overflow:hidden clips the half,
+   backface-visibility:hidden prevents bleed-through at 90 deg */
+.flap-cell .flap-top,
+.flap-cell .flap-bot {
+  position: absolute;
+  left: 0; right: 0;
+  height: 50%;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.flap-cell .flap-top {
+  top: 0;
+  transform-origin: bottom center;
+  z-index: 3;
+}
+.flap-cell .flap-bot {
+  bottom: 0;
+  transform-origin: top center;
+  transform: rotateX(90deg);   /* starts hidden behind the board */
+  z-index: 2;
+}
+
+/* Glyph: the text node inside each layer.
+   Height = 2× the container (= full cell height) so the character
+   is correctly centred across the hinge line despite the clip.
+   font-family is inherited from the .font-section wrapper.         */
+.flap-cell .g {
+  position: absolute;
+  left: 0; right: 0;
+  /* height set inline = cellHeight */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--board-text);
+  user-select: none;
+  line-height: 1;
+  font-weight: 400;
+  white-space: nowrap;
+  /* font-size and height set inline */
+}
+
+/* Top layers: anchor glyph to the top so clip shows upper half */
+.flap-cell .card-top .g,
+.flap-cell .flap-top .g { top: 0; }
+
+/* Bottom layers: anchor glyph to the bottom so clip shows lower half.
+   Since height = 2× container, bottom: 0 puts glyph-top at container-top
+   offset by −container-height, i.e. at the top of the full cell.    */
+.flap-cell .card-bot .g,
+.flap-cell .flap-bot .g { bottom: 0; }
+
+/* Seam — sits over everything at vertical midpoint */
+.flap-cell .seam {
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--seam);
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* ─── Flip keyframes ─────────────────────────────────────────────────── */
+/* flap-top falls forward (outgoing char disappears toward viewer) */
+@keyframes flapFall {
+  0%   { transform: rotateX(   0deg); }
+  100% { transform: rotateX( -90deg); }
+}
+
+/* flap-bot swings up from behind (incoming char arrives) */
+@keyframes flapArrive {
+  0%   { transform: rotateX(  90deg); }
+  100% { transform: rotateX(   0deg); }
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="page-eyebrow">STANDBY</div>
+  <div class="page-title">Flipboard Font Study</div>
+  <div class="page-sub">
+    Split-flap font comparison &nbsp;·&nbsp;
+    All CONFIG constants are at the top of the &lt;script&gt; tag — edit cell size, radius, timing, and speed presets there.
+  </div>
+  <div class="controls">
+    <button class="btn btn-primary" id="replay-all">&#9654;&nbsp; REPLAY ALL</button>
+    <div class="speed-group">
+      <button class="speed-btn"        data-speed="slow">SLOW</button>
+      <button class="speed-btn active" data-speed="normal">NORMAL</button>
+      <button class="speed-btn"        data-speed="fast">FAST</button>
+    </div>
+  </div>
+</div>
+
+<div class="page-content" id="sections"></div>
+
+<script>
+// ═════════════════════════════════════════════════════════════════════════════
+// CONFIG — edit these to change cell geometry and animation timing globally
+// ═════════════════════════════════════════════════════════════════════════════
+const CONFIG = {
+  // ── Large board ──────────────────────────────────────────────────────────
+  cellW:   52,   // cell width  (px)
+  cellH:   68,   // cell height (px)
+  cellR:    6,   // border-radius (px)
+  cellFS:  40,   // font-size inside cell (px)
+  cellGap:  4,   // gap between cells (px)
+
+  // ── Small board ──────────────────────────────────────────────────────────
+  smallW:  30,
+  smallH:  40,
+  smallR:   4,
+  smallFS: 22,
+  smallGap: 3,
+
+  // ── Board padding ─────────────────────────────────────────────────────────
+  boardPadV: 11,   // top/bottom (px)
+  boardPadH:  9,   // left/right (px)
+
+  // ── Space tile width ──────────────────────────────────────────────────────
+  spaceW:      20,
+  smallSpaceW: 12,
+
+  // ── Flip timing (ms) — THESE MUST STAY IN SYNC with the JS below ──────────
+  // flipInMs  = how long the top flap takes to fall to -90 deg
+  // flipOutMs = how long the bottom flap takes to arrive from +90 deg
+  // Both run in parallel; total visible flip ≈ max(flipInMs, flipOutMs)
+  flipInMs:  90,
+  flipOutMs: 110,
+};
+
+// Speed presets — only stagger + scramble duration change between speeds;
+// flip physics stay constant so the split-flap always looks correct.
+const SPEEDS = {
+  slow:   { staggerMs: 210, scrambleMs: 3000, initialMs: 280 },
+  normal: { staggerMs: 130, scrambleMs: 1600, initialMs: 200 },
+  fast:   { staggerMs:  70, scrambleMs:  700, initialMs: 100 },
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// FONT DEFINITIONS
+// ═════════════════════════════════════════════════════════════════════════════
+const FONTS = [
+  {
+    id:     'menlo',
+    name:   'Menlo',
+    family: "'Menlo', 'Courier New', monospace",
+    tag:    'Current baseline',
+    note:   'iOS system font. Designed for code editors. Clean metrics but reads as Xcode, not 1970s Zurich airport.',
+  },
+  {
+    id:     'departure-mono',
+    name:   'Departure Mono',
+    family: "'Departure Mono', monospace",
+    tag:    'Most airport-coded',
+    note:   'Designed explicitly for departure boards. Every letterform has mechanical intentionality. The strongest semantic fit for this brand.',
+  },
+  {
+    id:     'b612-mono',
+    name:   'B612 Mono',
+    family: "'B612 Mono', monospace",
+    tag:    'Aviation precision',
+    note:   'Designed by Airbus for cockpit instrument readability. Utilitarian, exact, slightly cold. More instrument panel than departure board.',
+  },
+  {
+    id:     'geist-mono',
+    name:   'Geist Mono',
+    family: "'Geist Mono', monospace",
+    tag:    'Modern · tech-coded',
+    note:   "Vercel's mono. High quality, carefully proportioned. Reads as startup product, not airport hardware.",
+  },
+  {
+    id:     'azeret-mono',
+    name:   'Azeret Mono',
+    family: "'Azeret Mono', monospace",
+    tag:    'Geometric character',
+    note:   'More personality than Menlo. Geometric but not stiff. Better candidate for UI chrome (buttons, labels) than the flip cells themselves.',
+  },
+  {
+    id:     'doto',
+    name:   'Doto',
+    family: "'Doto', monospace",
+    tag:    'Dot-matrix / LED',
+    note:   'LED scoreboard energy. Distinctive novelty font. Dot structure vanishes at small sizes — check the secondary row.',
+  },
+];
+
+// ═════════════════════════════════════════════════════════════════════════════
+// WORDS
+// ═════════════════════════════════════════════════════════════════════════════
+const MAIN_WORD = 'STANDBY';
+const SECONDARY = [
+  { label: 'UTILITY · SMALL SIZE', text: 'GATE B12' },
+  { label: 'STATUS LABEL',         text: 'STANDBY'  },
+  { label: 'ROUTE',                text: 'RDU SFO'  },
+];
+
+// Characters available for the scramble phase (uppercase alpha only — keeps
+// the scramble readable and avoids numbers that look like errors)
+const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+// ═════════════════════════════════════════════════════════════════════════════
+// STATE
+// ═════════════════════════════════════════════════════════════════════════════
+let currentSpeed = 'normal';
+const allSections = [];   // [{ startFn, replayFn }]
+
+function speed() { return SPEEDS[currentSpeed]; }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// FlipCell
+// One cell in the board. Has two static halves (card-top / card-bot) and two
+// animated flap halves (flap-top / flap-bot). A single flip plays:
+//   1. Set flap-top glyph = current char, flap-bot glyph = next char.
+//   2. Trigger CSS animations on both flaps.
+//   3. After animations complete: commit next char to static cards, reset flaps.
+// ═════════════════════════════════════════════════════════════════════════════
+class FlipCell {
+  constructor(el, fontFamily, cellH, cellFS) {
+    this.el       = el;
+    this.fontFam  = fontFamily;
+    this.cellH    = cellH;
+    this.cellFS   = cellFS;
+    this.currentChar = ' ';
+    this._timer   = null;
+    this._gen     = 0;   // generation counter — incremented on reset to cancel in-flight ops
+
+    // Build DOM layers
+    this._cardTop  = this._makeLayer('card-top');
+    this._cardBot  = this._makeLayer('card-bot');
+    this._flapTop  = this._makeLayer('flap-top');
+    this._flapBot  = this._makeLayer('flap-bot');
+    const seam     = document.createElement('div');
+    seam.className = 'seam';
+
+    el.appendChild(this._cardTop.layer);
+    el.appendChild(this._cardBot.layer);
+    el.appendChild(this._flapTop.layer);
+    el.appendChild(this._flapBot.layer);
+    el.appendChild(seam);
+
+    // Flap-bot starts hidden behind the board
+    this._flapTop.layer.style.transformOrigin = 'bottom center';
+    this._flapBot.layer.style.transformOrigin = 'top center';
+    this._flapBot.layer.style.transform       = 'rotateX(90deg)';
+    this._flapBot.layer.style.zIndex          = '2';
+    this._flapTop.layer.style.zIndex          = '3';
+  }
+
+  _makeLayer(cls) {
+    const layer = document.createElement('div');
+    layer.className = cls;
+    const g = document.createElement('div');
+    g.className        = 'g';
+    g.style.height     = this.cellH + 'px';
+    g.style.fontSize   = this.cellFS + 'px';
+    g.style.fontFamily = this.fontFam;
+    layer.appendChild(g);
+    return { layer, g };
+  }
+
+  _setAllGlyphs(char) {
+    const c = char === ' ' ? ' ' : char;
+    this._cardTop.g.textContent = c;
+    this._cardBot.g.textContent = c;
+    this._flapTop.g.textContent = c;
+    this._flapBot.g.textContent = c;
+    this.currentChar = char;
+  }
+
+  // Instantly show a character (no animation)
+  setImmediate(char) {
+    this._setAllGlyphs(char);
+    this._flapBot.layer.style.transition = 'none';
+    this._flapTop.layer.style.transition = 'none';
+    this._flapBot.layer.style.transform  = 'rotateX(90deg)';
+    this._flapTop.layer.style.transform  = 'rotateX(0deg)';
+  }
+
+  // Animate a single flip from current char to nextChar.
+  // Returns a promise that resolves when the animation completes.
+  flip(nextChar) {
+    return new Promise(resolve => {
+      const from = this.currentChar === ' ' ? ' ' : this.currentChar;
+      const to   = nextChar === ' ' ? ' ' : nextChar;
+
+      // Load outgoing char on flap-top, incoming char on flap-bot
+      this._flapTop.g.textContent = from;
+      this._flapBot.g.textContent = to;
+
+      // Reset flaps to start position without animation
+      this._flapTop.layer.style.transition = 'none';
+      this._flapBot.layer.style.transition = 'none';
+      this._flapTop.layer.style.transform  = 'rotateX(0deg)';
+      this._flapBot.layer.style.transform  = 'rotateX(90deg)';
+
+      // Force reflow so transition: none is applied before we add the animation
+      void this._flapTop.layer.offsetHeight;
+
+      const inMs  = CONFIG.flipInMs;
+      const outMs = CONFIG.flipOutMs;
+      const total = Math.max(inMs, outMs);
+
+      // flap-top falls to -90deg (outgoing half disappears)
+      this._flapTop.layer.style.transition =
+        `transform ${inMs}ms cubic-bezier(0.40, 0, 1, 1)`;
+      this._flapTop.layer.style.transform  = 'rotateX(-90deg)';
+
+      // flap-bot arrives from +90deg to 0 (incoming half arrives)
+      this._flapBot.layer.style.transition =
+        `transform ${outMs}ms cubic-bezier(0, 0, 0.28, 1)`;
+      this._flapBot.layer.style.transform  = 'rotateX(0deg)';
+
+      // After animation: commit to static cards, reset animated flaps
+      setTimeout(() => {
+        this.currentChar = nextChar;
+        const committed = nextChar === ' ' ? ' ' : nextChar;
+        this._cardTop.g.textContent = committed;
+        this._cardBot.g.textContent = committed;
+        this._flapTop.g.textContent = committed;
+
+        // Reset flap positions silently
+        this._flapTop.layer.style.transition = 'none';
+        this._flapBot.layer.style.transition = 'none';
+        this._flapTop.layer.style.transform  = 'rotateX(0deg)';
+        this._flapBot.layer.style.transform  = 'rotateX(90deg)';
+
+        resolve();
+      }, total + 6);  // +6ms buffer so the settle animation fully completes
+    });
+  }
+
+  // Begin a scramble: flip random chars for `scrambleMs` ms,
+  // then settle on `targetChar`. `gen` is a cancellation token.
+  async scramble(targetChar, scrambleMs, gen) {
+    const stopAt = Date.now() + scrambleMs;
+    while (Date.now() < stopAt) {
+      if (this._gen !== gen) return;   // cancelled
+      const rnd = SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+      await this.flip(rnd);
+    }
+    if (this._gen !== gen) return;
+    await this.flip(targetChar);
+  }
+
+  // Cancel any in-flight scramble/settle
+  cancel() {
+    this._gen++;
+    if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+  }
+
+  // Reset to a random char, increment generation (cancels in-flight)
+  reset() {
+    this.cancel();
+    const rnd = SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+    this.setImmediate(rnd);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// buildBoard
+// Returns { el, cells, startFn, replayFn }
+// ═════════════════════════════════════════════════════════════════════════════
+function buildBoard(text, fontFamily, isSmall) {
+  const c = isSmall
+    ? { w: CONFIG.smallW, h: CONFIG.smallH, r: CONFIG.smallR,
+        fs: CONFIG.smallFS, gap: CONFIG.smallGap, spaceW: CONFIG.smallSpaceW,
+        padV: 8, padH: 7 }
+    : { w: CONFIG.cellW, h: CONFIG.cellH, r: CONFIG.cellR,
+        fs: CONFIG.cellFS, gap: CONFIG.cellGap, spaceW: CONFIG.spaceW,
+        padV: CONFIG.boardPadV, padH: CONFIG.boardPadH };
+
+  const boardEl = document.createElement('div');
+  boardEl.className = 'board-row-el';
+  boardEl.style.cssText =
+    `gap:${c.gap}px; padding:${c.padV}px ${c.padH}px;`;
+
+  const cells = [];   // [{ cell: FlipCell, target: char }]
+
+  text.toUpperCase().split('').forEach(char => {
+    if (char === ' ') {
+      const sp = document.createElement('div');
+      sp.className  = 'cell-space';
+      sp.style.cssText = `width:${c.spaceW}px; height:${c.h}px;`;
+      boardEl.appendChild(sp);
+      return;
+    }
+
+    const cellEl = document.createElement('div');
+    cellEl.className = 'flap-cell';
+    cellEl.style.cssText =
+      `width:${c.w}px; height:${c.h}px; border-radius:${c.r}px;`;
+
+    boardEl.appendChild(cellEl);
+    const fc = new FlipCell(cellEl, fontFamily, c.h, c.fs);
+    fc.setImmediate(SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)]);
+    cells.push({ cell: fc, target: char });
+  });
+
+  function startFn() {
+    const sp = speed();
+    cells.forEach(({ cell, target }, i) => {
+      const gen = cell._gen;
+      cell._timer = setTimeout(() => {
+        if (cell._gen !== gen) return;
+        cell.scramble(target, sp.scrambleMs, cell._gen);
+      }, sp.initialMs + i * sp.staggerMs);
+    });
+  }
+
+  function replayFn() {
+    cells.forEach(({ cell }) => cell.reset());
+    setTimeout(startFn, 80);
+  }
+
+  return { el: boardEl, cells, startFn, replayFn };
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// buildPage
+// ═════════════════════════════════════════════════════════════════════════════
+function buildPage() {
+  const container = document.getElementById('sections');
+  container.innerHTML = '';
+  allSections.length = 0;
+
+  FONTS.forEach((font, fi) => {
+
+    // ── Section ───────────────────────────────────────────────────────────
+    const section = document.createElement('div');
+    section.className = 'font-section';
+    section.id = `font-${font.id}`;
+
+    // ── Header row ────────────────────────────────────────────────────────
+    const header = document.createElement('div');
+    header.className = 'font-header';
+
+    const meta = document.createElement('div');
+    meta.className = 'font-meta';
+
+    const nameRow = document.createElement('div');
+    nameRow.className = 'font-name-row';
+
+    const nameEl = document.createElement('span');
+    nameEl.className   = 'font-name';
+    nameEl.style.fontFamily = font.family;   // judged in its own face
+    nameEl.textContent = font.name;
+
+    const tagEl = document.createElement('span');
+    tagEl.className   = 'font-tag';
+    tagEl.textContent = font.tag;
+
+    nameRow.appendChild(nameEl);
+    nameRow.appendChild(tagEl);
+
+    const noteEl = document.createElement('div');
+    noteEl.className   = 'font-note';
+    noteEl.textContent = font.note;
+
+    meta.appendChild(nameRow);
+    meta.appendChild(noteEl);
+
+    const replayBtn = document.createElement('button');
+    replayBtn.className   = 'replay-one-btn';
+    replayBtn.textContent = '↺ REPLAY';
+
+    header.appendChild(meta);
+    header.appendChild(replayBtn);
+    section.appendChild(header);
+
+    // ── Main board ────────────────────────────────────────────────────────
+    const main = buildBoard(MAIN_WORD, font.family, false);
+    section.appendChild(main.el);
+
+    // ── Secondary boards ──────────────────────────────────────────────────
+    const secRow = document.createElement('div');
+    secRow.className = 'secondary-row';
+
+    const boards = [main];
+
+    SECONDARY.forEach(sw => {
+      const wrap = document.createElement('div');
+
+      const lbl = document.createElement('div');
+      lbl.className   = 'board-col-label';
+      lbl.textContent = sw.label;
+
+      const sm = buildBoard(sw.text, font.family, true);
+      wrap.appendChild(lbl);
+      wrap.appendChild(sm.el);
+      secRow.appendChild(wrap);
+      boards.push(sm);
+    });
+
+    section.appendChild(secRow);
+
+    // ── Start / replay helpers ────────────────────────────────────────────
+    function startAll()  { boards.forEach(b => b.startFn()); }
+    function replayAll() { boards.forEach(b => b.replayFn()); }
+
+    replayBtn.addEventListener('click', replayAll);
+    allSections.push({ startFn: startAll, replayFn: replayAll });
+    startAll();
+
+    container.appendChild(section);
+
+    if (fi < FONTS.length - 1) {
+      const rule = document.createElement('div');
+      rule.className = 'section-rule';
+      container.appendChild(rule);
+    }
+  });
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Controls
+// ═════════════════════════════════════════════════════════════════════════════
+document.getElementById('replay-all').addEventListener('click', () => {
+  allSections.forEach(s => s.replayFn());
+});
+
+document.querySelectorAll('.speed-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentSpeed = btn.dataset.speed;
+    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    buildPage();   // rebuild fresh with new timing
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Init — wait for Google Fonts to load before building so metrics are correct
+// ═════════════════════════════════════════════════════════════════════════════
+document.fonts.ready.then(buildPage);
+</script>
+</body>
+</html>
