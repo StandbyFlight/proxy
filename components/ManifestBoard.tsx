@@ -1,16 +1,12 @@
 import { useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, Platform, Animated, Easing } from 'react-native'
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
 import { FlipCell } from './FlipCell'
 import { colors } from '../lib/theme'
 import { fonts } from '../lib/typography'
 import { haptics } from '../lib/haptics'
 import { ChurningStatusText } from './ChurningStatusText'
 
-const BOARD_FONT = Platform.select({
-  ios: 'Menlo',
-  android: 'monospace',
-  default: 'Menlo, Consolas, monospace',
-}) as string
+const BOARD_FONT = fonts.mono
 
 // Departure-board row for the profile-preview screen. Three columns —
 // FLIGHT (placeholder dashes), PASSENGER, ORIGIN — fit comfortably on
@@ -38,6 +34,7 @@ export type ManifestStatus = 'standby' | 'scanning' | 'gate-quiet' | 'none'
 export function ManifestBoard({
   firstName,
   iata,
+  iataLabel = 'ORIGIN',
   flightIata,
   mode = 'cinematic',
   stranger,
@@ -45,6 +42,7 @@ export function ManifestBoard({
 }: {
   firstName: string
   iata: string
+  iataLabel?: string
   flightIata?: string | null
   mode?: 'cinematic' | 'static'
   stranger?: { flightIata: string; originIata: string } | null
@@ -82,7 +80,7 @@ export function ManifestBoard({
             <Text style={styles.colLabel}>PASSENGER</Text>
           </View>
           <View style={{ width: colWidth(ORIGIN_SLOTS) }}>
-            <Text style={styles.colLabel}>ORIGIN</Text>
+            <Text style={styles.colLabel}>{iataLabel}</Text>
           </View>
         </View>
 
@@ -277,29 +275,6 @@ function StatusCaption({
       )}
     </Animated.View>
   )
-}
-
-function RevealText({
-  text,
-  delayMs,
-  style,
-}: {
-  text: string
-  delayMs: number
-  style: any
-}) {
-  const opacity = useRef(new Animated.Value(0)).current
-  useEffect(() => {
-    const t = setTimeout(() => {
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 260,
-        useNativeDriver: true,
-      }).start()
-    }, delayMs)
-    return () => clearTimeout(t)
-  }, [delayMs])
-  return <Animated.Text style={[style, { opacity }]}>{text}</Animated.Text>
 }
 
 const colWidth = (slots: number) => slots * Math.round(CELL * 0.69) + (slots - 1) * CELL_GAP

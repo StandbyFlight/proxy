@@ -6,12 +6,17 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
-import { fonts, type } from '../../lib/typography'
+import { fonts } from '../../lib/typography'
 import { supabase } from '../../lib/supabase'
 import { haptics } from '../../lib/haptics'
+import { getActiveSession } from '../../lib/session'
+import { passDate, passTime } from '../../lib/format'
 import { BoardingPass } from '../../components/BoardingPass'
 import { StandbyStamp } from '../../components/StandbyStamp'
 import { primaryIataForCity, searchCities, type CityEntry } from '../../lib/cities'
+
+// Profile is edited right here — pass on top, editable fields below.
+// Settings holds account-level actions only.
 
 type Profile = {
   first_name: string
@@ -89,7 +94,7 @@ export default function ProfileScreen() {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session || cancelled) return
-      const { data, error: userErr } = await supabase
+      const { data } = await supabase
         .from('users')
         .select(`
           first_name, age, base_city, current_thinking,
@@ -100,65 +105,51 @@ export default function ProfileScreen() {
         `)
         .eq('id', session.user.id)
         .maybeSingle()
-      console.log('[profile] users query', { id: session.user.id, data, error: userErr })
-      if (userErr) console.error('[profile] users query error:', userErr)
-      if (cancelled || !data) { setLoading(false); return }
+      if (cancelled) return
 
-      const next: Profile = {
-        first_name: data.first_name ?? '',
-        age: data.age != null ? String(data.age) : '',
-        base_city: data.base_city ?? '',
-        current_thinking: data.current_thinking ?? '',
-        school: data.school ?? '',
-        hometown: data.hometown ?? '',
-        career_stage: data.career_stage ?? '',
-        travel_style: data.travel_style ?? '',
-        currently_into: data.currently_into ?? '',
-        ask_me_about: data.ask_me_about ?? '',
-        next_on_list: data.next_on_list ?? '',
-        know_a_lot_about: data.know_a_lot_about ?? '',
-        cities_know_well: data.cities_know_well ?? '',
-        moving_to_city: data.moving_to_city ?? '',
+      if (data) {
+        const next: Profile = {
+          first_name: data.first_name ?? '',
+          age: data.age != null ? String(data.age) : '',
+          base_city: data.base_city ?? '',
+          current_thinking: data.current_thinking ?? '',
+          school: data.school ?? '',
+          hometown: data.hometown ?? '',
+          career_stage: data.career_stage ?? '',
+          travel_style: data.travel_style ?? '',
+          currently_into: data.currently_into ?? '',
+          ask_me_about: data.ask_me_about ?? '',
+          next_on_list: data.next_on_list ?? '',
+          know_a_lot_about: data.know_a_lot_about ?? '',
+          cities_know_well: data.cities_know_well ?? '',
+          moving_to_city: data.moving_to_city ?? '',
+        }
+        const motivations: string[] = Array.isArray(data.travel_motivations)
+          ? data.travel_motivations
+          : []
+        setProfile(next)
+        setInitial(next)
+        setTravelMotivations(motivations)
+        setInitialMotivations(motivations)
       }
-      const motivations: string[] = Array.isArray(data.travel_motivations)
-        ? data.travel_motivations
-        : []
 
-      setProfile(next)
-      setInitial(next)
-      setTravelMotivations(motivations)
-      setInitialMotivations(motivations)
-
-      const nowIso = new Date().toISOString()
-      const { data: activeSession, error: sessErr } = await supabase
-        .from('sessions')
-        .select('id, status, expires_at, origin_iata, destination_iata, departure_time, gate, terminal, flights(flight_iata)')
-        .eq('user_id', session.user.id)
-        .eq('status', 'active')
-        .gt('expires_at', nowIso)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      console.log('[profile] sessions query', { user_id: session.user.id, nowIso, data: activeSession, error: sessErr })
-      if (sessErr) console.error('[profile] sessions query error:', sessErr)
-      if (!cancelled && activeSession) {
-        const fl = activeSession.flights as { flight_iata: string } | { flight_iata: string }[] | null
-        const fIata = Array.isArray(fl) ? fl[0]?.flight_iata : fl?.flight_iata
-        const dep = activeSession.departure_time as string | null
+      const activeSession = await getActiveSession()
+      if (cancelled) return
+      if (activeSession) {
+        const dep = activeSession.departure_time
         setFlightInfo({
-          flight: fIata ?? null,
-          origin: activeSession.origin_iata ?? null,
-          destination: activeSession.destination_iata ?? null,
-          date: dep ? formatDepDate(dep) : null,
-          time: dep ? formatDepTime(dep) : null,
-          gate: (activeSession as any).gate ?? null,
-          terminal: (activeSession as any).terminal ?? null,
+          flight: activeSession.flight_iata,
+          origin: activeSession.origin_iata,
+          destination: activeSession.destination_iata,
+          date: dep ? passDate(dep) : null,
+          time: dep ? passTime(dep) : null,
+          gate: activeSession.gate,
+          terminal: activeSession.terminal,
         })
       }
-
       setLoading(false)
     }
-    load()
+    load().catch(() => setLoading(false))
     return () => { cancelled = true }
   }, []))
 
@@ -237,20 +228,8 @@ export default function ProfileScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Top chrome */}
         <View style={styles.topRow}>
-          <Pressable
-            onPress={() => {
-              haptics.buttonTap()
-              router.replace('/(app)/')
-            }}
-            hitSlop={14}
-            style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
-          >
-            <Text style={styles.triangleSubtle}>{'◀'}</Text>
-            <Text style={styles.backText}>BACK</Text>
-          </Pressable>
-          <Text style={[type.eyebrow, styles.eyebrow]}>BOARDING PASS</Text>
+          <View />
           <Pressable
             onPress={() => { haptics.selection(); router.push('/(app)/settings') }}
             hitSlop={14}
@@ -266,11 +245,6 @@ export default function ProfileScreen() {
           </View>
         ) : (
           <>
-            <Text style={[type.headline, styles.headline]}>Your pass.</Text>
-            <Text style={[type.subhead, styles.subhead]}>
-              Fill in over time: more signals means better matches.
-            </Text>
-
             <View style={styles.passWrap}>
               <BoardingPass
                 airline="STANDBY"
@@ -283,12 +257,11 @@ export default function ProfileScreen() {
                 time={flightInfo?.time || null}
                 gate={flightInfo?.gate || null}
                 terminal={flightInfo?.terminal || null}
-                seat={null}
+                status={flightInfo ? 'ON STANDBY' : null}
                 stampSlot={profile.first_name ? <StandbyStamp label="STANDBY" /> : null}
               />
             </View>
 
-            {/* ── Basic profile ─────────────────────────────────────────── */}
             <View style={styles.fields}>
               <FieldLine label="FIRST NAME" value={profile.first_name} onChange={set('first_name')}
                 placeholder="ESTHER" autoCapitalize="characters" maxLength={20} />
@@ -335,143 +308,65 @@ export default function ProfileScreen() {
                 />
                 <View style={styles.fieldLineRule} />
               </View>
-            </View>
 
-            {/* ── Right Now ─────────────────────────────────────────────── */}
-            <SectionHeader
-              title="RIGHT NOW"
-              hint="What's active in your life on this trip."
-            />
-            <View style={styles.fields}>
-              <FieldLine
-                label="RIGHT NOW I'M INTO"
-                value={profile.currently_into}
-                onChange={set('currently_into')}
-                placeholder="planning my Patagonia trip"
-                maxLength={60}
-              />
-              <FieldLine
-                label="ASK ME ABOUT"
-                value={profile.ask_me_about}
-                onChange={set('ask_me_about')}
-                placeholder="venture capital, hiking the PCT…"
-                maxLength={60}
-              />
-              <FieldLine
-                label="NEXT ON MY LIST"
-                value={profile.next_on_list}
-                onChange={set('next_on_list')}
-                placeholder="Japan, finishing my first novel…"
-                maxLength={60}
-              />
-            </View>
-
-            {/* ── About Me ──────────────────────────────────────────────── */}
-            <SectionHeader
-              title="ABOUT ME"
-              hint="Stable signals. Set once, update rarely."
-            />
-            <View style={styles.fields}>
-              <FieldLine
-                label="I KNOW A LOT ABOUT"
-                value={profile.know_a_lot_about}
-                onChange={set('know_a_lot_about')}
-                placeholder="specialty coffee, college football, French cuisine…"
-                maxLength={60}
-              />
+              <FieldLine label="RIGHT NOW I'M INTO" value={profile.currently_into}
+                onChange={set('currently_into')} placeholder="planning my Patagonia trip" maxLength={60} />
+              <FieldLine label="ASK ME ABOUT" value={profile.ask_me_about}
+                onChange={set('ask_me_about')} placeholder="venture capital, hiking the PCT…" maxLength={60} />
+              <FieldLine label="NEXT ON MY LIST" value={profile.next_on_list}
+                onChange={set('next_on_list')} placeholder="Japan, finishing my first novel…" maxLength={60} />
+              <FieldLine label="I KNOW A LOT ABOUT" value={profile.know_a_lot_about}
+                onChange={set('know_a_lot_about')} placeholder="specialty coffee, French cuisine…" maxLength={60} />
               <FieldLine label="HOMETOWN" value={profile.hometown} onChange={set('hometown')}
                 placeholder="Chapel Hill, NC" autoCapitalize="words" maxLength={48} />
               <FieldLine label="SCHOOL" value={profile.school} onChange={set('school')}
                 placeholder="UNC" autoCapitalize="words" maxLength={48} />
+              <FieldLine label="CITIES I KNOW WELL" value={profile.cities_know_well}
+                onChange={set('cities_know_well')} placeholder="Boston, Charlotte, Tokyo" maxLength={80} />
+              <FieldLine label="I'M MOVING TO" value={profile.moving_to_city}
+                onChange={set('moving_to_city')} placeholder="San Francisco, Austin…"
+                autoCapitalize="words" maxLength={48} />
             </View>
 
             <View style={styles.pickerSection}>
               <Text style={styles.fieldLabel}>CAREER STAGE</Text>
               <View style={styles.chips}>
                 {CAREER_STAGES.map(cs => (
-                  <Pressable
+                  <Chip
                     key={cs.key}
+                    label={cs.label}
+                    selected={profile.career_stage === cs.key}
                     onPress={() => { haptics.selection(); set('career_stage')(profile.career_stage === cs.key ? '' : cs.key) }}
-                    style={({ pressed }) => [
-                      styles.chip,
-                      profile.career_stage === cs.key && styles.chipSelected,
-                      pressed && { opacity: 0.7 },
-                    ]}
-                  >
-                    <Text style={[styles.chipText, profile.career_stage === cs.key && styles.chipTextSelected]}>
-                      {cs.label}
-                    </Text>
-                  </Pressable>
+                  />
                 ))}
               </View>
             </View>
-
-            {/* ── Travel ────────────────────────────────────────────────── */}
-            <SectionHeader
-              title="TRAVEL"
-              hint="How and why you travel. High signal for the matcher."
-            />
 
             <View style={styles.pickerSection}>
               <Text style={styles.fieldLabel}>I TRAVEL TO  <Text style={styles.chipHint}>(pick up to 2)</Text></Text>
               <View style={styles.chips}>
                 {TRAVEL_MOTIVATIONS.map(tm => (
-                  <Pressable
+                  <Chip
                     key={tm.key}
+                    label={tm.label}
+                    selected={travelMotivations.includes(tm.key)}
+                    disabled={!travelMotivations.includes(tm.key) && travelMotivations.length >= 2}
                     onPress={() => toggleMotivation(tm.key)}
-                    style={({ pressed }) => [
-                      styles.chip,
-                      travelMotivations.includes(tm.key) && styles.chipSelected,
-                      !travelMotivations.includes(tm.key) && travelMotivations.length >= 2 && styles.chipDisabled,
-                      pressed && { opacity: 0.7 },
-                    ]}
-                  >
-                    <Text style={[
-                      styles.chipText,
-                      travelMotivations.includes(tm.key) && styles.chipTextSelected,
-                    ]}>
-                      {tm.label}
-                    </Text>
-                  </Pressable>
+                  />
                 ))}
               </View>
-            </View>
-
-            <View style={styles.fields}>
-              <FieldLine
-                label="CITIES I KNOW WELL"
-                value={profile.cities_know_well}
-                onChange={set('cities_know_well')}
-                placeholder="Boston, Charlotte, Tokyo"
-                maxLength={80}
-              />
-              <FieldLine
-                label="I'M MOVING TO"
-                value={profile.moving_to_city}
-                onChange={set('moving_to_city')}
-                placeholder="San Francisco, Austin…"
-                autoCapitalize="words"
-                maxLength={48}
-              />
             </View>
 
             <View style={styles.pickerSection}>
               <Text style={styles.fieldLabel}>TRAVEL STYLE</Text>
               <View style={styles.chips}>
                 {TRAVEL_STYLES.map(ts => (
-                  <Pressable
+                  <Chip
                     key={ts.key}
+                    label={ts.label}
+                    selected={profile.travel_style === ts.key}
                     onPress={() => { haptics.selection(); set('travel_style')(profile.travel_style === ts.key ? '' : ts.key) }}
-                    style={({ pressed }) => [
-                      styles.chip,
-                      profile.travel_style === ts.key && styles.chipSelected,
-                      pressed && { opacity: 0.7 },
-                    ]}
-                  >
-                    <Text style={[styles.chipText, profile.travel_style === ts.key && styles.chipTextSelected]}>
-                      {ts.label}
-                    </Text>
-                  </Pressable>
+                  />
                 ))}
               </View>
             </View>
@@ -488,40 +383,10 @@ export default function ProfileScreen() {
               ]}
             >
               {saving
-                ? <ActivityIndicator color={colors.bg} />
-                : (
-                  <>
-                    <Text style={styles.triangleOnRed}>{'▶'}</Text>
-                    <Text style={styles.saveBtnText}>{dirty ? 'SAVE CHANGES' : 'SAVED'}</Text>
-                  </>
-                )
+                ? <ActivityIndicator color={colors.onAccent} />
+                : <Text style={styles.saveBtnText}>{dirty ? 'SAVE CHANGES' : 'SAVED'}</Text>
               }
             </Pressable>
-
-            <View style={styles.moreSection}>
-              <Text style={styles.sectionTitle}>MORE</Text>
-              <Pressable
-                onPress={() => { haptics.selection(); router.push('/(app)/profile/integrations') }}
-                style={({ pressed }) => [styles.moreLink, pressed && { opacity: 0.6 }]}
-              >
-                <Text style={styles.moreLinkLabel}>INTEGRATIONS</Text>
-                <Text style={styles.moreLinkChevron}>{'▸'}</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => { haptics.selection(); router.push('/(app)/profile/history') }}
-                style={({ pressed }) => [styles.moreLink, pressed && { opacity: 0.6 }]}
-              >
-                <Text style={styles.moreLinkLabel}>SESSION HISTORY</Text>
-                <Text style={styles.moreLinkChevron}>{'▸'}</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => { haptics.selection(); router.push('/(app)/settings') }}
-                style={({ pressed }) => [styles.moreLink, pressed && { opacity: 0.6 }]}
-              >
-                <Text style={styles.moreLinkLabel}>SETTINGS</Text>
-                <Text style={styles.moreLinkChevron}>{'▸'}</Text>
-              </Pressable>
-            </View>
           </>
         )}
       </ScrollView>
@@ -529,31 +394,33 @@ export default function ProfileScreen() {
   )
 }
 
-function SectionHeader({ title, hint }: { title: string; hint: string }) {
+function Chip({
+  label, selected, disabled, onPress,
+}: {
+  label: string
+  selected: boolean
+  disabled?: boolean
+  onPress: () => void
+}) {
   return (
-    <View style={styles.sectionDivider}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionHint}>{hint}</Text>
-    </View>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.chip,
+        selected && styles.chipSelected,
+        disabled && styles.chipDisabled,
+        pressed && { opacity: 0.7 },
+      ]}
+    >
+      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
+    </Pressable>
   )
-}
-
-function formatDepDate(iso: string): string | null {
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return null
-  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
-  return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}`
-}
-
-function formatDepTime(iso: string): string | null {
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return null
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 function FieldLine({
   label, value, onChange, placeholder, maxLength,
-  autoCapitalize, keyboardType, half = false, onFocus, onBlur,
+  autoCapitalize, keyboardType, onFocus, onBlur,
 }: {
   label: string
   value: string
@@ -562,12 +429,11 @@ function FieldLine({
   maxLength?: number
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters'
   keyboardType?: 'default' | 'number-pad'
-  half?: boolean
   onFocus?: () => void
   onBlur?: () => void
 }) {
   return (
-    <View style={[styles.field, half && styles.fieldHalf]}>
+    <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
         style={styles.fieldInput}
@@ -596,112 +462,67 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
-  },
-  triangleSubtle: { fontSize: 10, color: colors.subtle, includeFontPadding: false },
-  backText: {
-    fontFamily: fonts.mono,
-    fontSize: 12,
-    color: colors.subtle,
-    letterSpacing: 1.4,
-  },
   settingsLink: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 11,
-    color: colors.subtle,
+    color: colors.accent,
     letterSpacing: 1.4,
   },
-  eyebrow: { color: colors.subtle },
 
-  headline: { color: colors.text, marginTop: 4 },
-  subhead: { color: colors.subtle, marginTop: -2 },
-  passWrap: { marginTop: 12 },
+  passWrap: { marginTop: 4 },
 
   fields: { gap: 16 },
-  fieldRow: { flexDirection: 'row', gap: 14 },
   field: { flex: 1 },
-  fieldHalf: { flex: 1 },
   fieldLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 10,
     letterSpacing: 1.6,
     color: colors.subtle,
     marginBottom: 6,
   },
   fieldInput: {
-    fontFamily: fonts.mono,
-    fontSize: 18,
+    fontFamily: fonts.body,
+    fontSize: 16,
     color: colors.text,
     paddingVertical: 4,
     paddingHorizontal: 0,
-    letterSpacing: 0.6,
   },
   fieldInputMulti: {
-    fontFamily: fonts.serifItalic,
-    fontSize: 17,
-    lineHeight: 25,
+    fontSize: 16,
+    lineHeight: 23,
     minHeight: 72,
     textAlignVertical: 'top',
   },
   fieldLineRule: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(10,10,10,0.25)',
+    backgroundColor: 'rgba(0,0,0,0.25)',
   },
 
-  suggestions: {
-    marginTop: 6,
-    backgroundColor: colors.bg,
-  },
+  suggestions: { marginTop: 6 },
   suggestion: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(10,10,10,0.08)',
   },
   suggestionLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 12,
     color: colors.text,
     letterSpacing: 1.4,
   },
   suggestionIata: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 11,
     color: colors.subtle,
     letterSpacing: 1.4,
   },
 
-  sectionDivider: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(10,10,10,0.12)',
-    paddingTop: 18,
-    gap: 6,
-  },
-  sectionTitle: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: colors.subtle,
-  },
-  sectionHint: {
-    fontFamily: fonts.serifItalic,
-    fontSize: 14,
-    color: colors.subtle,
-    lineHeight: 20,
-  },
-
   pickerSection: { gap: 10 },
   chipHint: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 9,
     letterSpacing: 1,
     color: colors.subtle,
-    opacity: 0.6,
   },
   chips: {
     flexDirection: 'row',
@@ -709,79 +530,41 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: 3,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: colors.surface,
   },
-  chipSelected: {
-    borderColor: colors.text,
-    backgroundColor: colors.text,
-  },
-  chipDisabled: {
-    opacity: 0.35,
-  },
+  chipSelected: { backgroundColor: colors.periwinkle },
+  chipDisabled: { opacity: 0.35 },
   chipText: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    letterSpacing: 1,
+    fontFamily: fonts.body,
+    fontSize: 13,
     color: colors.text,
   },
-  chipTextSelected: {
-    color: colors.bg,
-  },
+  chipTextSelected: { fontWeight: '700' },
 
   saveBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
     backgroundColor: colors.accent,
     paddingVertical: 14,
-    paddingHorizontal: 22,
     marginTop: 8,
   },
   saveBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
   saveBtnText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.bodyBold,
+    fontWeight: '700',
     fontSize: 12,
-    fontWeight: '600',
     letterSpacing: 1.4,
-    color: colors.bg,
+    color: colors.onAccent,
   },
-  triangleOnRed: { fontSize: 10, color: colors.bg, includeFontPadding: false },
 
   error: {
-    fontFamily: fonts.serifItalic,
+    fontFamily: fonts.body,
     fontSize: 14,
     color: colors.error,
-  },
-
-  moreSection: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(10,10,10,0.12)',
-    paddingTop: 18,
-    gap: 0,
-    marginTop: 14,
-  },
-  moreLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(10,10,10,0.08)',
-  },
-  moreLinkLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 12,
-    color: colors.text,
-    letterSpacing: 1.4,
-  },
-  moreLinkChevron: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: colors.subtle,
   },
 })

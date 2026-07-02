@@ -7,7 +7,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { colors } from '../lib/theme'
-import { type } from '../lib/typography'
+import { fonts, type } from '../lib/typography'
 import { ProgressDashes } from './ProgressDashes'
 import { haptics } from '../lib/haptics'
 
@@ -130,7 +130,7 @@ export function OnboardingChrome({
             ]}
           >
             {continueLoading ? (
-              <ActivityIndicator color={colors.bg} />
+              <ActivityIndicator color={colors.onAccent} />
             ) : (
               <>
                 <Text style={styles.continueText}>{continueLabel}</Text>
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.subtle, marginTop: 10 },
   body: { marginTop: 32 },
   error: {
-    fontFamily: 'Fraunces_400Regular_Italic',
+    fontFamily: fonts.body,
     fontSize: 14,
     color: colors.error,
     marginTop: 16,
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   backText: {
-    fontFamily: 'Menlo',
+    fontFamily: fonts.body,
     fontSize: 12,
     color: colors.subtle,
     letterSpacing: 1,
@@ -193,8 +193,8 @@ const styles = StyleSheet.create({
   },
   continueBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
   continueText: {
-    fontFamily: 'Menlo',
-    color: colors.bg,
+    fontFamily: fonts.body,
+    color: colors.onAccent,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1.4,
@@ -207,6 +207,6 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   triangleBack: { color: colors.subtle },
-  triangleContinue: { color: colors.bg },
+  triangleContinue: { color: colors.onAccent },
   storyBody: { alignSelf: 'stretch' },
 })

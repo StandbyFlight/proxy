@@ -1,16 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  View, Text, Pressable, StyleSheet, Animated, Easing, Platform,
+  View, Text, Pressable, StyleSheet, Animated, Easing,
 } from 'react-native'
 import { haptics } from '../lib/haptics'
 import { colors } from '../lib/theme'
 import { fonts, type } from '../lib/typography'
 
-const BOARD_FONT = Platform.select({
-  ios: 'Menlo',
-  android: 'monospace',
-  default: 'Menlo, Consolas, monospace',
-}) as string
+const BOARD_FONT = fonts.mono
 
 export type EnrichmentState = 'idle' | 'connecting' | 'connected' | 'coming_soon'
 
@@ -113,7 +109,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     gap: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(10,10,10,0.08)',
+    borderBottomColor: 'rgba(0,0,0,0.08)',
   },
   cell: {
     width: CELL_WIDTH,
@@ -148,12 +144,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   tagline: {
-    ...type.bodyItalic,
+    ...type.body,
     fontSize: 14,
     color: colors.subtle,
   },
   note: {
-    ...type.bodyItalic,
+    ...type.body,
     fontSize: 12,
     color: colors.subtle,
     marginTop: 4,

@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   taglineLine: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 12,
     letterSpacing: 2.4,
     color: colors.subtle,

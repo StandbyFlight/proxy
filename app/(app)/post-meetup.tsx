@@ -6,6 +6,7 @@ import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
+import { BackButton } from '../../components/BackButton'
 
 export default function PostMeetupScreen() {
   const { match_id } = useLocalSearchParams<{ match_id: string }>()
@@ -50,18 +51,10 @@ export default function PostMeetupScreen() {
         contentContainerStyle={[styles.inner, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable
-          onPress={() => { haptics.buttonTap(); router.replace('/(app)/') }}
-          hitSlop={14}
-          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
-        >
-          <Text style={styles.triangleSubtle}>{'◀'}</Text>
-          <Text style={styles.backText}>BACK</Text>
-        </Pressable>
+        <BackButton onPress={() => router.replace('/(app)/')} />
 
         <Text style={styles.eyebrow}>After</Text>
         <Text style={styles.headline}>Did you{'\n'}meet up?</Text>
-        <Text style={styles.subhead}>Just between us, this helps us improve.</Text>
 
         <View style={styles.actions}>
           <Pressable
@@ -70,7 +63,7 @@ export default function PostMeetupScreen() {
             disabled={saving}
           >
             {saving
-              ? <ActivityIndicator color={colors.bg} />
+              ? <ActivityIndicator color={colors.onAccent} />
               : <Text style={styles.primaryBtnText}>Yes, we met</Text>
             }
           </Pressable>
@@ -91,12 +84,8 @@ export default function PostMeetupScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   inner: { paddingHorizontal: 24, gap: 16 },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
-  triangleSubtle: { fontSize: 10, color: colors.subtle, includeFontPadding: false },
-  backText: { fontFamily: fonts.mono, fontSize: 12, color: colors.subtle, letterSpacing: 1.4 },
   eyebrow: { ...type.eyebrow, color: colors.subtle },
   headline: { ...type.headline, color: colors.text, marginTop: 4 },
-  subhead: { ...type.subhead, color: colors.subtle, marginTop: 2 },
   actions: { gap: 12, marginTop: 16 },
   primaryBtn: {
     backgroundColor: colors.accent,
@@ -104,26 +93,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryBtnText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
-    color: colors.bg,
+    color: colors.onAccent,
   },
   secondaryBtn: {
-    borderWidth: 1,
-    borderColor: colors.border,
     paddingVertical: 14,
     alignItems: 'center',
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   secondaryBtnText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 12,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    color: colors.subtle,
+    color: colors.text,
   },
   disabled: { opacity: 0.5 },
 })

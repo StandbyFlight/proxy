@@ -149,19 +149,19 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   suggestionLeft: {
-    ...type.bodyItalic,
+    ...type.body,
     color: colors.text,
     flexShrink: 1,
   },
   suggestionRight: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 13,
     color: colors.subtle,
     letterSpacing: 1.2,
   },
   separator: {
     height: 1,
-    backgroundColor: 'rgba(10,10,10,0.06)',
+    backgroundColor: 'rgba(0,0,0,0.06)',
   },
   pickedRow: {
     flexDirection: 'row',
@@ -169,12 +169,12 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   pickedLabel: {
-    ...type.bodyItalic,
+    ...type.body,
     fontSize: 14,
     color: colors.subtle,
   },
   pickedAirports: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 13,
     color: colors.text,
     letterSpacing: 1.4,

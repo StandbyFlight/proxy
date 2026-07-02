@@ -1,9 +1,18 @@
 import { Platform, TextStyle } from 'react-native'
 
+// Type system:
+//   display — Anton Regular: all major page titles and headings.
+//   body    — Roc Grotesk: all normal text, labels, buttons, tabs, body copy.
+//             Roc Grotesk is a licensed font; the family names resolve once
+//             the .otf files are added to assets/fonts and registered in
+//             app/_layout.tsx. Until then RN falls back to the system sans
+//             (the documented fallback), with weights preserved.
+//   mono    — Menlo: flip-board / mechanical text only.
+
 export const fonts = {
-  serif: 'Fraunces_400Regular',
-  serifItalic: 'Fraunces_400Regular_Italic',
-  serifBold: 'Fraunces_600SemiBold',
+  display: 'Anton_400Regular',
+  body: 'RocGrotesk-Regular',
+  bodyBold: 'RocGrotesk-Bold',
   mono: Platform.select({
     ios: 'Menlo',
     android: 'monospace',
@@ -13,38 +22,54 @@ export const fonts = {
 
 export const type: Record<string, TextStyle> = {
   eyebrow: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 11,
     letterSpacing: 2.2,
     textTransform: 'uppercase',
   },
+  display: {
+    fontFamily: fonts.display,
+    fontSize: 44,
+    lineHeight: 50,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   headline: {
-    fontFamily: fonts.serifBold,
-    fontSize: 32,
-    lineHeight: 38,
-    letterSpacing: -0.4,
+    fontFamily: fonts.display,
+    fontSize: 30,
+    lineHeight: 36,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  // Small Anton section titles (e.g. "Upcoming & Live").
+  sectionTitle: {
+    fontFamily: fonts.display,
+    fontSize: 16,
+    lineHeight: 20,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   subhead: {
-    fontFamily: fonts.serifItalic,
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  body: {
+    fontFamily: fonts.body,
     fontSize: 16,
     lineHeight: 23,
-    letterSpacing: 0,
+  },
+  bodyBold: {
+    fontFamily: fonts.bodyBold,
+    fontWeight: '700',
+    fontSize: 16,
+    lineHeight: 23,
   },
   hint: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 11,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
-  },
-  body: {
-    fontFamily: fonts.serif,
-    fontSize: 18,
-    lineHeight: 26,
-  },
-  bodyItalic: {
-    fontFamily: fonts.serifItalic,
-    fontSize: 17,
-    lineHeight: 24,
   },
   monoSmall: {
     fontFamily: fonts.mono,

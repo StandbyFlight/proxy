@@ -261,7 +261,7 @@ export default function Extras() {
                       ]}
                     >
                       {states.email === 'connecting' ? (
-                        <ActivityIndicator color={colors.bg} />
+                        <ActivityIndicator color={colors.onAccent} />
                       ) : (
                         <Text style={styles.emailBtnText}>Send link</Text>
                       )}
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emailInput: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.body,
     fontSize: 18,
     color: colors.text,
     borderBottomWidth: 1,
@@ -336,15 +336,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   emailBtnText: {
-    fontFamily: fonts.mono,
-    color: colors.bg,
+    fontFamily: fonts.body,
+    color: colors.onAccent,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
   emailError: {
-    ...type.bodyItalic,
+    ...type.body,
     fontSize: 13,
     color: colors.error,
   },
@@ -363,14 +363,14 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   backText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 12,
     color: colors.subtle,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   triangleBack: { fontSize: 10, color: colors.subtle },
-  triangleFwd: { fontSize: 10, color: colors.bg },
+  triangleFwd: { fontSize: 10, color: colors.onAccent },
   doneBtn: {
     backgroundColor: colors.accent,
     paddingHorizontal: 22,
@@ -382,8 +382,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   doneBtnText: {
-    fontFamily: fonts.mono,
-    color: colors.bg,
+    fontFamily: fonts.body,
+    color: colors.onAccent,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1.4,

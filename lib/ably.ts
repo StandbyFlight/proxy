@@ -1,7 +1,27 @@
 import Ably from 'ably'
 import { supabase } from './supabase'
 
+// Ably lifecycle rules:
+//  - Never initialize before Supabase auth has a valid session. connectAbly()
+//    is the safe entry point: it checks the session first and no-ops (with a
+//    single clean warning) when logged out.
+//  - The token authCallback re-checks the session on every (re)auth, so a
+//    token renewal after sign-out fails fast with a non-retriable error
+//    instead of hammering the ably-auth edge function with unauthorized calls.
+//  - disconnectAbly() is called on SIGNED_OUT (see app/_layout.tsx).
+
 let _client: Ably.Realtime | null = null
+
+// Initialize (or return) the Ably client for the current authenticated user.
+// Returns null — without calling the edge function — when there is no session.
+export async function connectAbly(): Promise<Ably.Realtime | null> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) {
+    console.warn('Skipping Ably init: no auth session')
+    return null
+  }
+  return getAblyClient(session.user.id)
+}
 
 export function getAblyClient(userId: string): Ably.Realtime {
   if (!_client) {
@@ -10,20 +30,17 @@ export function getAblyClient(userId: string): Ably.Realtime {
 
       authCallback: async (_tokenParams, callback) => {
         try {
-          let { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-          if (sessionError) throw sessionError
-
-          // Session may be null if AsyncStorage hasn't finished loading or the
-          // token expired — try a refresh before giving up.
-          if (!session?.access_token) {
-            const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession()
-            if (refreshErr) throw refreshErr
-            session = refreshed.session
-          }
+          const { data: { session } } = await supabase.auth.getSession()
 
           if (!session?.access_token) {
-            throw new Error('No Supabase session available for Ably auth')
+            // Not an exceptional state — the user is simply logged out.
+            // 403 is non-retriable for Ably, so it won't loop on this.
+            console.warn('Skipping Ably auth: no Supabase session')
+            callback(
+              { code: 40100, statusCode: 403, message: 'No Supabase session' } as Ably.ErrorInfo,
+              null as unknown as Ably.TokenDetails
+            )
+            return
           }
 
           const { data, error } = await supabase.functions.invoke('ably-auth', {
@@ -71,12 +88,4 @@ export function flightChannelName(flightIata: string, departureDate: string) {
 
 export function userChannelName(userId: string) {
   return `user:${userId}`
-}
-
-export function eventPoolChannelName(eventId: string, originIata: string, departureDate: string) {
-  return `event:${eventId}:${originIata}:${departureDate}`
-}
-
-export function groupChannelName(groupId: string) {
-  return `group:${groupId}`
 }

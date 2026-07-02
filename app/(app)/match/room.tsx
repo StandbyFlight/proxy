@@ -25,7 +25,7 @@ export default function MatchRoom() {
 
         const { data: match } = await supabase
           .from('matches')
-          .select('id, status, session_id_a, session_id_b, meetup_confirmed_at')
+          .select('id, status')
           .eq('id', match_id)
           .single()
         if (cancelled || !match) return
@@ -35,7 +35,6 @@ export default function MatchRoom() {
           return
         }
         if (match.status === 'mutual') {
-          // previously branched on meetup_confirmed_at — both arms led here
           router.replace({ pathname: '/(app)/meetup', params: { match_id: match.id } })
           return
         }

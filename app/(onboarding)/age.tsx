@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     color: colors.subtle,
   },
   warn: {
-    ...type.bodyItalic,
+    ...type.body,
     color: colors.error,
     fontSize: 13,
     marginTop: -4,

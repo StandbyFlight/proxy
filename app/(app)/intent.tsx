@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  View, Text, TextInput, Pressable,
+  View, Text, Pressable,
   StyleSheet, ScrollView, ActivityIndicator,
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -8,26 +8,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
-import { supabase } from '../../lib/supabase'
-import { getAblyClient, flightChannelName } from '../../lib/ably'
+import { createSession } from '../../lib/session'
 import { setPendingSession } from '../../lib/pendingMatch'
+import { BackButton } from '../../components/BackButton'
+
+// Step 4 of session setup. Three options, nothing else. Creating the session
+// here goes through lib/session.createSession — the new session is inserted
+// first, then the previous one is archived into history (never deleted).
 
 const INTENTS = [
-  { key: 'professional', label: 'Professional', desc: 'Career-adjacent connections' },
-  { key: 'social', label: 'Social', desc: 'Travel companions, shared interests' },
-  { key: 'open', label: 'Open to anything', desc: 'Let the app decide' },
-] as const
-
-const PURPOSES = [
-  { key: 'conference', label: 'Conference / industry event' },
-  { key: 'work_trip', label: 'Work trip' },
-  { key: 'solo_travel', label: 'Solo travel / leisure' },
-  { key: 'relocating', label: 'Relocating' },
-  { key: 'other', label: 'Other' },
+  { key: 'professional', label: 'Professional' },
+  { key: 'social', label: 'Social' },
+  { key: 'open', label: 'Open to anything' },
 ] as const
 
 type Intent = typeof INTENTS[number]['key']
-type Purpose = typeof PURPOSES[number]['key']
 
 export default function IntentScreen() {
   const params = useLocalSearchParams<{
@@ -35,103 +30,50 @@ export default function IntentScreen() {
     flight_iata: string
     origin_iata: string
     destination_iata: string
-    destination_city: string
     departure_time: string
     gate: string
     terminal: string
+    lounge: string
+    event_id: string
+    event_name: string
   }>()
 
   const [intent, setIntent] = useState<Intent | null>(null)
-  const [purpose, setPurpose] = useState<Purpose | null>(null)
-  const [eventId, setEventId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
-  const showPurpose = intent === 'professional' || intent === 'social'
-  const showEventField = purpose === 'conference'
-  const canContinue = intent !== null && (!showPurpose || purpose !== null)
+  const canContinue = intent !== null
 
   async function proceed() {
-    if (!canContinue) return
+    if (!canContinue || loading) return
     setLoading(true)
     setError('')
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Not authenticated')
+      // Events are matched by normalized key — a picked event uses its id, a
+      // typed-in one uses its name.
+      const eventKey = (params.event_id || params.event_name || '').trim() || null
 
-      // Changing flight invalidates the old session. Decline any pending matches
-      // on it (release the other party), then mark the session inactive so the
-      // active-session queries and the matcher edge function both ignore it.
-      const { data: oldSessions } = await supabase
-        .from('sessions')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('status', 'active')
+      const sessionRow = await createSession({
+        flight_id: params.flight_id,
+        origin_iata: params.origin_iata || null,
+        destination_iata: params.destination_iata || null,
+        departure_time: params.departure_time || null,
+        terminal: params.terminal || null,
+        gate: params.gate || null,
+        lounge: params.lounge || null,
+        connection_intent: intent!,
+        event_id: eventKey,
+      })
 
-      const oldSessionIds = (oldSessions ?? []).map(s => s.id)
-      if (oldSessionIds.length > 0) {
-        const orClause = oldSessionIds
-          .flatMap(id => [`session_id_a.eq.${id}`, `session_id_b.eq.${id}`])
-          .join(',')
-        await supabase
-          .from('matches')
-          .update({ status: 'declined' })
-          .or(orClause)
-          .in('status', ['pending', 'pending_a', 'pending_b'])
-
-        await supabase
-          .from('sessions')
-          .update({ status: 'inactive' })
-          .in('id', oldSessionIds)
-      }
-
-      // Select the inserted row so we can pass it directly to the edge function.
-      const { data: sessionRow, error: sessionErr } = await supabase
-        .from('sessions')
-        .insert({
-          user_id: session.user.id,
-          flight_id: params.flight_id,
-          origin_iata: params.origin_iata || null,
-          destination_iata: params.destination_iata || null,
-          departure_time: params.departure_time || null,
-          terminal: params.terminal || null,
-          gate: params.gate || null,
-          connection_intent: intent!,
-          travel_purpose: purpose ?? null,
-          event_id: eventId.trim() || null,
-          // Use the raw ISO string — not new Date().toISOString() — so the
-          // value stored as UTC matches what the edge function will compare against.
-          expires_at: params.departure_time || null,
-          status: 'active',
-        })
-        .select('id, user_id, flight_id, origin_iata, destination_iata, departure_time, terminal, connection_intent, travel_purpose, event_id')
-        .single()
-
-      if (sessionErr) throw sessionErr
-
-      // Store the session so the home screen fires match-sessions AFTER its
-      // Ably subscription is active — avoids dropping the pool.exhausted event.
-      setPendingSession(sessionRow)
-
-      const d = new Date()
-      const localToday = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      const departureDate = params.departure_time
-        ? params.departure_time.split('T')[0]
-        : localToday
-
-      const ably = getAblyClient(session.user.id)
-      const channel = ably.channels.get(flightChannelName(params.flight_iata, departureDate))
-      channel.presence.enter({
-        intent: intent!,
-        travel_purpose: purpose ?? null,
-        checked_in_at: new Date().toISOString(),
-      }).catch(() => {}) // presence is informational — don't block on it
+      // Stash the row so match/searching fires the matcher only after its Ably
+      // subscription is live — avoids dropping the pool.exhausted event.
+      setPendingSession(sessionRow as unknown as Record<string, unknown>)
 
       haptics.success()
-      router.push('/(app)/session/availability')
+      router.push({ pathname: '/(app)/session/availability', params })
     } catch (err: any) {
       haptics.error()
       setError(err.message ?? 'Something went wrong. Try again.')
@@ -143,35 +85,18 @@ export default function IntentScreen() {
   return (
     <View style={styles.root}>
       <ScrollView
-        contentContainerStyle={[styles.inner, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.inner, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable
-          onPress={() => {
-            haptics.buttonTap()
-            if (router.canGoBack()) router.back()
-            else router.replace('/(app)/flight')
-          }}
-          hitSlop={12}
-          style={styles.back}
-        >
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
+        <View style={styles.topRow}>
+          <BackButton fallback="/(app)/flight" />
+          <Text style={[type.eyebrow, styles.eyebrow]}>SESSION · 04 / 04</Text>
+          <View style={styles.spacer} />
+        </View>
 
-        <Text style={styles.eyebrow}>Session</Text>
-        <Text style={styles.headline}>What are you{'\n'}open to?</Text>
-
-        {params.flight_iata ? (
-          <Text style={styles.flightTag}>
-            {params.flight_iata}
-            {params.origin_iata && params.destination_iata
-              ? `  ·  ${params.origin_iata} to ${params.destination_iata}`
-              : ''}
-          </Text>
-        ) : null}
+        <Text style={[type.headline, styles.headline]}>What are you{'\n'}open to?</Text>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Connection type</Text>
           {INTENTS.map(item => (
             <Pressable
               key={item.key}
@@ -180,55 +105,12 @@ export default function IntentScreen() {
                 intent === item.key && styles.optionSelected,
                 pressed && intent !== item.key && { opacity: 0.7 },
               ]}
-              onPress={() => { haptics.selection(); setIntent(item.key); setPurpose(null) }}
+              onPress={() => { haptics.selection(); setIntent(item.key) }}
             >
-              <Text style={[styles.optionLabel, intent === item.key && styles.optionLabelSelected]}>
-                {item.label}
-              </Text>
-              <Text style={[styles.optionDesc, intent === item.key && styles.optionDescSelected]}>
-                {item.desc}
-              </Text>
+              <Text style={styles.optionLabel}>{item.label}</Text>
             </Pressable>
           ))}
         </View>
-
-        {showPurpose && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>What brings you here?</Text>
-            {PURPOSES.map(item => (
-              <Pressable
-                key={item.key}
-                style={({ pressed }) => [
-                  styles.option,
-                  purpose === item.key && styles.optionSelected,
-                  pressed && purpose !== item.key && { opacity: 0.7 },
-                ]}
-                onPress={() => { haptics.selection(); setPurpose(item.key); setEventId('') }}
-              >
-                <Text style={[styles.optionLabel, purpose === item.key && styles.optionLabelSelected]}>
-                  {item.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-
-        {showEventField && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              Which event?{'  '}
-              <Text style={styles.optional}>optional but helps a lot</Text>
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Consensus 2026, ICML"
-              placeholderTextColor={colors.subtle}
-              value={eventId}
-              onChangeText={setEventId}
-              autoCorrect={false}
-            />
-          </View>
-        )}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
@@ -244,8 +126,8 @@ export default function IntentScreen() {
           disabled={!canContinue || loading}
         >
           {loading
-            ? <ActivityIndicator color={colors.bg} />
-            : <Text style={styles.primaryBtnText}>Find someone</Text>
+            ? <ActivityIndicator color={colors.onAccent} />
+            : <Text style={styles.primaryBtnText}>Continue</Text>
           }
         </Pressable>
       </View>
@@ -256,82 +138,37 @@ export default function IntentScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   inner: { paddingHorizontal: 24, gap: 20 },
-  back: { marginBottom: 4 },
-  backText: {
-    fontFamily: fonts.mono,
-    fontSize: 12,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.subtle,
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  eyebrow: { ...type.eyebrow, color: colors.subtle },
-  headline: { ...type.headline, color: colors.text, marginTop: 4 },
-  flightTag: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: colors.subtle,
-    marginTop: -8,
-  },
-  section: { gap: 10 },
-  sectionLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: colors.subtle,
-    marginBottom: 2,
-  },
-  optional: {
-    fontFamily: fonts.serifItalic,
-    fontSize: 12,
-    letterSpacing: 0,
-    textTransform: 'none',
-    color: colors.subtle,
-  },
+  eyebrow: { color: colors.subtle },
+  spacer: { width: 64 },
+  headline: { color: colors.text, marginTop: 4 },
+  section: { gap: 10, marginTop: 8 },
   option: {
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
-    backgroundColor: colors.surface,
-    gap: 4,
+    borderRadius: 3,
+    padding: 18,
   },
-  optionSelected: { borderColor: colors.text, backgroundColor: colors.text },
+  optionSelected: { backgroundColor: colors.periwinkle },
   optionLabel: {
-    fontFamily: fonts.serifBold,
+    fontFamily: fonts.bodyBold,
+    fontWeight: '700',
     fontSize: 17,
     color: colors.text,
-    letterSpacing: -0.2,
-  },
-  optionLabelSelected: { color: colors.bg },
-  optionDesc: {
-    fontFamily: fonts.serifItalic,
-    fontSize: 14,
-    color: colors.subtle,
-    lineHeight: 20,
-  },
-  optionDescSelected: { color: 'rgba(249,248,246,0.7)' },
-  input: {
-    fontFamily: fonts.serif,
-    fontSize: 16,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: colors.surface,
   },
   error: {
-    fontFamily: fonts.serifItalic,
+    fontFamily: fonts.body,
     fontSize: 14,
     color: colors.error,
   },
   footer: {
     paddingHorizontal: 24,
     paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(10,10,10,0.08)',
     backgroundColor: colors.bg,
   },
   primaryBtn: {
@@ -341,11 +178,11 @@ const styles = StyleSheet.create({
   },
   primaryBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
   primaryBtnText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
-    color: colors.bg,
+    color: colors.onAccent,
   },
 })

@@ -68,7 +68,7 @@ export default function Preview() {
 const styles = StyleSheet.create({
   boardWrap: { gap: 16 },
   hint: {
-    ...type.bodyItalic,
+    ...type.body,
     fontSize: 14,
     color: colors.subtle,
   },

@@ -63,6 +63,25 @@ function intentsCompatible(a: string, b: string): boolean {
   return a === b
 }
 
+// Auto-assigned meeting location, decided by the app at match creation (users
+// never pick). Deterministic walk rule: meet at the earlier-departing
+// traveler's gate so nobody misses boarding; fall back to a named lounge, then
+// a terminal landmark.
+function assignMeetupLocation(
+  a: { departure_time: string | null; gate: string | null; lounge: string | null; terminal: string | null },
+  b: { departure_time: string | null; gate: string | null; lounge: string | null; terminal: string | null },
+): string {
+  const depA = a.departure_time ? new Date(a.departure_time).getTime() : Infinity
+  const depB = b.departure_time ? new Date(b.departure_time).getTime() : Infinity
+  const [earlier, later] = depA <= depB ? [a, b] : [b, a]
+  if (earlier.gate) return `Gate ${earlier.gate.toUpperCase()}`
+  if (earlier.lounge) return earlier.lounge
+  if (later.gate) return `Gate ${later.gate.toUpperCase()}`
+  if (later.lounge) return later.lounge
+  const terminal = earlier.terminal ?? later.terminal
+  return terminal ? `Terminal ${terminal.toUpperCase()} information desk` : 'The nearest information desk'
+}
+
 // ── Scoring ───────────────────────────────────────────────────────────────────
 
 interface UserProfile {
@@ -87,6 +106,8 @@ interface SessionRecord {
   departure_time: string | null
   created_at: string | null // Fix 8: needed for recency tiebreaker
   terminal: string | null
+  gate: string | null
+  lounge: string | null
   connection_intent: string
   travel_purpose: string | null
   event_id: string | null
@@ -337,16 +358,33 @@ Deno.serve(async (req) => {
       )
     }
 
-    // In curiosity mode, verify the requester has actually been waiting ≥ 15s
-    // server-side, regardless of what the client claims. Cheap single-row query.
-    if (isCuriosityMode) {
-      const { data: requesterSession } = await supabase
-        .from('sessions')
-        .select('created_at')
-        .eq('id', sessionId)
-        .maybeSingle()
+    // Never trust the client's copy of the session: verify the row is still
+    // active and unexpired server-side. A stale client (screen left open past
+    // the flight window, session archived from another device) must not be
+    // able to create matches nobody can answer.
+    const { data: requesterSession } = await supabase
+      .from('sessions')
+      .select('id, status, expires_at, created_at')
+      .eq('id', sessionId)
+      .maybeSingle()
 
-      const requesterCreatedAt = requesterSession?.created_at
+    const requesterExpired =
+      !requesterSession ||
+      requesterSession.status !== 'active' ||
+      !requesterSession.expires_at ||
+      new Date(requesterSession.expires_at as string).getTime() <= Date.now()
+
+    if (requesterExpired) {
+      return new Response(
+        JSON.stringify({ matched: false, reason: 'requester session not active' }),
+        { status: 200 }
+      )
+    }
+
+    // In curiosity mode, verify the requester has actually been waiting ≥ 15s
+    // server-side, regardless of what the client claims.
+    if (isCuriosityMode) {
+      const requesterCreatedAt = requesterSession.created_at
         ? new Date(requesterSession.created_at as string).getTime()
         : null
 
@@ -371,7 +409,7 @@ Deno.serve(async (req) => {
       .from('sessions')
       .select(`
         id, user_id, origin_iata, destination_iata, departure_time, created_at,
-        terminal, connection_intent, travel_purpose, event_id,
+        terminal, gate, lounge, connection_intent, travel_purpose, event_id,
         flights!flight_id (flight_iata),
         users (
           id, first_name, current_thinking, industry, company,
@@ -380,6 +418,7 @@ Deno.serve(async (req) => {
       `)
       .eq('origin_iata', originIata)
       .eq('status', 'active')
+      .gt('expires_at', new Date().toISOString())
       .neq('user_id', userId)
       .neq('id', sessionId)
       .order('created_at', { ascending: false })
@@ -429,12 +468,14 @@ Deno.serve(async (req) => {
 
       // Fix 1: scope pending-match scan to this airport — prevents a full table
       // scan that returns every pending match globally on every invocation.
-      // Include pending_a and pending_b: a session that one side already accepted
-      // should not be re-matched with a third party until the pair resolves.
+      // Include every live status ('mutual' too): the single-active-match
+      // trigger rejects inserts for any session with a live match, so leaving
+      // 'mutual' out would livelock — the matcher would pick the same locked
+      // candidate on every pass, hit 23505, and never try the next-best one.
       supabase
         .from('matches')
         .select('session_id_a, session_id_b')
-        .in('status', ['pending', 'pending_a', 'pending_b'])
+        .in('status', ['pending', 'pending_a', 'pending_b', 'mutual'])
         .eq('origin_iata', originIata)
         .limit(500),
 
@@ -504,6 +545,8 @@ Deno.serve(async (req) => {
       departure_time: myDepartureTime,
       created_at: null,
       terminal: myTerminal,
+      gate: record.gate ?? null,
+      lounge: record.lounge ?? null,
       connection_intent: intent,
       travel_purpose: record.travel_purpose ?? null,
       event_id: record.event_id ?? null,
@@ -599,6 +642,21 @@ Deno.serve(async (req) => {
       }
     }
 
+    const suggestedMeetupLocation = assignMeetupLocation(
+      {
+        departure_time: myDepartureTime,
+        gate: record.gate ?? null,
+        lounge: record.lounge ?? null,
+        terminal: myTerminal,
+      },
+      {
+        departure_time: partner.departure_time,
+        gate: partner.gate,
+        lounge: partner.lounge,
+        terminal: partner.terminal,
+      },
+    )
+
     const { data: matchRow, error: matchErr } = await supabase
       .from('matches')
       .insert({
@@ -608,6 +666,7 @@ Deno.serve(async (req) => {
         status: 'pending',
         match_type: matchType,
         point_of_connection: pointOfConnection,
+        suggested_meetup_location: suggestedMeetupLocation,
         winning_signal_type: bestSignal?.type ?? null,
         winning_signal_score: best.result.score,
         pool_size_at_match: poolSize,

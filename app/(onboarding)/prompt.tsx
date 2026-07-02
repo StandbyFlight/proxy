@@ -164,14 +164,14 @@ const styles = StyleSheet.create({
   },
   rule: {
     height: 1,
-    backgroundColor: 'rgba(10,10,10,0.18)',
+    backgroundColor: 'rgba(0,0,0,0.18)',
   },
   inputWrap: {
     position: 'relative',
     minHeight: 160,
   },
   input: {
-    fontFamily: fonts.serifItalic,
+    fontFamily: fonts.body,
     fontSize: 20,
     lineHeight: 30,
     color: colors.text,
@@ -184,13 +184,13 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    fontFamily: fonts.serifItalic,
+    fontFamily: fonts.body,
     fontSize: 20,
     lineHeight: 30,
     color: colors.subtle,
   },
   softHint: {
-    ...type.bodyItalic,
+    ...type.body,
     fontSize: 13,
     color: colors.subtle,
     marginTop: 14,

@@ -1,14 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native'
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
 import { colors } from '../lib/theme'
+import { fonts } from '../lib/typography'
 import { haptics } from '../lib/haptics'
 
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-const BOARD_FONT = Platform.select({
-  ios: 'Menlo Regular',
-  android: 'monospace',
-  default: 'Menlo Regular, Consolas, monospace',
-})
+const BOARD_FONT = fonts.mono
 
 export function FlipCell({
   targetChar,

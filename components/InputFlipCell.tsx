@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native'
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
 import { colors } from '../lib/theme'
+import { fonts } from '../lib/typography'
 
-const BOARD_FONT = Platform.select({
-  ios: 'Menlo',
-  android: 'monospace',
-  default: 'Menlo, Consolas, monospace',
-})
+const BOARD_FONT = fonts.mono
 
 // A flip cell driven by an external `char` prop.
 // When `char` changes, plays a single fast flip-out / flip-in animation.

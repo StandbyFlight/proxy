@@ -6,9 +6,10 @@ import { fonts, type } from '../../lib/typography'
 import { supabase } from '../../lib/supabase'
 import { disconnectAbly } from '../../lib/ably'
 import { haptics } from '../../lib/haptics'
+import { BackButton } from '../../components/BackButton'
 
-// Minimal settings page — host for sign-out + dev tools so the waiting-screen
-// gear icon has somewhere to land. Will grow into a real settings surface later.
+// Account-level settings. Profile fields are edited directly on the Profile
+// page, not here.
 
 export default function Settings() {
   const router = useRouter()
@@ -24,53 +25,35 @@ export default function Settings() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
       <View style={styles.topRow}>
-        <Pressable
-          onPress={() => {
-            haptics.buttonTap()
-            if (router.canGoBack()) router.back()
-            else router.replace('/(app)/')
-          }}
-          hitSlop={14}
-          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
-        >
-          <Text style={styles.triangle}>{'◀'}</Text>
-          <Text style={styles.backText}>BACK</Text>
-        </Pressable>
+        <BackButton />
         <Text style={[type.eyebrow, styles.eyebrow]}>SETTINGS</Text>
         <View style={styles.spacer} />
       </View>
 
-      <View style={styles.body}>
-        <Text style={[type.headline, styles.headline]}>Off the board.</Text>
-        <Text style={[type.subhead, styles.subhead]}>
-          Step away from the gate, or peek at the developer tools.
-        </Text>
+      <View style={styles.rows}>
+        <Pressable
+          onPress={() => { haptics.selection(); router.push('/(app)/profile/integrations') }}
+          style={({ pressed }) => [styles.row, pressed && { opacity: 0.5 }]}
+        >
+          <Text style={styles.rowLabel}>INTEGRATIONS</Text>
+          <Text style={styles.rowHint}>Spotify & more</Text>
+        </Pressable>
 
-        <View style={styles.rows}>
-          <Pressable
-            onPress={() => { haptics.selection(); router.push('/(app)/profile') }}
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-          >
-            <Text style={styles.rowLabel}>YOUR PASS</Text>
-            <Text style={styles.rowHint}>Edit your profile</Text>
-          </Pressable>
+        <Pressable
+          onPress={signOut}
+          style={({ pressed }) => [styles.row, pressed && { opacity: 0.5 }]}
+        >
+          <Text style={styles.rowLabel}>SIGN OUT</Text>
+          <Text style={styles.rowHint}>Step away</Text>
+        </Pressable>
 
-          <Pressable
-            onPress={signOut}
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-          >
-            <Text style={styles.rowLabel}>SIGN OUT</Text>
-            <Text style={styles.rowHint}>End this session</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => { haptics.selection(); router.push('/(app)/dev') }}
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-          >
-            <Text style={styles.rowLabel}>DEV TOOLS</Text>
-            <Text style={styles.rowHint}>Internal</Text>
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={() => { haptics.selection(); router.push('/(app)/dev') }}
+          style={({ pressed }) => [styles.row, pressed && { opacity: 0.5 }]}
+        >
+          <Text style={styles.rowLabel}>DEV TOOLS</Text>
+          <Text style={styles.rowHint}>Internal</Text>
+        </Pressable>
       </View>
     </View>
   )
@@ -83,51 +66,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
-  },
-  triangle: {
-    fontSize: 10,
-    color: colors.subtle,
-    includeFontPadding: false,
-  },
-  backText: {
-    fontFamily: fonts.mono,
-    fontSize: 12,
-    color: colors.subtle,
-    letterSpacing: 1.4,
-  },
   eyebrow: { color: colors.subtle },
-  spacer: { width: 60 },
-  body: {
-    marginTop: 32,
-    gap: 16,
-  },
-  headline: { color: colors.text },
-  subhead: { color: colors.subtle, marginTop: -4 },
-  rows: { marginTop: 24, gap: 14 },
+  spacer: { width: 64 },
+
+  rows: { marginTop: 24, gap: 8 },
   row: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 4,
+    paddingHorizontal: 14,
     paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(10,10,10,0.08)',
   },
-  rowPressed: { opacity: 0.5 },
   rowLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.bodyBold,
+    fontWeight: '700',
     fontSize: 13,
     color: colors.text,
-    letterSpacing: 1.4,
+    letterSpacing: 1.2,
   },
   rowHint: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
+    fontFamily: fonts.body,
+    fontSize: 12,
     color: colors.subtle,
-    letterSpacing: 1,
   },
 })

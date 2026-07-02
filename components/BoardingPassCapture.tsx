@@ -17,6 +17,8 @@ export type BoardingPassData = {
   destination: string | null
   departure_date: string | null
   departure_time: string | null
+  boarding_time: string | null
+  arrival_date: string | null
   terminal: string | null
   gate: string | null
   passenger_name: string | null
@@ -220,13 +222,13 @@ const styles = StyleSheet.create({
   headline: { ...type.headline, color: colors.text, marginTop: 4 },
   subhead: { ...type.subhead, color: colors.subtle, marginTop: 2 },
   loadingText: {
-    fontFamily: fonts.serifItalic,
+    fontFamily: fonts.body,
     fontSize: 16,
     color: colors.subtle,
     marginTop: 16,
   },
   errorText: {
-    fontFamily: fonts.serifItalic,
+    fontFamily: fonts.body,
     fontSize: 15,
     color: colors.error,
     lineHeight: 22,
@@ -238,31 +240,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryBtnText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
-    color: colors.bg,
+    color: colors.onAccent,
   },
   secondaryBtn: {
-    borderWidth: 1,
-    borderColor: colors.border,
     paddingVertical: 14,
     alignItems: 'center',
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     width: '100%',
   },
   secondaryBtnText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 12,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    color: colors.subtle,
+    color: colors.text,
   },
   ghostLink: { alignSelf: 'center', paddingVertical: 8 },
   ghostLinkText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 11,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
@@ -271,7 +273,7 @@ const styles = StyleSheet.create({
   cameraUI: { flex: 1, justifyContent: 'space-between' },
   cameraBack: { padding: 20 },
   cameraBackText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 12,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -279,7 +281,7 @@ const styles = StyleSheet.create({
   },
   cameraBottom: { alignItems: 'center', gap: 20, paddingBottom: 48 },
   cameraHint: {
-    fontFamily: fonts.serifItalic,
+    fontFamily: fonts.body,
     fontSize: 15,
     color: 'rgba(255,255,255,0.85)',
     textAlign: 'center',

@@ -6,37 +6,24 @@ import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { supabase } from '../../lib/supabase'
 import { haptics } from '../../lib/haptics'
+import { getActiveSession, getActiveMatch, type Session, type MatchSummary } from '../../lib/session'
 import { ManifestBoard } from '../../components/ManifestBoard'
-import { InputFlipCell } from '../../components/InputFlipCell'
 import { primaryIataForCity } from '../../lib/cities'
 
-// Status hub. Reads state on focus; renders pills/CTAs that link out, never
-// auto-redirects. Per group_plan §"index (Home)":
+// Home has one job: the current live travel session and its status.
 //   no session   → "Start a session" CTA → /(app)/flight
-//   active session, no match → session pill → /(app)/match/searching
-//   active match → match pill → /(app)/match/room
-// All listener / matcher logic lives on /(app)/match/searching now.
-
-type SessionInfo = {
-  id: string
-  flightIata: string | null
-  originIata: string | null
-}
-
-type MatchInfo = {
-  id: string
-  status: string
-  iAccepted: boolean
-}
+//   active session, no match → status + link to searching
+//   active match → link to the match
+// Destination (not origin) is the primary status info on the board.
 
 export default function HomeScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
   const [firstName, setFirstName] = useState('')
-  const [iata, setIata] = useState('···')
-  const [activeSession, setActiveSession] = useState<SessionInfo | null>(null)
-  const [activeMatch, setActiveMatch] = useState<MatchInfo | null>(null)
+  const [baseIata, setBaseIata] = useState('···')
+  const [activeSession, setActiveSession] = useState<Session | null>(null)
+  const [activeMatch, setActiveMatch] = useState<MatchSummary | null>(null)
   const [loaded, setLoaded] = useState(false)
 
   useFocusEffect(useCallback(() => {
@@ -52,57 +39,18 @@ export default function HomeScreen() {
         .maybeSingle()
       if (cancelled) return
       if (profile?.first_name) setFirstName(profile.first_name)
-      if (profile?.base_city) setIata(primaryIataForCity(profile.base_city))
+      if (profile?.base_city) setBaseIata(primaryIataForCity(profile.base_city))
 
-      const nowIso = new Date().toISOString()
-      const { data: sess } = await supabase
-        .from('sessions')
-        .select('id, origin_iata, flights(flight_iata)')
-        .eq('user_id', session.user.id)
-        .eq('status', 'active')
-        .gt('expires_at', nowIso)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      const sess = await getActiveSession()
+      if (cancelled) return
+      const match = sess ? await getActiveMatch(sess.id) : null
       if (cancelled) return
 
-      let nextSession: SessionInfo | null = null
-      let nextMatch: MatchInfo | null = null
-
-      if (sess) {
-        const fl = sess.flights as { flight_iata: string } | { flight_iata: string }[] | null
-        const fIata = Array.isArray(fl) ? fl[0]?.flight_iata : fl?.flight_iata
-        nextSession = {
-          id: sess.id,
-          flightIata: fIata ?? null,
-          originIata: (sess as { origin_iata?: string }).origin_iata ?? null,
-        }
-
-        const { data: match } = await supabase
-          .from('matches')
-          .select('id, status, session_id_a')
-          .or(`session_id_a.eq.${sess.id},session_id_b.eq.${sess.id}`)
-          .in('status', ['pending', 'pending_a', 'pending_b', 'mutual'])
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        if (cancelled) return
-        if (match) {
-          const iAmA = match.session_id_a === sess.id
-          const iAccepted =
-            match.status === 'mutual' ||
-            (iAmA && match.status === 'pending_b') ||
-            (!iAmA && match.status === 'pending_a')
-          nextMatch = { id: match.id, status: match.status, iAccepted }
-        }
-      }
-
-      if (cancelled) return
-      setActiveSession(nextSession)
-      setActiveMatch(nextMatch)
+      setActiveSession(sess)
+      setActiveMatch(match)
       setLoaded(true)
     }
-    load()
+    load().catch(() => {})
     return () => { cancelled = true }
   }, []))
 
@@ -122,74 +70,33 @@ export default function HomeScreen() {
     router.push('/(app)/match/searching')
   }
 
-  function openProfile() {
-    haptics.buttonTap()
-    router.push('/(app)/profile')
-  }
-
-  // Render branches: keep them flat so the state machine is readable at a glance.
   const showCTA = loaded && !activeSession
-  const showSessionPill = loaded && activeSession && !activeMatch
-  const showMatchPill = loaded && activeMatch
+  const showSession = loaded && activeSession && !activeMatch
+  const showMatch = loaded && activeMatch
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-      <View style={styles.topRow}>
-        <View style={styles.eyebrowWrap}>
-          <Text style={[type.eyebrow, styles.eyebrow]}>STANDBY · HOME</Text>
-        </View>
-        <Pressable
-          onPress={openProfile}
-          hitSlop={14}
-          style={({ pressed }) => [styles.passengerBadge, pressed && { opacity: 0.5 }]}
-        >
-          <InputFlipCell
-            char={(firstName[0] || ' ').toUpperCase()}
-            cellSize={28}
-            cellWidth={22}
-          />
-        </Pressable>
-      </View>
-
       <View style={styles.body}>
         {showCTA ? (
-          <>
-            <Text style={[type.headline, styles.headline]}>
-              Sit down across from a stranger.
-            </Text>
-            <Text style={[type.subhead, styles.subhead]}>
-              Add the flight you're catching today and we'll find someone in your terminal worth your forty-five minutes.
-            </Text>
-          </>
-        ) : showMatchPill && activeMatch ? (
-          <>
-            <Text style={[type.headline, styles.headline]}>
-              {activeMatch.status === 'mutual' ? "You're both in." : "Someone said yes."}
-            </Text>
-            <Text style={[type.subhead, styles.subhead]}>
-              {activeMatch.status === 'mutual'
-                ? "Pick a time and a place. They're waiting on you."
-                : activeMatch.iAccepted
-                  ? "Waiting for the other side. We'll surface the moment it lands."
-                  : "Open the card and decide."}
-            </Text>
-          </>
-        ) : showSessionPill && activeSession ? (
-          <>
-            <Text style={[type.headline, styles.headline]}>
-              Listening at the gate.
-            </Text>
-            <Text style={[type.subhead, styles.subhead]}>
-              Your session is live. We're scanning your terminal cluster. Open Searching to watch it happen.
-            </Text>
-          </>
+          <Text style={[type.headline, styles.headline]}>
+            Sit down across from a stranger.
+          </Text>
+        ) : showMatch && activeMatch ? (
+          <Text style={[type.headline, styles.headline]}>
+            {activeMatch.status === 'mutual'
+              ? "You're both in."
+              : activeMatch.iAccepted ? 'Waiting on them.' : 'Someone said yes.'}
+          </Text>
+        ) : showSession && activeSession ? (
+          <Text style={[type.headline, styles.headline]}>On standby.</Text>
         ) : null}
 
         <View style={styles.boardWrap}>
           <ManifestBoard
             firstName={firstName || 'YOU'}
-            iata={activeSession?.originIata?.toUpperCase() || iata}
-            flightIata={activeSession?.flightIata ?? null}
+            iata={activeSession?.destination_iata?.toUpperCase() || baseIata}
+            iataLabel={activeSession?.destination_iata ? 'TO' : 'BASE'}
+            flightIata={activeSession?.flight_iata ?? null}
             mode="static"
             status="standby"
             stranger={null}
@@ -206,19 +113,17 @@ export default function HomeScreen() {
             <Text style={styles.triangleOnRed}>{'▶'}</Text>
             <Text style={styles.primaryBtnText}>START A SESSION</Text>
           </Pressable>
-        ) : showMatchPill && activeMatch ? (
+        ) : showMatch && activeMatch ? (
           <Pressable
             onPress={openMatch}
             style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
           >
             <Text style={styles.triangleOnRed}>{'▶'}</Text>
             <Text style={styles.primaryBtnText}>
-              {activeMatch.status === 'mutual'
-                ? 'OPEN MEETUP'
-                : activeMatch.iAccepted ? 'MATCH PENDING' : 'OPEN MATCH'}
+              {activeMatch.status === 'mutual' ? 'OPEN MEETUP' : 'OPEN MATCH'}
             </Text>
           </Pressable>
-        ) : showSessionPill ? (
+        ) : showSession ? (
           <View style={styles.pillStack}>
             <Pressable
               onPress={openSearching}
@@ -247,25 +152,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     paddingHorizontal: 24,
   },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  eyebrowWrap: { flex: 1 },
-  eyebrow: { color: colors.subtle },
-  passengerBadge: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingLeft: 8,
-  },
   body: {
     flex: 1,
     justifyContent: 'center',
     gap: 20,
   },
   headline: { color: colors.text },
-  subhead: { color: colors.subtle, marginTop: -8 },
   boardWrap: { marginTop: 8 },
 
   footer: {
@@ -283,19 +175,19 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   primaryBtnText: {
-    fontFamily: fonts.mono,
-    color: colors.bg,
+    fontFamily: fonts.body,
+    color: colors.onAccent,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1.4,
   },
-  triangleOnRed: { fontSize: 10, color: colors.bg, includeFontPadding: false },
+  triangleOnRed: { fontSize: 10, color: colors.onAccent, includeFontPadding: false },
   ghostBtn: {
     alignSelf: 'center',
     paddingVertical: 8,
   },
   ghostText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 11,
     letterSpacing: 1.4,
     color: colors.subtle,

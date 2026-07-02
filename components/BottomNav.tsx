@@ -5,50 +5,46 @@ import { colors } from '../lib/theme'
 import { fonts } from '../lib/typography'
 import { haptics } from '../lib/haptics'
 
-// The five tabs from group_plan.md §"Bottom Nav".
-// Match tab deep-links to /match/room when an active match exists; otherwise
-// it falls back to /match/searching. The router is the single source of truth
-// for which sub-screen renders — those screens handle their own redirects.
-type TabKey = 'home' | 'session' | 'match' | 'events' | 'profile'
+// Bottom navigation — icon + short label per tab (never icon-only).
+//   Home    — the current live session and nothing else
+//   History — all past and upcoming travel sessions
+//   Match   — the single active match (deep-links to its current state)
+//   Events  — events browser
+//   Profile — read-only pass
+
+type TabKey = 'home' | 'history' | 'match' | 'events' | 'profile'
 
 type Tab = {
   key: TabKey
+  icon: string
   label: string
-  // A pathname prefix that means "this tab is active". Tap deep-links inside
-  // a tab keep the right one highlighted (e.g. /(app)/session/location lights
-  // up Session).
-  matchPrefix: string
 }
 
 const TABS: Tab[] = [
-  { key: 'home',    label: 'HOME',    matchPrefix: '/(app)' },
-  { key: 'session', label: 'SESSION', matchPrefix: '/(app)/session' },
-  { key: 'match',   label: 'MATCH',   matchPrefix: '/(app)/match' },
-  { key: 'events',  label: 'EVENTS',  matchPrefix: '/(app)/events' },
-  { key: 'profile', label: 'PROFILE', matchPrefix: '/(app)/profile' },
+  { key: 'home',    icon: '⌂', label: 'HOME' },
+  { key: 'history', icon: '≡', label: 'HISTORY' },
+  { key: 'match',   icon: '◉', label: 'MATCH' },
+  { key: 'events',  icon: '✦', label: 'EVENTS' },
+  { key: 'profile', icon: '◐', label: 'PROFILE' },
 ]
 
 type Badges = Partial<Record<TabKey, number | 'dot'>>
 
 type NavState = {
-  hasActiveSession: boolean
   activeMatchId: string | null
 }
 
-// Smart-routing: Session and Match converge once a session exists, because
-// "manage my session" and "look at my match" are the same activity at that
-// point. With no session, Session is the entry to flight setup and Match
-// hands the user off to start one.
 function hrefForTab(tab: TabKey, state: NavState): string {
-  if (tab === 'home')    return '/(app)/'
-  if (tab === 'events')  return '/(app)/events'
-  if (tab === 'profile') return '/(app)/profile'
-  if (tab === 'session') return state.hasActiveSession ? '/(app)/match/searching' : '/(app)/flight'
-  if (tab === 'match') {
-    if (state.activeMatchId) return `/(app)/match/room?match_id=${state.activeMatchId}`
-    return '/(app)/match/searching'
+  switch (tab) {
+    case 'home': return '/(app)/'
+    case 'history': return '/(app)/history'
+    case 'events': return '/(app)/events'
+    case 'profile': return '/(app)/profile'
+    case 'match':
+      return state.activeMatchId
+        ? `/(app)/match/room?match_id=${state.activeMatchId}`
+        : '/(app)/match/searching'
   }
-  return '/(app)/'
 }
 
 export function BottomNav({
@@ -61,21 +57,21 @@ export function BottomNav({
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const pathname = usePathname()
-  const state: NavState = navState ?? { hasActiveSession: false, activeMatchId: null }
+  const state: NavState = navState ?? { activeMatchId: null }
 
-  // Home tab is exclusively the root — anything deeper belongs to its sub-stack.
   function isActive(tab: Tab): boolean {
-    if (tab.key === 'home') return pathname === '/' || pathname === '/(app)' || pathname === '/(app)/'
-    // session sub-stack: legacy flat /flight and /intent also count
-    if (tab.key === 'session') {
-      return pathname.startsWith('/(app)/session') ||
-        pathname === '/(app)/flight' ||
-        pathname === '/(app)/intent'
+    switch (tab.key) {
+      case 'home':
+        // Session setup screens belong to starting the live session → Home.
+        return pathname === '/' || pathname === '/(app)' || pathname === '/(app)/' ||
+          pathname === '/(app)/flight' || pathname === '/(app)/intent' ||
+          pathname.startsWith('/(app)/session')
+      case 'history': return pathname.startsWith('/(app)/history')
+      case 'match': return pathname.startsWith('/(app)/match')
+      case 'events': return pathname.startsWith('/(app)/events')
+      case 'profile':
+        return pathname.startsWith('/(app)/profile') || pathname === '/(app)/settings'
     }
-    if (tab.key === 'profile') {
-      return pathname.startsWith('/(app)/profile') || pathname === '/(app)/settings'
-    }
-    return pathname.startsWith(tab.matchPrefix)
   }
 
   function go(tab: Tab) {
@@ -84,13 +80,7 @@ export function BottomNav({
   }
 
   return (
-    <View
-      style={[
-        styles.wrap,
-        { paddingBottom: Math.max(insets.bottom, 10) },
-      ]}
-    >
-      <View style={styles.rule} />
+    <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       <View style={styles.row}>
         {TABS.map(tab => {
           const active = isActive(tab)
@@ -100,12 +90,13 @@ export function BottomNav({
               key={tab.key}
               onPress={() => go(tab)}
               hitSlop={6}
+              accessibilityRole="tab"
+              accessibilityLabel={tab.label}
+              accessibilityState={{ selected: active }}
               style={({ pressed }) => [styles.tab, pressed && { opacity: 0.6 }]}
             >
-              <View style={styles.labelRow}>
-                <Text style={[styles.label, active && styles.labelActive]}>
-                  {tab.label}
-                </Text>
+              <View style={styles.iconRow}>
+                <Text style={[styles.icon, active && styles.iconActive]}>{tab.icon}</Text>
                 {badge === 'dot' ? (
                   <View style={styles.dot} />
                 ) : typeof badge === 'number' && badge > 0 ? (
@@ -116,7 +107,7 @@ export function BottomNav({
                   </View>
                 ) : null}
               </View>
-              {active ? <View style={styles.underline} /> : null}
+              <Text style={[styles.label, active && styles.labelActive]}>{tab.label}</Text>
             </Pressable>
           )
         })}
@@ -129,10 +120,6 @@ const styles = StyleSheet.create({
   wrap: {
     backgroundColor: colors.bg,
   },
-  rule: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(10,10,10,0.18)',
-  },
   row: {
     flexDirection: 'row',
     paddingTop: 10,
@@ -141,29 +128,31 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     alignItems: 'center',
-    paddingTop: 6,
-    paddingBottom: 4,
-    gap: 6,
+    paddingTop: 4,
+    paddingBottom: 2,
+    gap: 3,
   },
-  labelRow: {
+  iconRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
+  icon: {
+    fontSize: 16,
+    color: colors.subtle,
+    includeFontPadding: false,
+  },
+  iconActive: { color: colors.accent },
   label: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    letterSpacing: 1.6,
+    fontFamily: fonts.body,
+    fontSize: 9,
+    letterSpacing: 1.4,
     color: colors.subtle,
   },
+  // The tab you're on renders fully in the accent so it's unmistakable.
   labelActive: {
-    color: colors.text,
-    fontWeight: '600',
-  },
-  underline: {
-    height: 2,
-    width: 18,
-    backgroundColor: colors.accent,
+    color: colors.accent,
+    fontWeight: '700',
   },
   dot: {
     width: 5,
@@ -173,6 +162,7 @@ const styles = StyleSheet.create({
   },
   numberBadge: {
     backgroundColor: colors.accent,
+    borderRadius: 8,
     paddingHorizontal: 5,
     paddingVertical: 1,
     minWidth: 16,
@@ -180,10 +170,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   numberBadgeText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.4,
-    color: colors.bg,
+    color: colors.onAccent,
   },
 })

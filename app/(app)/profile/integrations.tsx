@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native'
-import { useRouter } from 'expo-router'
+import { View, Text, StyleSheet, ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../../lib/theme'
-import { fonts, type } from '../../../lib/typography'
-import { haptics } from '../../../lib/haptics'
+import { type } from '../../../lib/typography'
 import { EnrichmentRow, type EnrichmentState } from '../../../components/EnrichmentRow'
+import { BackButton } from '../../../components/BackButton'
 
 // Per group_plan §"profile/integrations". Mirrors the duty-free enrichment list
 // shape from onboarding — same EnrichmentRow primitive, same "coming soon"
@@ -27,7 +26,6 @@ const PROVIDERS: Provider[] = [
 ]
 
 export default function Integrations() {
-  const router = useRouter()
   const insets = useSafeAreaInsets()
   const [states, setStates] = useState<Record<string, EnrichmentState>>({})
 
@@ -45,21 +43,14 @@ export default function Integrations() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.topRow}>
-          <Pressable
-            onPress={() => { haptics.buttonTap(); router.back() }}
-            hitSlop={14}
-            style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
-          >
-            <Text style={styles.triangleSubtle}>{'◀'}</Text>
-            <Text style={styles.backText}>BACK</Text>
-          </Pressable>
+          <BackButton fallback="/(app)/settings" />
           <Text style={[type.eyebrow, styles.eyebrow]}>INTEGRATIONS</Text>
           <View style={styles.spacer} />
         </View>
 
         <Text style={[type.headline, styles.headline]}>Connect what's yours.</Text>
         <Text style={[type.subhead, styles.subhead]}>
-          Each connection sharpens the matcher. None of it is shown to other travelers, only the single point of connection it produces.
+          Connections sharpen the matcher — nothing is shown to other travelers.
         </Text>
 
         <View style={styles.list}>
@@ -87,9 +78,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
-  triangleSubtle: { fontSize: 10, color: colors.subtle, includeFontPadding: false },
-  backText: { fontFamily: fonts.mono, fontSize: 12, color: colors.subtle, letterSpacing: 1.4 },
   eyebrow: { color: colors.subtle },
   spacer: { width: 64 },
 

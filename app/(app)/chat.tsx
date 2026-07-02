@@ -9,6 +9,7 @@ import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
+import { BackButton } from '../../components/BackButton'
 
 // Logistics-only chat for matched users. Per app_plan §3.4 the framing is
 // "in case you can't find each other" — a fallback thread, not a chat product.
@@ -149,14 +150,7 @@ export default function ChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={[styles.topRow, { paddingTop: insets.top + 14 }]}>
-        <Pressable
-          onPress={() => { haptics.buttonTap(); router.back() }}
-          hitSlop={14}
-          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
-        >
-          <Text style={styles.triangleSubtle}>{'◀'}</Text>
-          <Text style={styles.backText}>BACK</Text>
-        </Pressable>
+        <BackButton />
       </View>
 
       <View style={styles.header}>
@@ -232,7 +226,7 @@ export default function ChatScreen() {
           ]}
         >
           {sending
-            ? <ActivityIndicator color={colors.bg} />
+            ? <ActivityIndicator color={colors.onAccent} />
             : <Text style={styles.sendBtnText}>SEND</Text>
           }
         </Pressable>
@@ -261,9 +255,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
-  triangleSubtle: { fontSize: 10, color: colors.subtle, includeFontPadding: false },
-  backText: { fontFamily: fonts.mono, fontSize: 12, color: colors.subtle, letterSpacing: 1.4 },
 
   header: {
     paddingHorizontal: 24,
@@ -281,7 +272,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   emptyText: {
-    fontFamily: fonts.serifItalic,
+    fontFamily: fonts.body,
     fontSize: 15,
     color: colors.subtle,
     marginTop: 24,
@@ -299,16 +290,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   bubbleMine: { backgroundColor: colors.text },
-  bubbleTheirs: { backgroundColor: '#F4F1EC' },
+  bubbleTheirs: { backgroundColor: colors.periwinkle },
   bubbleText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.body,
     fontSize: 16,
     lineHeight: 22,
   },
-  bubbleTextMine: { color: colors.bg },
+  bubbleTextMine: { color: colors.onAccent },
   bubbleTextTheirs: { color: colors.text },
   timeText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 9,
     letterSpacing: 0.6,
     color: colors.subtle,
@@ -317,7 +308,7 @@ const styles = StyleSheet.create({
   },
 
   errorText: {
-    fontFamily: fonts.serifItalic,
+    fontFamily: fonts.body,
     fontSize: 13,
     color: colors.error,
     paddingHorizontal: 24,
@@ -329,18 +320,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(10,10,10,0.08)',
+    borderTopColor: 'rgba(0,0,0,0.08)',
     paddingHorizontal: 24,
     paddingTop: 12,
     backgroundColor: colors.bg,
   },
   input: {
     flex: 1,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.body,
     fontSize: 16,
     color: colors.text,
     borderWidth: 1,
-    borderColor: 'rgba(10,10,10,0.16)',
+    borderColor: 'rgba(0,0,0,0.16)',
     paddingHorizontal: 12,
     paddingVertical: 10,
     minHeight: 44,
@@ -356,8 +347,8 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
   sendBtnText: {
-    fontFamily: fonts.mono,
-    color: colors.bg,
+    fontFamily: fonts.body,
+    color: colors.onAccent,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1.4,

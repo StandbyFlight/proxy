@@ -159,13 +159,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   prefix: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 22,
     color: colors.text,
     letterSpacing: 1,
   },
   phoneInline: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 15,
     letterSpacing: 1,
     color: colors.text,

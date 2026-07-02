@@ -3,42 +3,27 @@ import { View, Text, StyleSheet, ViewStyle } from 'react-native'
 import { colors } from '../lib/theme'
 import { fonts } from '../lib/typography'
 
-// A printed-paper boarding pass. The app's record / artifact language —
-// pairs with the flip board (identity) and the rubber stamp (approval).
-//
-// All fields are optional; missing fields render as dim placeholders ('──')
-// so an incomplete pass still reads as a pass. Pass an `accent` to change the
-// top band color; pass `stamp` children to overlay a rubber stamp.
+// The boarding pass — a dark flip-board-style module. Monospace data on a
+// black surface, status readout in accent red, no decorative borders. All
+// fields optional; missing fields render as dim placeholders so an incomplete
+// pass still reads as a pass.
 
 const DASH = '──'
 
 export type BoardingPassProps = {
-  // Top band header — replaces airline name. Defaults to 'STANDBY'.
-  airline?: string
-  // Subheader on the top band — e.g. 'BOARDING PASS' or 'MEETUP PASS'.
-  classLabel?: string
-
-  // Passenger name. Pass null/undefined to show as blanked.
+  airline?: string            // header wordmark; defaults to 'STANDBY'
+  classLabel?: string         // subheader — e.g. 'BOARDING PASS', 'MEETUP PASS'
   passenger?: string | null
-
-  // Route. Either IATA codes or '──' fallback.
   origin?: string | null
   destination?: string | null
-
-  // Optional flight metadata. Missing → dim placeholder.
   flight?: string | null
   date?: string | null
   time?: string | null
   gate?: string | null
   terminal?: string | null
-  seat?: string | null
-
-  // Visual treatments.
-  accent?: string             // top band color; defaults to colors.accent (TWA red)
-  stampSlot?: ReactNode       // optional stamp/decoration overlay
+  status?: string | null      // status readout in accent red, e.g. 'ON STANDBY'
+  stampSlot?: ReactNode
   style?: ViewStyle
-
-  // Compact layout: smaller padding, smaller IATA codes. Used on the match screen.
   compact?: boolean
 }
 
@@ -53,14 +38,12 @@ export function BoardingPass({
   time,
   gate,
   terminal,
-  seat,
-  accent = colors.accent,
+  status,
   stampSlot,
   style,
   compact = false,
 }: BoardingPassProps) {
-  const iataSize = compact ? 32 : 42
-  const passengerSize = compact ? 18 : 22
+  const iataSize = compact ? 30 : 40
 
   const fields: Array<{ label: string; value: string | null | undefined; flex?: number }> = [
     { label: 'FLIGHT', value: flight, flex: 1.2 },
@@ -71,73 +54,64 @@ export function BoardingPass({
   const stubFields: Array<{ label: string; value: string | null | undefined }> = [
     { label: 'GATE', value: gate },
     { label: 'TERM', value: terminal },
-    { label: 'SEAT', value: seat },
   ]
 
   return (
     <View style={[styles.pass, style]}>
-      {/* Top band — airline color */}
-      <View style={[styles.topBand, { backgroundColor: accent }]}>
+      {/* Header */}
+      <View style={styles.header}>
         <Text style={styles.airline}>{airline}</Text>
         <Text style={styles.classLabel}>{classLabel}</Text>
       </View>
 
-      {/* Body */}
       <View style={[styles.body, compact && styles.bodyCompact]}>
-        {/* Passenger line */}
         <FieldLabel>PASSENGER</FieldLabel>
-        <Text style={[styles.passengerName, { fontSize: passengerSize }]} numberOfLines={1}>
+        <Text style={styles.passengerName} numberOfLines={1}>
           {(passenger && passenger.length > 0) ? passenger.toUpperCase() : DASH}
         </Text>
 
-        {/* Route — big IATA codes with an arrow */}
+        {/* Route — big IATA codes, accent arrow */}
         <View style={styles.routeRow}>
           <View style={styles.routeCol}>
             <FieldLabel>FROM</FieldLabel>
-            <Text style={[styles.iata, { fontSize: iataSize }]}>
-              {origin || DASH}
-            </Text>
+            <Text style={[styles.iata, { fontSize: iataSize }]}>{origin || DASH}</Text>
           </View>
           <View style={styles.routeArrow}>
             <Text style={styles.arrow}>{'→'}</Text>
           </View>
           <View style={[styles.routeCol, styles.routeColRight]}>
             <FieldLabel>TO</FieldLabel>
-            <Text style={[styles.iata, { fontSize: iataSize }]}>
-              {destination || DASH}
-            </Text>
+            <Text style={[styles.iata, { fontSize: iataSize }]}>{destination || DASH}</Text>
           </View>
         </View>
 
-        {/* Flight / Date / Depart row */}
         <View style={styles.fieldRow}>
-          {fields.map((f, i) => (
-            <View key={f.label} style={[styles.fieldCell, { flex: f.flex ?? 1 }, i < fields.length - 1 && styles.fieldCellSep]}>
+          {fields.map(f => (
+            <View key={f.label} style={[styles.fieldCell, { flex: f.flex ?? 1 }]}>
               <FieldLabel>{f.label}</FieldLabel>
               <Text style={styles.fieldValue}>{f.value || DASH}</Text>
             </View>
           ))}
         </View>
-      </View>
 
-      {/* Perforated edge */}
-      <View style={styles.perforation}>
-        <Text style={styles.perforationDots} numberOfLines={1}>
-          {'· · · · · · · · · · · · · · · · · · · · · · · · · · ·'}
-        </Text>
-      </View>
+        <View style={styles.fieldRow}>
+          {stubFields.map(f => (
+            <View key={f.label} style={styles.fieldCell}>
+              <FieldLabel>{f.label}</FieldLabel>
+              <Text style={styles.fieldValue}>{f.value || DASH}</Text>
+            </View>
+          ))}
+        </View>
 
-      {/* Stub — gate / term / seat */}
-      <View style={[styles.stub, compact && styles.stubCompact]}>
-        {stubFields.map((f, i) => (
-          <View key={f.label} style={[styles.stubCell, i < stubFields.length - 1 && styles.stubCellSep]}>
-            <FieldLabel>{f.label}</FieldLabel>
-            <Text style={styles.stubValue}>{f.value || DASH}</Text>
+        {status ? (
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>STATUS</Text>
+            <Text style={styles.statusValue}>{status.toUpperCase()}</Text>
           </View>
-        ))}
+        ) : null}
       </View>
 
-      {/* Faint barcode strip */}
+      {/* Barcode strip */}
       <View style={styles.barcodeRow}>
         <View style={styles.barcode}>
           {Array.from({ length: 38 }).map((_, i) => (
@@ -147,16 +121,15 @@ export function BoardingPass({
                 styles.barcodeBar,
                 {
                   width: i % 3 === 0 ? 3 : i % 4 === 0 ? 1 : 2,
-                  opacity: i % 5 === 0 ? 0.35 : 0.85,
+                  opacity: i % 5 === 0 ? 0.3 : 0.8,
                 },
               ]}
             />
           ))}
         </View>
-        <Text style={styles.barcodeText}>STBY · {origin || '···'} {destination ? `· ${destination}` : ''}</Text>
+        <Text style={styles.barcodeText}>STBY · {origin || '···'}{destination ? ` · ${destination}` : ''}</Text>
       </View>
 
-      {/* Stamp overlay (absolute) */}
       {stampSlot ? <View style={styles.stampLayer} pointerEvents="none">{stampSlot}</View> : null}
     </View>
   )
@@ -168,41 +141,39 @@ function FieldLabel({ children }: { children: string }) {
 
 const styles = StyleSheet.create({
   pass: {
-    backgroundColor: '#FAF8F3', // very faint cream — paper feel
-    borderWidth: 1,
-    borderColor: 'rgba(10,10,10,0.12)',
+    backgroundColor: colors.board,
+    borderRadius: 6,
     alignSelf: 'stretch',
     overflow: 'hidden',
   },
-  topBand: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 4,
   },
   airline: {
-    fontFamily: fonts.mono,
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    fontFamily: fonts.display,
+    color: colors.boardText,
+    fontSize: 18,
     letterSpacing: 3,
   },
   classLabel: {
     fontFamily: fonts.mono,
-    color: 'rgba(255,255,255,0.85)',
+    color: colors.boardDim,
     fontSize: 10,
     letterSpacing: 2,
   },
   body: {
     paddingHorizontal: 18,
-    paddingTop: 16,
+    paddingTop: 12,
     paddingBottom: 14,
     gap: 14,
   },
   bodyCompact: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
+    paddingTop: 8,
     paddingBottom: 10,
     gap: 10,
   },
@@ -210,121 +181,88 @@ const styles = StyleSheet.create({
     fontFamily: fonts.mono,
     fontSize: 9,
     letterSpacing: 1.6,
-    color: colors.subtle,
+    color: colors.boardDim,
     marginBottom: 3,
   },
   passengerName: {
-    fontFamily: fonts.serifBold,
-    color: colors.text,
-    letterSpacing: 0.3,
+    fontFamily: fonts.mono,
+    fontSize: 18,
+    color: colors.boardText,
+    letterSpacing: 1.2,
   },
   routeRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     marginTop: 2,
   },
-  routeCol: {
-    flex: 1,
-  },
-  routeColRight: {
-    alignItems: 'flex-end',
-  },
-  routeArrow: {
-    paddingHorizontal: 10,
-    paddingBottom: 6,
-  },
+  routeCol: { flex: 1 },
+  routeColRight: { alignItems: 'flex-end' },
+  routeArrow: { paddingHorizontal: 10, paddingBottom: 6 },
   arrow: {
     fontFamily: fonts.mono,
     fontSize: 22,
-    color: colors.subtle,
+    color: colors.accent,
   },
   iata: {
     fontFamily: fonts.mono,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.boardText,
     letterSpacing: 2,
   },
   fieldRow: {
     flexDirection: 'row',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(10,10,10,0.12)',
-    paddingTop: 10,
+    marginTop: 2,
   },
-  fieldCell: {
-    paddingHorizontal: 4,
-  },
-  fieldCellSep: {
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: 'rgba(10,10,10,0.10)',
-  },
+  fieldCell: { flex: 1, paddingRight: 8 },
   fieldValue: {
     fontFamily: fonts.mono,
     fontSize: 14,
-    color: colors.text,
+    color: colors.boardText,
     letterSpacing: 0.6,
   },
-  perforation: {
-    height: 16,
-    justifyContent: 'center',
-    overflow: 'hidden',
-    backgroundColor: '#FAF8F3',
-  },
-  perforationDots: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: 'rgba(10,10,10,0.35)',
-    letterSpacing: 1,
-    textAlign: 'center',
-  },
-  stub: {
+  statusRow: {
     flexDirection: 'row',
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 10,
+    alignItems: 'baseline',
+    gap: 10,
+    marginTop: 2,
   },
-  stubCompact: {
-    paddingHorizontal: 14,
-    paddingTop: 8,
-    paddingBottom: 8,
-  },
-  stubCell: {
-    flex: 1,
-    paddingHorizontal: 4,
-  },
-  stubCellSep: {
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: 'rgba(10,10,10,0.10)',
-  },
-  stubValue: {
+  statusLabel: {
     fontFamily: fonts.mono,
-    fontSize: 14,
-    color: colors.text,
-    letterSpacing: 0.6,
+    fontSize: 9,
+    letterSpacing: 1.6,
+    color: colors.boardDim,
+  },
+  statusValue: {
+    fontFamily: fonts.mono,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 2,
+    color: colors.accent,
   },
   barcodeRow: {
     paddingHorizontal: 18,
-    paddingBottom: 14,
+    paddingBottom: 16,
     gap: 6,
   },
   barcode: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    height: 28,
+    height: 26,
     gap: 1,
   },
   barcodeBar: {
     height: '100%',
-    backgroundColor: '#0A0A0A',
+    backgroundColor: colors.boardText,
   },
   barcodeText: {
     fontFamily: fonts.mono,
     fontSize: 9,
-    color: colors.subtle,
+    color: colors.boardDim,
     letterSpacing: 1.5,
   },
   stampLayer: {
     position: 'absolute',
-    top: 60,
+    top: 56,
     right: 14,
     pointerEvents: 'none',
   },

@@ -4,15 +4,16 @@ import { Slot, useRouter } from 'expo-router'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
-import {
-  useFonts,
-  Fraunces_400Regular,
-  Fraunces_400Regular_Italic,
-  Fraunces_600SemiBold,
-} from '@expo-google-fonts/fraunces'
+import { useFonts, Anton_400Regular } from '@expo-google-fonts/anton'
 import { supabase } from '../lib/supabase'
-import { disconnectAbly } from '../lib/ably'
+import { connectAbly, disconnectAbly } from '../lib/ably'
 import { colors } from '../lib/theme'
+
+// Fonts load here before the app renders (the overlay stays up until they're
+// ready). Anton comes from @expo-google-fonts; Menlo is an iOS system font.
+// Roc Grotesk is licensed — when the .otf files are added under assets/fonts,
+// register them in this useFonts call (keys 'RocGrotesk-Regular' /
+// 'RocGrotesk-Bold'); until then the body token falls back to the system sans.
 
 SplashScreen.preventAutoHideAsync()
 
@@ -22,13 +23,12 @@ export default function RootLayout() {
   const [overlayVisible, setOverlayVisible] = useState(true)
 
   const [fontsLoaded] = useFonts({
-    Fraunces_400Regular,
-    Fraunces_400Regular_Italic,
-    Fraunces_600SemiBold,
+    Anton_400Regular,
   })
 
   // Hide native splash immediately — JS overlay (opacity 1) covers it so the
-  // native exit animation is invisible. We then fade the JS overlay separately.
+  // native exit animation is invisible. We then fade the JS overlay separately
+  // once fonts are ready, so no text renders in a fallback font first.
   useEffect(() => { SplashScreen.hideAsync() }, [])
 
   useEffect(() => {
@@ -40,12 +40,14 @@ export default function RootLayout() {
     }).start(() => setOverlayVisible(false))
   }, [fontsLoaded])
 
+  // Ably follows the Supabase auth lifecycle: connect only once a valid
+  // session exists (initial restore or fresh sign-in), disconnect cleanly on
+  // sign-out. connectAbly() no-ops with a single warning when logged out, so
+  // nothing loops against the ably-auth edge function unauthorized.
   useEffect(() => {
-    let initialEventSeen = false
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (!initialEventSeen) {
-        initialEventSeen = true
-        return
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
+        connectAbly().catch(() => {})
       }
       if (event === 'SIGNED_OUT') {
         disconnectAbly()

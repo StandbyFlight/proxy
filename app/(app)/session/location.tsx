@@ -9,10 +9,17 @@ import { colors } from '../../../lib/theme'
 import { fonts, type } from '../../../lib/typography'
 import { haptics } from '../../../lib/haptics'
 import { REACHABILITY } from '../../../lib/airports'
+import { BackButton } from '../../../components/BackButton'
 
-// Step 2 of session setup: confirm which terminal you're sitting in, and
-// optionally name a lounge. The matcher uses terminal as a reachability filter
-// (see lib/airports.ts) — a wrong terminal at LAX cuts your pool in half.
+// Step 2 of session setup. The location model is exactly two entries:
+//   TERMINAL     — determines who can walk over to you in time
+//   GATE/LOUNGE  — the more specific spot (a gate code or a named lounge)
+// This question lives only in the live flight-session flow — never onboarding.
+
+// A short alphanumeric like "B42" is a gate; anything longer is a lounge name.
+function looksLikeGate(v: string): boolean {
+  return /^[A-Za-z]?\d{1,3}[A-Za-z]?$/.test(v.trim()) && v.trim().length <= 4
+}
 
 export default function LocationScreen() {
   const params = useLocalSearchParams<{
@@ -20,7 +27,6 @@ export default function LocationScreen() {
     flight_iata: string
     origin_iata: string
     destination_iata: string
-    destination_city: string
     departure_time: string
     gate: string
     terminal: string
@@ -29,7 +35,7 @@ export default function LocationScreen() {
   const insets = useSafeAreaInsets()
 
   const [terminal, setTerminal] = useState((params.terminal ?? '').toUpperCase())
-  const [lounge, setLounge] = useState('')
+  const [spot, setSpot] = useState((params.gate ?? '').toUpperCase())
 
   const terminalOptions = useMemo(() => {
     const map = REACHABILITY[(params.origin_iata ?? '').toUpperCase()]
@@ -42,12 +48,16 @@ export default function LocationScreen() {
   function proceed() {
     if (!canContinue) return
     haptics.buttonTap()
+    const trimmed = spot.trim()
+    const gate = trimmed && looksLikeGate(trimmed) ? trimmed.toUpperCase() : (params.gate ?? '')
+    const lounge = trimmed && !looksLikeGate(trimmed) ? trimmed : ''
     router.push({
       pathname: '/(app)/session/event',
       params: {
         ...params,
         terminal: terminal.trim().toUpperCase(),
-        lounge: lounge.trim() || '',
+        gate,
+        lounge,
       },
     })
   }
@@ -62,26 +72,15 @@ export default function LocationScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.topRow}>
-          <Pressable
-            onPress={() => { haptics.buttonTap(); router.back() }}
-            hitSlop={14}
-            style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
-          >
-            <Text style={styles.triangleSubtle}>{'◀'}</Text>
-            <Text style={styles.backText}>BACK</Text>
-          </Pressable>
+          <BackButton />
           <Text style={[type.eyebrow, styles.eyebrow]}>SESSION · 02 / 04</Text>
           <View style={styles.spacer} />
         </View>
 
         <Text style={[type.headline, styles.headline]}>Where are you now?</Text>
         <Text style={[type.subhead, styles.subhead]}>
-          Your terminal sets who can walk over to you in time.
+          Your terminal sets who can walk over to you.
         </Text>
-
-        {params.origin_iata ? (
-          <Text style={styles.tag}>{params.origin_iata}{params.flight_iata ? `  ·  ${params.flight_iata}` : ''}</Text>
-        ) : null}
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>TERMINAL</Text>
@@ -106,25 +105,10 @@ export default function LocationScreen() {
                 )
               })}
             </View>
-          ) : (
+          ) : null}
+          {terminalOptions.length === 0 || (terminal && !terminalOptions.includes(terminal)) ? (
             <TextInput
               style={styles.fieldInput}
-              value={terminal}
-              onChangeText={(v) => setTerminal(v.toUpperCase())}
-              placeholder="T1"
-              placeholderTextColor={colors.subtle}
-              maxLength={4}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              selectionColor={colors.accent}
-            />
-          )}
-          {terminalOptions.length > 0 ? (
-            <Text style={styles.hint}>Or type it in if it's not listed.</Text>
-          ) : null}
-          {terminalOptions.length > 0 && terminal && !terminalOptions.includes(terminal) ? (
-            <TextInput
-              style={[styles.fieldInput, { marginTop: 8 }]}
               value={terminal}
               onChangeText={(v) => setTerminal(v.toUpperCase())}
               placeholder="T1"
@@ -139,20 +123,18 @@ export default function LocationScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>
-            LOUNGE  <Text style={styles.optional}>optional</Text>
+            GATE / LOUNGE  <Text style={styles.optional}>optional</Text>
           </Text>
           <TextInput
             style={styles.fieldInput}
-            value={lounge}
-            onChangeText={setLounge}
-            placeholder="Centurion, Sky Club, Polaris…"
+            value={spot}
+            onChangeText={setSpot}
+            placeholder="B42, or Sky Club"
             placeholderTextColor={colors.subtle}
             maxLength={32}
-            autoCapitalize="words"
             autoCorrect={false}
             selectionColor={colors.accent}
           />
-          <Text style={styles.hint}>If you're settled somewhere, we'll suggest meeting there.</Text>
         </View>
       </ScrollView>
 
@@ -182,41 +164,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
-  },
-  triangleSubtle: { fontSize: 10, color: colors.subtle, includeFontPadding: false },
-  backText: {
-    fontFamily: fonts.mono,
-    fontSize: 12,
-    color: colors.subtle,
-    letterSpacing: 1.4,
-  },
   eyebrow: { color: colors.subtle },
   spacer: { width: 64 },
 
   headline: { color: colors.text, marginTop: 4 },
   subhead: { color: colors.subtle, marginTop: -2 },
-  tag: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    color: colors.subtle,
-    marginTop: -4,
-  },
 
   section: { gap: 10, marginTop: 12 },
   sectionLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 10,
     letterSpacing: 1.6,
     color: colors.subtle,
   },
   optional: {
-    fontFamily: fonts.serifItalic,
+    fontFamily: fonts.body,
     fontSize: 11,
     letterSpacing: 0,
     textTransform: 'none',
@@ -224,43 +186,37 @@ const styles = StyleSheet.create({
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(10,10,10,0.2)',
+    borderColor: colors.border,
     paddingHorizontal: 14,
     paddingVertical: 9,
     minWidth: 48,
     alignItems: 'center',
+    borderRadius: 3,
   },
-  chipSelected: { borderColor: colors.text, backgroundColor: colors.text },
+  chipSelected: { backgroundColor: colors.periwinkle },
   chipText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 12,
     letterSpacing: 1.2,
     color: colors.text,
   },
-  chipTextSelected: { color: colors.bg },
+  chipTextSelected: { color: colors.text, fontWeight: '700' },
 
   fieldInput: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 18,
     color: colors.text,
     paddingVertical: 6,
     letterSpacing: 0.6,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(10,10,10,0.25)',
-  },
-  hint: {
-    fontFamily: fonts.serifItalic,
-    fontSize: 13,
-    color: colors.subtle,
-    lineHeight: 18,
+    borderBottomColor: 'rgba(0,0,0,0.25)',
   },
 
   footer: {
     paddingHorizontal: 24,
     paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(10,10,10,0.08)',
     backgroundColor: colors.bg,
   },
   primaryBtn: {
@@ -273,11 +229,11 @@ const styles = StyleSheet.create({
   },
   primaryBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
   primaryBtnText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1.4,
-    color: colors.bg,
+    color: colors.onAccent,
   },
-  triangleOnRed: { fontSize: 10, color: colors.bg, includeFontPadding: false },
+  triangleOnRed: { fontSize: 10, color: colors.onAccent, includeFontPadding: false },
 })

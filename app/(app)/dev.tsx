@@ -195,19 +195,19 @@ const styles = StyleSheet.create({
   inner: { paddingHorizontal: 28, paddingTop: 64, paddingBottom: 48, gap: 20 },
   back: { fontSize: 15, color: colors.subtle, marginBottom: 4 },
   badge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: colors.accent,
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
     alignSelf: 'flex-start',
   },
-  badgeText: { fontSize: 11, fontWeight: '600', color: '#92400E', letterSpacing: 0.3 },
+  badgeText: { fontSize: 11, fontWeight: '600', color: colors.onAccent, letterSpacing: 0.3 },
   heading: { fontSize: 22, fontWeight: '700', color: colors.text, letterSpacing: -0.3 },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(0,0,0,0.15)',
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
 })
 
 const rowStyles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.15)' },
   label: { fontSize: 14, color: colors.subtle },
   value: { fontSize: 14, color: colors.text, fontWeight: '500', maxWidth: '60%', textAlign: 'right' },
 })
@@ -228,12 +228,12 @@ const actionStyles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(0,0,0,0.15)',
     padding: 16,
     gap: 4,
   },
   disabled: { opacity: 0.4 },
   label: { fontSize: 15, fontWeight: '600', color: colors.text },
-  danger: { color: '#B91C1C' },
+  danger: { color: colors.accent },
   desc: { fontSize: 13, color: colors.subtle },
 })

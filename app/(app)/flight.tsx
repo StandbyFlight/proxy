@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, Pressable,
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
@@ -12,6 +12,7 @@ import { haptics } from '../../lib/haptics'
 import { BoardingPassCapture, type BoardingPassData } from '../../components/BoardingPassCapture'
 import { BoardingPass } from '../../components/BoardingPass'
 import { StandbyStamp } from '../../components/StandbyStamp'
+import { BackButton } from '../../components/BackButton'
 
 function buildDepartureISO(date: string, time: string): string | null {
   if (!date || !time) return null
@@ -80,12 +81,18 @@ function makeEmptyFields(): Fields {
 export default function FlightScreen() {
   const [phase, setPhase] = useState<Phase>('landing')
   const [fields, setFields] = useState<Fields>(makeEmptyFields)
+  // Captured from the boarding-pass scan, validated server-side; stored on the
+  // flight row but not user-editable here.
+  const [boardingTime, setBoardingTime] = useState<string | null>(null)
+  const [arrivalDate, setArrivalDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [lookupLoading, setLookupLoading] = useState(false)
   const [lookupMsg, setLookupMsg] = useState('')
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  // An event opened from the Events tab is carried through session setup.
+  const { event_id, event_name } = useLocalSearchParams<{ event_id?: string; event_name?: string }>()
 
   function set(key: keyof Fields) {
     return (val: string) => setFields(f => ({ ...f, [key]: val }))
@@ -151,15 +158,23 @@ export default function FlightScreen() {
 
   function handleParsed(data: BoardingPassData) {
     haptics.success()
-    // Boarding passes don't print the year; Claude guesses and often picks a past
-    // year. Reject any scanned date that's already in the past and fall back to
-    // today so the user just needs to confirm rather than correct it.
+    // The parser validates all date/time fields server-side (shape, past dates,
+    // boarding-before-departure, arrival-after-departure). This is a second
+    // client-side guard so a stale server can't corrupt the session date.
     const today = localDateString()
     const scannedDate = data.departure_date
     const safeDate = scannedDate && scannedDate >= today ? scannedDate : null
     if (scannedDate && !safeDate) {
       console.warn('[boarding-pass] scanned date is in the past', scannedDate, '— using today')
     }
+    setBoardingTime(
+      data.boarding_time && data.departure_time && data.boarding_time < data.departure_time
+        ? data.boarding_time
+        : null
+    )
+    setArrivalDate(
+      data.arrival_date && safeDate && data.arrival_date >= safeDate ? data.arrival_date : null
+    )
     setFields({
       flight_number: data.flight_number ?? '',
       origin: data.origin ?? '',
@@ -186,6 +201,13 @@ export default function FlightScreen() {
     setError('')
 
     try {
+      // Re-validate scan-derived fields against whatever the user edited:
+      // boarding must precede departure, arrival can't precede departure.
+      const dep = new Date(departureISO!)
+      const dep24 = `${String(dep.getHours()).padStart(2, '0')}:${String(dep.getMinutes()).padStart(2, '0')}`
+      const safeBoarding = boardingTime && boardingTime < dep24 ? boardingTime : null
+      const safeArrival = arrivalDate && arrivalDate >= fields.departure_date ? arrivalDate : null
+
       const { data: flightRow, error: upsertErr } = await supabase
         .from('flights')
         .upsert({
@@ -196,6 +218,8 @@ export default function FlightScreen() {
           departure_scheduled: departureISO,
           departure_gate: fields.gate || null,
           departure_terminal: fields.terminal || null,
+          boarding_time: safeBoarding,
+          arrival_date: safeArrival,
           last_enriched_at: new Date().toISOString(),
         }, { onConflict: 'flight_iata,departure_date' })
         .select('id')
@@ -211,10 +235,11 @@ export default function FlightScreen() {
           flight_iata: fields.flight_number.toUpperCase(),
           origin_iata: fields.origin.toUpperCase(),
           destination_iata: fields.destination.toUpperCase(),
-          destination_city: '',
           departure_time: departureISO!,
           gate: fields.gate,
           terminal: fields.terminal,
+          event_id: event_id ?? '',
+          event_name: event_name ?? '',
         },
       })
     } catch (err: any) {
@@ -245,7 +270,6 @@ export default function FlightScreen() {
     time: fields.departure_time || null,
     gate: fields.gate.toUpperCase() || null,
     terminal: fields.terminal.toUpperCase() || null,
-    seat: null as string | null,
   }
 
   return (
@@ -262,24 +286,8 @@ export default function FlightScreen() {
       >
         {/* Top chrome */}
         <View style={styles.topRow}>
-          <Pressable
-            onPress={() => {
-              haptics.buttonTap()
-              if (router.canGoBack()) {
-                router.back();
-              } else {
-                router.replace('/(app)/');
-              }
-            }}
-            hitSlop={14}
-            style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
-          >
-            <Text style={styles.triangleSubtle}>{'◀'}</Text>
-            <Text style={styles.backText}>BACK</Text>
-          </Pressable>
-          <Text style={[type.eyebrow, styles.eyebrow]}>
-            {phase === 'landing' ? '' : ''}
-          </Text>
+          <BackButton />
+          <Text style={[type.eyebrow, styles.eyebrow]}>SESSION · 01 / 04</Text>
           <View style={styles.spacer} />
         </View>
 
@@ -307,6 +315,9 @@ export default function FlightScreen() {
                 onPress={() => {
                   haptics.selection()
                   setFields(makeEmptyFields())
+                  // Scan-derived fields must not leak onto a manually entered flight.
+                  setBoardingTime(null)
+                  setArrivalDate(null)
                   setPhase('edit')
                 }}
                 hitSlop={12}
@@ -319,13 +330,11 @@ export default function FlightScreen() {
         ) : (
           <View style={styles.editBody}>
             <Text style={[type.headline, styles.headline]}>Looks right?</Text>
-            <Text style={[type.subhead, styles.subhead]}>
-              Fields fill in your pass as you type.
-            </Text>
 
             <View style={styles.boardingPassWrap}>
               <BoardingPass
                 {...passProps}
+                status={canConfirm ? 'ON STANDBY' : null}
                 stampSlot={canConfirm ? <StandbyStamp label="STANDBY" /> : null}
               />
             </View>
@@ -385,7 +394,7 @@ export default function FlightScreen() {
               ]}
             >
               {loading
-                ? <ActivityIndicator color={colors.bg} />
+                ? <ActivityIndicator color={colors.onAccent} />
                 : (
                   <>
                     <Text style={styles.triangleOnRed}>{'▶'}</Text>
@@ -451,19 +460,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
-  },
-  triangleSubtle: { fontSize: 10, color: colors.subtle, includeFontPadding: false },
-  backText: {
-    fontFamily: fonts.mono,
-    fontSize: 12,
-    color: colors.subtle,
-    letterSpacing: 1.4,
-  },
   eyebrow: { color: colors.subtle },
   spacer: { width: 64 },
 
@@ -488,17 +484,17 @@ const styles = StyleSheet.create({
   },
   primaryBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
   primaryBtnText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1.4,
-    color: colors.bg,
+    color: colors.onAccent,
   },
-  triangleOnRed: { fontSize: 10, color: colors.bg, includeFontPadding: false },
+  triangleOnRed: { fontSize: 10, color: colors.onAccent, includeFontPadding: false },
 
   ghostLink: { alignItems: 'center', paddingVertical: 10 },
   ghostLinkText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 11,
     letterSpacing: 1.4,
     color: colors.subtle,
@@ -509,14 +505,14 @@ const styles = StyleSheet.create({
   fieldLine: { flex: 1 },
   fieldLineHalf: { flex: 1 },
   fieldLineLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 10,
     letterSpacing: 1.6,
     color: colors.subtle,
     marginBottom: 6,
   },
   fieldLineInput: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 18,
     color: colors.text,
     paddingVertical: 4,
@@ -525,11 +521,11 @@ const styles = StyleSheet.create({
   },
   fieldLineRule: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(10,10,10,0.25)',
+    backgroundColor: 'rgba(0,0,0,0.25)',
   },
 
   error: {
-    fontFamily: fonts.serifItalic,
+    fontFamily: fonts.body,
     fontSize: 14,
     color: colors.error,
   },
@@ -540,7 +536,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   lookupText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 11,
     color: colors.subtle,
     letterSpacing: 0.8,

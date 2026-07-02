@@ -1,18 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   View, Text, TextInput, Pressable,
-  StyleSheet, ScrollView, ActivityIndicator,
+  StyleSheet, ScrollView, ActivityIndicator, Alert,
 } from 'react-native'
-import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
+import { passDate, passTime } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
 import { BoardingPass } from '../../components/BoardingPass'
+import { BackButton } from '../../components/BackButton'
+
+// The confirmed-match screen. Both users land here at the same time once both
+// accept. Shows: the app-assigned meeting location, each side's identifying
+// info (collected at accept, before this screen renders), and the other
+// person's pass. This screen stays reachable (Match tab → match/room → here)
+// for the whole session — leaving it never cancels the match.
 
 type TheirInfo = {
   firstName: string
+  wearing: string | null
   flightIata: string | null
   originIata: string | null
   destinationIata: string | null
@@ -24,9 +33,11 @@ type TheirInfo = {
 export default function MeetupScreen() {
   const { match_id } = useLocalSearchParams<{ match_id: string }>()
 
-  const [wearing, setWearing] = useState('')
   const [iAmA, setIAmA] = useState<boolean | null>(null)
   const [pointOfConnection, setPointOfConnection] = useState<string | null>(null)
+  const [assignedLocation, setAssignedLocation] = useState<string | null>(null)
+  const [myWearing, setMyWearing] = useState<string | null>(null)
+  const [wearingDraft, setWearingDraft] = useState('')
   const [their, setTheir] = useState<TheirInfo | null>(null)
   const [myGate, setMyGate] = useState<string | null>(null)
   const [myDeparture, setMyDeparture] = useState<string | null>(null)
@@ -37,17 +48,17 @@ export default function MeetupScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
-  const canConfirm = wearing.trim().length > 0
-
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
+    let cancelled = false
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { setLoading(false); return }
+      if (!session || cancelled) { setLoading(false); return }
 
       const { data: match, error: matchErr } = await supabase
         .from('matches')
         .select(`
-          point_of_connection,
+          point_of_connection, suggested_meetup_location,
+          wearing_a, wearing_b,
           session_id_a, session_id_b,
           session_a:sessions!session_id_a(
             user_id, departure_time, origin_iata, destination_iata, gate, terminal,
@@ -63,6 +74,7 @@ export default function MeetupScreen() {
         .eq('id', match_id)
         .single()
 
+      if (cancelled) return
       if (matchErr || !match) { setLoading(false); return }
 
       const sessionA = Array.isArray(match.session_a) ? match.session_a[0] : match.session_a
@@ -80,10 +92,13 @@ export default function MeetupScreen() {
 
       setIAmA(amA)
       setPointOfConnection(match.point_of_connection ?? null)
+      setAssignedLocation(match.suggested_meetup_location ?? null)
+      setMyWearing((amA ? match.wearing_a : match.wearing_b) ?? null)
       setMyGate(mySession?.gate ?? null)
       setMyDeparture(mySession?.departure_time ?? null)
       setTheir({
         firstName: theirUser?.first_name ?? 'Them',
+        wearing: (amA ? match.wearing_b : match.wearing_a) ?? null,
         flightIata: theirFlight?.flight_iata ?? null,
         originIata: theirSession?.origin_iata ?? null,
         destinationIata: theirSession?.destination_iata ?? null,
@@ -93,18 +108,18 @@ export default function MeetupScreen() {
       })
       setLoading(false)
     }
-    load()
-  }, [match_id])
+    load().catch(() => setLoading(false))
+    return () => { cancelled = true }
+  }, [match_id]))
 
   async function confirm() {
-    if (!canConfirm || iAmA === null) return
+    if (iAmA === null || saving) return
     setSaving(true)
     setError('')
 
     try {
-      // Anchor the post-meetup prompt to 45 min before the earlier departure.
-      // The "after landing" slot is gone (matched users may be flying to
-      // different cities), so meetup naturally happens pre-boarding.
+      // Anchor the post-meetup prompt to 45 min before the earlier departure —
+      // matched users may fly to different cities, so meetup happens pre-boarding.
       const myDep = myDeparture ? new Date(myDeparture) : null
       const theirDep = their?.departureTime ? new Date(their.departureTime) : null
       let meetup_time: string | null = null
@@ -115,13 +130,9 @@ export default function MeetupScreen() {
         meetup_time = new Date(myDep.getTime() - 45 * 60 * 1000).toISOString()
       }
 
-      const update = iAmA
-        ? { wearing_a: wearing.trim(), meetup_time }
-        : { wearing_b: wearing.trim(), meetup_time }
-
       const { error: updateErr } = await supabase
         .from('matches')
-        .update(update)
+        .update({ meetup_time })
         .eq('id', match_id)
 
       if (updateErr) throw updateErr
@@ -136,6 +147,37 @@ export default function MeetupScreen() {
     }
   }
 
+  // Recovery path: matches made before wearing was collected at accept time
+  // (or whose write failed) can still fill it in here.
+  async function saveWearing() {
+    const value = wearingDraft.trim()
+    if (!value || iAmA === null) return
+    haptics.selection()
+    const update = iAmA ? { wearing_a: value } : { wearing_b: value }
+    const { error: wearingErr } = await supabase
+      .from('matches').update(update).eq('id', match_id)
+    if (wearingErr) {
+      setError('Could not save. Try again.')
+      return
+    }
+    setMyWearing(value)
+  }
+
+  function cancelMatch() {
+    Alert.alert('Cancel this match?', 'They’ll be released back to searching.', [
+      { text: 'Keep it', style: 'cancel' },
+      {
+        text: 'Cancel match',
+        style: 'destructive',
+        onPress: async () => {
+          haptics.selection()
+          await supabase.from('matches').update({ status: 'declined' }).eq('id', match_id)
+          router.replace('/(app)/match/searching')
+        },
+      },
+    ])
+  }
+
   if (loading || !their || iAmA === null) {
     return (
       <View style={[styles.root, styles.center]}>
@@ -144,37 +186,16 @@ export default function MeetupScreen() {
     )
   }
 
-  // Deterministic walk rule: the person with the LATER flight walks to the
-  // other person's gate. The earlier-departing person stays near their own
-  // gate so they don't miss boarding. Ties broken by iAmA so both sides agree.
-  const myDep = myDeparture ? new Date(myDeparture) : null
-  const theirDep = their.departureTime ? new Date(their.departureTime) : null
-  let iWalk: boolean
-  if (myDep && theirDep) {
-    if (myDep.getTime() === theirDep.getTime()) iWalk = iAmA
-    else iWalk = myDep > theirDep
-  } else {
-    iWalk = iAmA
-  }
-
-  let directive: string
-  let directiveSub: string | null = null
-  if (iWalk) {
-    if (their.gate) {
-      directive = `Head to Gate ${their.gate}.`
-      directiveSub = `Their flight leaves first. Meet them there.`
-    } else {
-      directive = `Find ${their.firstName} at their gate.`
-      directiveSub = `Their flight leaves first.`
-    }
-  } else {
-    if (myGate) {
-      directive = `${their.firstName} is coming to Gate ${myGate}.`
-      directiveSub = `Your flight leaves first. Stay put.`
-    } else {
-      directive = `${their.firstName} is coming to you.`
-      directiveSub = `Your flight leaves first.`
-    }
+  // Fallback directive when the matcher didn't assign a location (legacy
+  // matches): the later-departing person walks to the other's gate.
+  let whereToMeet = assignedLocation
+  if (!whereToMeet) {
+    const myDep = myDeparture ? new Date(myDeparture) : null
+    const theirDep = their.departureTime ? new Date(their.departureTime) : null
+    const iWalk = myDep && theirDep ? myDep > theirDep : iAmA
+    whereToMeet = iWalk
+      ? (their.gate ? `Gate ${their.gate}` : `${their.firstName}'s gate`)
+      : (myGate ? `Gate ${myGate}` : 'Your gate')
   }
 
   const theirPassDate = their.departureTime ? passDate(their.departureTime) : null
@@ -183,37 +204,48 @@ export default function MeetupScreen() {
   return (
     <View style={styles.root}>
       <ScrollView
-        contentContainerStyle={[styles.inner, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.inner, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 120 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable
-          onPress={async () => {
-            haptics.buttonTap()
-            const { data: { session } } = await supabase.auth.getSession()
-            if (session) {
-              await supabase
-                .from('matches')
-                .update({ status: 'declined' })
-                .eq('id', match_id)
-            }
-            router.replace('/(app)/')
-          }}
-          hitSlop={14}
-          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
-        >
-          <Text style={styles.triangleSubtle}>{'◀'}</Text>
-          <Text style={styles.backText}>BACK</Text>
-        </Pressable>
+        <BackButton />
 
-        <Text style={styles.eyebrow}>Meetup</Text>
+        <Text style={[type.eyebrow, styles.eyebrow]}>MATCHED · {their.firstName.toUpperCase()}</Text>
 
         {pointOfConnection ? (
-          <View style={styles.pocWrap}>
-            <Text style={styles.pocLabel}>WHY YOU MATCHED</Text>
-            <Text style={styles.pocText}>{pointOfConnection}</Text>
-          </View>
+          <Text style={[type.headline, styles.poc]}>{pointOfConnection}</Text>
         ) : null}
+
+        <View style={styles.locationCard}>
+          <Text style={styles.locationLabel}>WHERE TO MEET</Text>
+          <Text style={styles.locationValue}>{whereToMeet}</Text>
+        </View>
+
+        <View style={styles.wearingRow}>
+          <View style={styles.wearingCell}>
+            <Text style={styles.wearingLabel}>THEY'RE WEARING</Text>
+            <Text style={styles.wearingValue}>{their.wearing || '—'}</Text>
+          </View>
+          <View style={styles.wearingCell}>
+            <Text style={styles.wearingLabel}>YOU'RE WEARING</Text>
+            {myWearing ? (
+              <Text style={styles.wearingValue}>{myWearing}</Text>
+            ) : (
+              <TextInput
+                style={styles.wearingInput}
+                placeholder="Navy puffer…"
+                placeholderTextColor={colors.subtle}
+                value={wearingDraft}
+                onChangeText={setWearingDraft}
+                onSubmitEditing={saveWearing}
+                onBlur={saveWearing}
+                returnKeyType="done"
+                maxLength={80}
+                selectionColor={colors.accent}
+              />
+            )}
+          </View>
+        </View>
 
         <BoardingPass
           airline="STANDBY"
@@ -226,49 +258,40 @@ export default function MeetupScreen() {
           time={theirPassTime}
           gate={their.gate}
           terminal={their.terminal}
+          status="MATCHED"
           compact
         />
-
-        <View style={styles.directiveWrap}>
-          <Text style={styles.directiveLabel}>WHERE TO MEET</Text>
-          <Text style={styles.directiveText}>{directive}</Text>
-          {directiveSub ? <Text style={styles.directiveSub}>{directiveSub}</Text> : null}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>What are you wearing?</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Navy puffer, red backpack"
-            placeholderTextColor={colors.subtle}
-            value={wearing}
-            onChangeText={setWearing}
-            maxLength={80}
-          />
-        </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-        <Pressable
-          onPress={() => { haptics.buttonTap(); router.push({ pathname: '/(app)/chat', params: { match_id } }) }}
-          style={({ pressed }) => [styles.msgBtn, pressed && { opacity: 0.5 }]}
-        >
-          <Text style={styles.msgBtnText}>MESSAGES →</Text>
-        </Pressable>
+        <View style={styles.footerLinks}>
+          <Pressable
+            onPress={() => { haptics.buttonTap(); router.push({ pathname: '/(app)/chat', params: { match_id } }) }}
+            style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.5 }]}
+          >
+            <Text style={styles.linkBtnText}>MESSAGES →</Text>
+          </Pressable>
+          <Pressable
+            onPress={cancelMatch}
+            style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.5 }]}
+          >
+            <Text style={styles.linkBtnText}>CANCEL MATCH</Text>
+          </Pressable>
+        </View>
 
         <Pressable
           style={({ pressed }) => [
             styles.primaryBtn,
-            (!canConfirm || saving) && styles.primaryBtnDisabled,
-            pressed && canConfirm && { opacity: 0.85 },
+            saving && styles.primaryBtnDisabled,
+            pressed && !saving && { opacity: 0.85 },
           ]}
           onPress={() => { haptics.buttonTap(); confirm() }}
-          disabled={!canConfirm || saving}
+          disabled={saving}
         >
           {saving
-            ? <ActivityIndicator color={colors.bg} />
+            ? <ActivityIndicator color={colors.onAccent} />
             : <Text style={styles.primaryBtnText}>Confirm meetup</Text>
           }
         </Pressable>
@@ -277,96 +300,74 @@ export default function MeetupScreen() {
   )
 }
 
-function passDate(iso: string): string | null {
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return null
-  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
-  return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}`
-}
 
-function passTime(iso: string): string | null {
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return null
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-}
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   center: { alignItems: 'center', justifyContent: 'center' },
-  inner: { paddingHorizontal: 24, gap: 22 },
+  inner: { paddingHorizontal: 24, gap: 18 },
 
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
-  triangleSubtle: { fontSize: 10, color: colors.subtle, includeFontPadding: false },
-  backText: { fontFamily: fonts.mono, fontSize: 12, color: colors.subtle, letterSpacing: 1.4 },
+  eyebrow: { color: colors.subtle },
 
-  eyebrow: { ...type.eyebrow, color: colors.subtle },
-
-  pocWrap: {
-    borderLeftWidth: 2,
-    borderLeftColor: colors.accent,
-    paddingLeft: 14,
-    gap: 4,
-  },
-  pocLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 9,
-    letterSpacing: 1.8,
-    color: colors.subtle,
-  },
-  pocText: {
-    fontFamily: fonts.serifItalic,
-    fontSize: 16,
+  poc: {
     color: colors.text,
-    lineHeight: 22,
+    fontSize: 24,
+    lineHeight: 30,
   },
 
-  directiveWrap: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+  locationCard: {
+    backgroundColor: colors.periwinkle,
+    borderRadius: 4,
     padding: 16,
     gap: 6,
   },
-  directiveLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: colors.subtle,
-  },
-  directiveText: {
-    fontFamily: fonts.serifBold,
-    fontSize: 18,
+  locationLabel: {
+    fontFamily: fonts.body,
+    fontSize: 10,
+    letterSpacing: 1.8,
     color: colors.text,
-    letterSpacing: -0.2,
+    opacity: 0.6,
   },
-  directiveSub: {
-    fontFamily: fonts.serifItalic,
-    fontSize: 13,
-    color: colors.subtle,
-    lineHeight: 18,
+  locationValue: {
+    fontFamily: fonts.body,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    color: colors.text,
   },
 
-  section: { gap: 12 },
-  sectionLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: colors.subtle,
+  wearingRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  input: {
-    fontFamily: fonts.serif,
-    fontSize: 16,
+  wearingCell: {
+    flex: 1,
+    backgroundColor: colors.periwinkle,
+    borderRadius: 4,
+    padding: 12,
+    gap: 4,
+  },
+  wearingLabel: {
+    fontFamily: fonts.body,
+    fontSize: 9,
+    letterSpacing: 1.4,
     color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: colors.surface,
+    opacity: 0.6,
   },
+  wearingValue: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.text,
+  },
+  wearingInput: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.text,
+    paddingVertical: 2,
+  },
+
   errorText: {
-    fontFamily: fonts.serifItalic,
+    fontFamily: fonts.body,
     fontSize: 14,
     color: colors.error,
   },
@@ -375,13 +376,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(10,10,10,0.08)',
     backgroundColor: colors.bg,
   },
-  msgBtn: { alignSelf: 'flex-start', paddingVertical: 4 },
-  msgBtnText: {
-    fontFamily: fonts.mono,
+  footerLinks: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  linkBtn: { paddingVertical: 4 },
+  linkBtnText: {
+    fontFamily: fonts.body,
     fontSize: 12,
     letterSpacing: 1.4,
     color: colors.subtle,
@@ -393,11 +396,11 @@ const styles = StyleSheet.create({
   },
   primaryBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
   primaryBtnText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
-    color: colors.bg,
+    color: colors.onAccent,
   },
 })
