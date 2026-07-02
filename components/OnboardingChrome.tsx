@@ -115,7 +115,6 @@ export function OnboardingChrome({
               hitSlop={16}
               style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
             >
-              <Text style={[styles.triangle, styles.triangleBack]}>{'◀'}</Text>
               <Text style={styles.backText}>Back</Text>
             </Pressable>
           )}
@@ -134,7 +133,6 @@ export function OnboardingChrome({
             ) : (
               <>
                 <Text style={styles.continueText}>{continueLabel}</Text>
-                <Text style={[styles.triangle, styles.triangleContinue]}>{'▶'}</Text>
               </>
             )}
           </Pressable>
@@ -200,13 +198,5 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
-  triangle: {
-    fontSize: 10,
-    lineHeight: 12,
-    letterSpacing: 0,
-    includeFontPadding: false,
-  },
-  triangleBack: { color: colors.subtle },
-  triangleContinue: { color: colors.onAccent },
   storyBody: { alignSelf: 'stretch' },
 })

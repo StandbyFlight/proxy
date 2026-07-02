@@ -138,7 +138,9 @@ export default function MeetupScreen() {
       if (updateErr) throw updateErr
 
       haptics.success()
-      router.replace({ pathname: '/(app)/post-meetup', params: { match_id } })
+      // Confirming locks it in; the match stays reachable from the Match tab
+      // and "how it went" is logged afterwards via the link below.
+      router.replace('/(app)/')
     } catch (err: any) {
       haptics.error()
       setError(err.message ?? 'Something went wrong. Try again.')
@@ -271,13 +273,19 @@ export default function MeetupScreen() {
             onPress={() => { haptics.buttonTap(); router.push({ pathname: '/(app)/chat', params: { match_id } }) }}
             style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.5 }]}
           >
-            <Text style={styles.linkBtnText}>MESSAGES →</Text>
+            <Text style={styles.linkBtnText}>MESSAGES</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => { haptics.buttonTap(); router.push({ pathname: '/(app)/post-meetup', params: { match_id } }) }}
+            style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.5 }]}
+          >
+            <Text style={styles.linkBtnText}>LOG HOW IT WENT</Text>
           </Pressable>
           <Pressable
             onPress={cancelMatch}
             style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.5 }]}
           >
-            <Text style={styles.linkBtnText}>CANCEL MATCH</Text>
+            <Text style={styles.linkBtnText}>CANCEL</Text>
           </Pressable>
         </View>
 

@@ -117,7 +117,6 @@ export default function EventDetail() {
             pressed && { opacity: 0.85 },
           ]}
         >
-          <Text style={styles.triangleOnRed}>{'▶'}</Text>
           <Text style={styles.primaryBtnText}>
             {hasActiveSession ? 'ATTACH TO YOUR SESSION' : 'START A SESSION'}
           </Text>
@@ -187,5 +186,4 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     color: colors.onAccent,
   },
-  triangleOnRed: { fontSize: 10, color: colors.onAccent, includeFontPadding: false },
 })

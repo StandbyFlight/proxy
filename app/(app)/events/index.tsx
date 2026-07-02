@@ -45,9 +45,6 @@ export default function EventsIndex() {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={[type.headline, styles.headline]}>Worth flying for.</Text>
-        <Text style={[type.subhead, styles.subhead]}>
-          Attach one to your session to match with people heading there.
-        </Text>
 
         <View style={styles.searchBlock}>
           <TextInput

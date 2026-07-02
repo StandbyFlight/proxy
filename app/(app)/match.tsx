@@ -100,10 +100,12 @@ export default function MatchScreen() {
     router.replace('/(app)/match/searching')
   }
 
-  // While waiting: realtime subscription plus a polling fallback, so a dropped
-  // realtime event can never strand this user on the waiting screen.
+  // While deciding or waiting: realtime subscription plus a polling fallback.
+  // A dropped realtime event can never strand this user, and if the other
+  // side declines while this user is still deciding, they're released
+  // immediately instead of discovering it on tap.
   useEffect(() => {
-    if (phase !== 'waiting' || !match) return
+    if ((phase !== 'waiting' && phase !== 'deciding') || !match) return
 
     const channel = supabase
       .channel(`match-status-${match.id}`)
@@ -397,10 +399,6 @@ export default function MatchScreen() {
       </View>
 
       <View style={styles.body}>
-        <Text style={[type.subhead, styles.subhead]}>
-          one reason to get to know each other.
-        </Text>
-
         <View style={styles.reveal}>
           {lines.map((line, idx) => (
             <View key={`l-${idx}-${line}`} style={styles.lineWrap}>
@@ -458,7 +456,6 @@ export default function MatchScreen() {
             !canAccept && { opacity: 0.4 },
           ]}
         >
-          <Text style={styles.meetTriangle}>{'▶'}</Text>
           <Text style={styles.meetText}>MEET THEM</Text>
         </Pressable>
       </View>
@@ -562,11 +559,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 14,
     minWidth: 160,
-  },
-  meetTriangle: {
-    fontSize: 10,
-    color: colors.onAccent,
-    includeFontPadding: false,
   },
   meetText: {
     fontFamily: fonts.body,

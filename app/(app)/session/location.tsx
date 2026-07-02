@@ -78,9 +78,6 @@ export default function LocationScreen() {
         </View>
 
         <Text style={[type.headline, styles.headline]}>Where are you now?</Text>
-        <Text style={[type.subhead, styles.subhead]}>
-          Your terminal sets who can walk over to you.
-        </Text>
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>TERMINAL</Text>
@@ -148,7 +145,6 @@ export default function LocationScreen() {
             pressed && canContinue && { opacity: 0.85 },
           ]}
         >
-          <Text style={styles.triangleOnRed}>{'▶'}</Text>
           <Text style={styles.primaryBtnText}>CONTINUE</Text>
         </Pressable>
       </View>
@@ -235,5 +231,4 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     color: colors.onAccent,
   },
-  triangleOnRed: { fontSize: 10, color: colors.onAccent, includeFontPadding: false },
 })

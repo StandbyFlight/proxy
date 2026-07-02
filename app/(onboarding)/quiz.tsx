@@ -162,7 +162,6 @@ export default function QuizScreen() {
             hitSlop={14}
             style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
           >
-            <Text style={styles.triangleSubtle}>{'◀'}</Text>
             <Text style={styles.backText}>BACK</Text>
           </Pressable>
         ) : (
@@ -179,7 +178,6 @@ export default function QuizScreen() {
           ]}
         >
           <Text style={styles.continueText}>{step < total - 1 ? 'NEXT' : 'FINISH'}</Text>
-          <Text style={styles.triangleOnRed}>{'▶'}</Text>
         </Pressable>
       </View>
     </View>
@@ -222,7 +220,6 @@ const styles = StyleSheet.create({
   },
   footerSpacer: { width: 64 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
-  triangleSubtle: { fontSize: 10, color: colors.subtle, includeFontPadding: false },
   backText: { fontFamily: fonts.body, fontSize: 12, color: colors.subtle, letterSpacing: 1.4 },
   continueBtn: {
     flexDirection: 'row',
@@ -242,5 +239,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 1.4,
   },
-  triangleOnRed: { fontSize: 10, color: colors.onAccent, includeFontPadding: false },
 })

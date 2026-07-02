@@ -294,9 +294,6 @@ export default function FlightScreen() {
         {phase === 'landing' ? (
           <View style={styles.landingBody}>
             <Text style={[type.headline, styles.headline]}>Your flight.</Text>
-            <Text style={[type.subhead, styles.subhead]}>
-              Scan your boarding pass, or fill one in by hand.
-            </Text>
 
             <View style={styles.boardingPassWrap}>
               <BoardingPass {...passProps} />
@@ -307,7 +304,6 @@ export default function FlightScreen() {
                 style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
                 onPress={() => { haptics.buttonTap(); setPhase('capturing') }}
               >
-                <Text style={styles.triangleOnRed}>{'▶'}</Text>
                 <Text style={styles.primaryBtnText}>SCAN BOARDING PASS</Text>
               </Pressable>
 
@@ -397,7 +393,6 @@ export default function FlightScreen() {
                 ? <ActivityIndicator color={colors.onAccent} />
                 : (
                   <>
-                    <Text style={styles.triangleOnRed}>{'▶'}</Text>
                     <Text style={styles.primaryBtnText}>ISSUE PASS</Text>
                   </>
                 )
@@ -490,7 +485,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     color: colors.onAccent,
   },
-  triangleOnRed: { fontSize: 10, color: colors.onAccent, includeFontPadding: false },
 
   ghostLink: { alignItems: 'center', paddingVertical: 10 },
   ghostLinkText: {

@@ -286,7 +286,6 @@ export default function Extras() {
             hitSlop={16}
             style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
           >
-            <Text style={styles.triangleBack}>{'◀'}</Text>
             <Text style={styles.backText}>Back</Text>
           </Pressable>
 
@@ -297,7 +296,6 @@ export default function Extras() {
             <Text style={styles.doneBtnText}>
               {anyEngaged ? 'TO YOUR FLIGHT' : 'SKIP FOR NOW'}
             </Text>
-            <Text style={styles.triangleFwd}>{'▶'}</Text>
           </Pressable>
         </View>
       </View>
@@ -369,8 +367,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
-  triangleBack: { fontSize: 10, color: colors.subtle },
-  triangleFwd: { fontSize: 10, color: colors.onAccent },
   doneBtn: {
     backgroundColor: colors.accent,
     paddingHorizontal: 22,

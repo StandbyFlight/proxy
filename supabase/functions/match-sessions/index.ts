@@ -354,7 +354,7 @@ Deno.serve(async (req) => {
     if (!sessionId || !userId || !originIata || !intent) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: id, user_id, origin_iata, connection_intent' }),
-        { status: 400 }
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
@@ -377,7 +377,7 @@ Deno.serve(async (req) => {
     if (requesterExpired) {
       return new Response(
         JSON.stringify({ matched: false, reason: 'requester session not active' }),
-        { status: 200 }
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
@@ -391,7 +391,7 @@ Deno.serve(async (req) => {
       if (!requesterCreatedAt || Date.now() - requesterCreatedAt < CURIOSITY_MIN_WAIT_MS) {
         return new Response(
           JSON.stringify({ matched: false, reason: 'curiosity: requester has not waited 15s' }),
-          { status: 200 }
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
       }
     }
@@ -444,7 +444,7 @@ Deno.serve(async (req) => {
     // Always send pool.exhausted when no one is at the airport — regardless of mode
     if (stage1.length === 0) {
       await publishToAbly(userId, 'pool.exhausted', {})
-      return new Response(JSON.stringify({ matched: false, reason: 'no stage1 candidates' }), { status: 200 })
+      return new Response(JSON.stringify({ matched: false, reason: 'no stage1 candidates' }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }
 
     // ── Parallel DB lookups ───────────────────────────────────────────────────
@@ -516,7 +516,7 @@ Deno.serve(async (req) => {
       if (!isCuriosityMode) {
         await publishToAbly(userId, 'pool.exhausted', {})
       }
-      return new Response(JSON.stringify({ matched: false, reason: 'pool exhausted' }), { status: 200 })
+      return new Response(JSON.stringify({ matched: false, reason: 'pool exhausted' }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }
 
     // Curiosity mode: only candidates who have also been waiting ≥ 90s are
@@ -531,7 +531,7 @@ Deno.serve(async (req) => {
       if (available.length === 0) {
         return new Response(
           JSON.stringify({ matched: false, reason: 'curiosity: no candidate has waited 90s' }),
-          { status: 200 }
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
       }
     }
@@ -591,7 +591,7 @@ Deno.serve(async (req) => {
       console.log(`[match] score ${best.result.score} below threshold ${HIGH_CONFIDENCE_THRESHOLD} — no match`)
       return new Response(
         JSON.stringify({ matched: false, reason: 'score below threshold', score: best.result.score }),
-        { status: 200 }
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
@@ -611,7 +611,7 @@ Deno.serve(async (req) => {
     if (existingPair) {
       return new Response(
         JSON.stringify({ matched: false, reason: 'match already created by concurrent invocation' }),
-        { status: 200 }
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
@@ -683,7 +683,7 @@ Deno.serve(async (req) => {
         console.log('[match] race condition — match already exists')
         return new Response(
           JSON.stringify({ matched: false, reason: 'race_condition' }),
-          { status: 200 }
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
       }
       throw matchErr
@@ -720,12 +720,12 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ matched: true, match_id: matchRow.id, match_type: matchType, score: best.result.score }),
-      { status: 200 }
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
     )
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('match-sessions error:', message)
-    return new Response(JSON.stringify({ error: message }), { status: 500 })
+    return new Response(JSON.stringify({ error: message }), { status: 500, headers: { 'Content-Type': 'application/json' } })
   }
 })

@@ -49,9 +49,6 @@ export default function Integrations() {
         </View>
 
         <Text style={[type.headline, styles.headline]}>Connect what's yours.</Text>
-        <Text style={[type.subhead, styles.subhead]}>
-          Connections sharpen the matcher — nothing is shown to other travelers.
-        </Text>
 
         <View style={styles.list}>
           {PROVIDERS.map(p => (

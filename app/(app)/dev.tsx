@@ -137,13 +137,13 @@ export default function DevScreen() {
       <View style={styles.actions}>
         <Action
           label="Reset profile"
-          desc="Delete profile row → replay onboarding on next login"
+          desc="Delete profile row – replay onboarding on next login"
           onPress={resetProfile}
           disabled={loading || !userInfo}
         />
         <Action
           label="Clear sessions"
-          desc="Delete all flight sessions → re-enter a flight"
+          desc="Delete all flight sessions – re-enter a flight"
           onPress={clearSessions}
           disabled={loading || sessionCount === 0}
         />

@@ -110,7 +110,6 @@ export default function HomeScreen() {
             onPress={startSession}
             style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
           >
-            <Text style={styles.triangleOnRed}>{'▶'}</Text>
             <Text style={styles.primaryBtnText}>START A SESSION</Text>
           </Pressable>
         ) : showMatch && activeMatch ? (
@@ -118,7 +117,6 @@ export default function HomeScreen() {
             onPress={openMatch}
             style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
           >
-            <Text style={styles.triangleOnRed}>{'▶'}</Text>
             <Text style={styles.primaryBtnText}>
               {activeMatch.status === 'mutual' ? 'OPEN MEETUP' : 'OPEN MATCH'}
             </Text>
@@ -129,7 +127,6 @@ export default function HomeScreen() {
               onPress={openSearching}
               style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
             >
-              <Text style={styles.triangleOnRed}>{'▶'}</Text>
               <Text style={styles.primaryBtnText}>OPEN SEARCHING</Text>
             </Pressable>
             <Pressable
@@ -181,7 +178,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 1.4,
   },
-  triangleOnRed: { fontSize: 10, color: colors.onAccent, includeFontPadding: false },
   ghostBtn: {
     alignSelf: 'center',
     paddingVertical: 8,

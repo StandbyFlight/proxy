@@ -33,7 +33,6 @@ export function BackButton({
       accessibilityLabel="Go back"
       style={({ pressed }) => [styles.btn, pressed && { opacity: 0.5 }]}
     >
-      <Text style={styles.triangle}>{'◀'}</Text>
       <Text style={styles.text}>{label}</Text>
     </Pressable>
   )
@@ -46,7 +45,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 10,
   },
-  triangle: { fontSize: 10, color: colors.subtle, includeFontPadding: false },
   text: {
     fontFamily: fonts.body,
     fontSize: 12,

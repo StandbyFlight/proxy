@@ -7,18 +7,32 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'Server misconfigured: missing ABLY_KEY' }), { status: 500 })
   }
 
+  // Validate the caller's JWT explicitly. auth.getUser() with NO argument
+  // looks for a locally stored session (which never exists server-side) and
+  // throws "Auth session missing!" — it does not read the global Authorization
+  // header in current supabase-js. The token must be passed to getUser(token).
+  const authHeader = req.headers.get('Authorization') ?? ''
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
+  if (!token) {
+    console.error('ably-auth: no Authorization bearer token on request')
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized', detail: 'Missing Authorization bearer token' }),
+      { status: 401 }
+    )
+  }
+
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    {
-      auth: { persistSession: false },
-      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-    }
+    { auth: { persistSession: false } }
   )
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token)
   if (authError || !user) {
-    console.error('ably-auth: auth check failed:', authError?.message ?? 'no user')
-    return new Response(JSON.stringify({ error: 'Unauthorized', detail: authError?.message }), { status: 401 })
+    console.error('ably-auth: token validation failed:', authError?.message ?? 'no user for token')
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized', detail: `Invalid or expired token: ${authError?.message ?? 'no user'}` }),
+      { status: 401 }
+    )
   }
 
   const colonIdx = ABLY_KEY.indexOf(':')

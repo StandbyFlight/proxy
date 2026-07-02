@@ -70,14 +70,11 @@ export function BoardingPass({
           {(passenger && passenger.length > 0) ? passenger.toUpperCase() : DASH}
         </Text>
 
-        {/* Route — big IATA codes, accent arrow */}
+        {/* Route — big IATA codes */}
         <View style={styles.routeRow}>
           <View style={styles.routeCol}>
             <FieldLabel>FROM</FieldLabel>
             <Text style={[styles.iata, { fontSize: iataSize }]}>{origin || DASH}</Text>
-          </View>
-          <View style={styles.routeArrow}>
-            <Text style={styles.arrow}>{'→'}</Text>
           </View>
           <View style={[styles.routeCol, styles.routeColRight]}>
             <FieldLabel>TO</FieldLabel>
@@ -197,12 +194,6 @@ const styles = StyleSheet.create({
   },
   routeCol: { flex: 1 },
   routeColRight: { alignItems: 'flex-end' },
-  routeArrow: { paddingHorizontal: 10, paddingBottom: 6 },
-  arrow: {
-    fontFamily: fonts.mono,
-    fontSize: 22,
-    color: colors.accent,
-  },
   iata: {
     fontFamily: fonts.mono,
     fontWeight: '700',

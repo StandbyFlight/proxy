@@ -72,7 +72,7 @@ function Section({ title, rows }: { title: string; rows: HistoryEntry[] }) {
             <View style={styles.cardMain}>
               <Text style={styles.cardRoute}>
                 {(r.origin_iata ?? '···').toUpperCase()}
-                {r.destination_iata ? ` → ${r.destination_iata.toUpperCase()}` : ''}
+                {r.destination_iata ? `–${r.destination_iata.toUpperCase()}` : ''}
               </Text>
               <Text style={styles.cardMeta}>
                 {r.flight_iata ?? '—'}{r.departure_time ? `  ·  ${passDate(r.departure_time)}` : ''}

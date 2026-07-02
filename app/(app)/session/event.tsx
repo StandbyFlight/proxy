@@ -135,7 +135,6 @@ export default function EventScreen() {
             pressed && !!attachedName && { opacity: 0.85 },
           ]}
         >
-          <Text style={styles.triangleOnRed}>{'▶'}</Text>
           <Text style={styles.primaryBtnText}>ATTACH EVENT</Text>
         </Pressable>
       </View>
@@ -227,5 +226,4 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     color: colors.onAccent,
   },
-  triangleOnRed: { fontSize: 10, color: colors.onAccent, includeFontPadding: false },
 })

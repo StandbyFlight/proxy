@@ -225,7 +225,6 @@ export default function SearchingScreen() {
             onPress={() => { haptics.buttonTap(); router.replace('/(app)/flight') }}
             style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
           >
-            <Text style={styles.triangleOnRed}>{'▶'}</Text>
             <Text style={styles.primaryBtnText}>START A SESSION</Text>
           </Pressable>
         </View>
@@ -271,7 +270,6 @@ export default function SearchingScreen() {
                 onPress={openMatch}
                 style={({ pressed }) => [styles.meetBtn, pressed && { opacity: 0.85 }]}
               >
-                <Text style={styles.triangle}>{'▶'}</Text>
                 <Text style={styles.meetBtnText}>I'M IN</Text>
               </Pressable>
               <Pressable
@@ -311,7 +309,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 12,
   },
-  triangle: { fontSize: 9, color: colors.onAccent },
   meetBtnText: {
     fontFamily: fonts.body,
     color: colors.onAccent,
@@ -344,5 +341,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 1.4,
   },
-  triangleOnRed: { fontSize: 10, color: colors.onAccent, includeFontPadding: false },
 })

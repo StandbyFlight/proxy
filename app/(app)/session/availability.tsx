@@ -80,7 +80,6 @@ export default function AvailabilityScreen() {
             ? <ActivityIndicator color={colors.onAccent} />
             : (
               <>
-                <Text style={styles.triangleOnRed}>{'▶'}</Text>
                 <Text style={styles.primaryBtnText}>GO ON STANDBY</Text>
               </>
             )
@@ -135,7 +134,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     color: colors.onAccent,
   },
-  triangleOnRed: { fontSize: 10, color: colors.onAccent, includeFontPadding: false },
   privacyNote: {
     fontFamily: fonts.body,
     fontSize: 10,
