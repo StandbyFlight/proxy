@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { selectMeetupLocationForMatch } from '../_shared/meetupLocations.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -687,20 +688,39 @@ Deno.serve(async (req) => {
       }
     }
 
-    const suggestedMeetupLocation = assignMeetupLocation(
-      {
-        departure_time: myDepartureTime,
-        gate: record.gate ?? null,
-        lounge: record.lounge ?? null,
-        terminal: myTerminal,
-      },
-      {
-        departure_time: partner.departure_time,
-        gate: partner.gate,
-        lounge: partner.lounge,
-        terminal: partner.terminal,
-      },
-    )
+    // Curated spot first (airports we know well, currently RDU); generic
+    // gate/lounge rule otherwise. Pure + synchronous, and belt-and-braces
+    // guarded so location selection can never block match creation.
+    let suggestedMeetupLocation: string
+    try {
+      suggestedMeetupLocation =
+        selectMeetupLocationForMatch({
+          airport: originIata,
+          terminalA: myTerminal,
+          terminalB: partner.terminal,
+          gateA: record.gate ?? null,
+          gateB: partner.gate,
+          departureTimeA: myDepartureTime,
+          departureTimeB: partner.departure_time,
+        }) ??
+        assignMeetupLocation(
+          {
+            departure_time: myDepartureTime,
+            gate: record.gate ?? null,
+            lounge: record.lounge ?? null,
+            terminal: myTerminal,
+          },
+          {
+            departure_time: partner.departure_time,
+            gate: partner.gate,
+            lounge: partner.lounge,
+            terminal: partner.terminal,
+          },
+        )
+    } catch (e) {
+      console.error('[match] meetup selection failed (non-fatal, using generic):', e)
+      suggestedMeetupLocation = 'The nearest information desk'
+    }
 
     const { data: matchRow, error: matchErr } = await supabase
       .from('matches')

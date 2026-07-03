@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import {
   View, Text, TextInput, Pressable,
-  StyleSheet, ScrollView, ActivityIndicator, Alert,
+  StyleSheet, ScrollView, ActivityIndicator, Alert, Linking,
 } from 'react-native'
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -200,6 +200,20 @@ export default function MeetupScreen() {
       : (myGate ? `Gate ${myGate}` : 'Your gate')
   }
 
+  // Curated spots are stored as "<name> — <walking guidance>" (see
+  // supabase/functions/_shared/meetupLocations.ts). Split for display;
+  // legacy single-line values render unchanged.
+  const dashIdx = whereToMeet.indexOf(' — ')
+  const spotName = dashIdx > 0 ? whereToMeet.slice(0, dashIdx) : whereToMeet
+  const spotGuidance = dashIdx > 0 ? whereToMeet.slice(dashIdx + 3) : null
+
+  function openInMaps() {
+    haptics.buttonTap()
+    const airport = their?.originIata ? `${their.originIata} airport` : 'airport'
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${spotName} ${airport}`)}`
+    Linking.openURL(url).catch(() => {})
+  }
+
   const theirPassDate = their.departureTime ? passDate(their.departureTime) : null
   const theirPassTime = their.departureTime ? passTime(their.departureTime) : null
 
@@ -219,8 +233,20 @@ export default function MeetupScreen() {
         ) : null}
 
         <View style={styles.locationCard}>
-          <Text style={styles.locationLabel}>WHERE TO MEET</Text>
-          <Text style={styles.locationValue}>{whereToMeet}</Text>
+          <Text style={styles.locationLabel}>SUGGESTED MEET SPOT</Text>
+          <Text style={styles.locationValue}>{spotName}</Text>
+          {spotGuidance ? (
+            <Text style={styles.locationGuidance}>
+              Meet near {spotGuidance} — a central place for both of you.
+            </Text>
+          ) : null}
+          <Pressable
+            onPress={openInMaps}
+            hitSlop={10}
+            style={({ pressed }) => [styles.mapsLink, pressed && { opacity: 0.5 }]}
+          >
+            <Text style={styles.mapsLinkText}>OPEN IN MAPS</Text>
+          </Pressable>
         </View>
 
         <View style={styles.wearingRow}>
@@ -342,6 +368,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.6,
     color: colors.text,
+  },
+  locationGuidance: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.text,
+    opacity: 0.75,
+  },
+  mapsLink: { alignSelf: 'flex-start', paddingTop: 4 },
+  mapsLinkText: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    color: colors.text,
+    opacity: 0.6,
   },
 
   wearingRow: {
