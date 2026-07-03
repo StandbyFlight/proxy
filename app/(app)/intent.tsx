@@ -9,7 +9,6 @@ import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { createSession } from '../../lib/session'
-import { setPendingSession } from '../../lib/pendingMatch'
 import { BackButton } from '../../components/BackButton'
 
 // Step 4 of session setup. Three options, nothing else. Creating the session
@@ -56,7 +55,9 @@ export default function IntentScreen() {
       // typed-in one uses its name.
       const eventKey = (params.event_id || params.event_name || '').trim() || null
 
-      const sessionRow = await createSession({
+      // The searching screen reads the active session from the DB itself —
+      // no hand-off state; the DB is the single source of truth.
+      await createSession({
         flight_id: params.flight_id,
         origin_iata: params.origin_iata || null,
         destination_iata: params.destination_iata || null,
@@ -67,10 +68,6 @@ export default function IntentScreen() {
         connection_intent: intent!,
         event_id: eventKey,
       })
-
-      // Stash the row so match/searching fires the matcher only after its Ably
-      // subscription is live — avoids dropping the pool.exhausted event.
-      setPendingSession(sessionRow as unknown as Record<string, unknown>)
 
       haptics.success()
       router.push({ pathname: '/(app)/session/availability', params })

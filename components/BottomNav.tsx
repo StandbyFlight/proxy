@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'expo-router'
 import { colors } from '../lib/theme'
 import { fonts } from '../lib/typography'
 import { haptics } from '../lib/haptics'
+import { normalizePathname } from '../lib/routes'
 
 // Bottom navigation — icon + short label per tab (never icon-only).
 //   Home    — the current live session and nothing else
@@ -56,21 +57,22 @@ export function BottomNav({
 }) {
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const pathname = usePathname()
+  // Runtime pathnames carry no route groups: "/match/searching", not
+  // "/(app)/match/searching". Compare against real paths only.
+  const pathname = normalizePathname(usePathname())
   const state: NavState = navState ?? { activeMatchId: null }
 
   function isActive(tab: Tab): boolean {
     switch (tab.key) {
       case 'home':
         // Session setup screens belong to starting the live session → Home.
-        return pathname === '/' || pathname === '/(app)' || pathname === '/(app)/' ||
-          pathname === '/(app)/flight' || pathname === '/(app)/intent' ||
-          pathname.startsWith('/(app)/session')
-      case 'history': return pathname.startsWith('/(app)/history')
-      case 'match': return pathname.startsWith('/(app)/match')
-      case 'events': return pathname.startsWith('/(app)/events')
+        return pathname === '/' || pathname === '/flight' || pathname === '/intent' ||
+          pathname.startsWith('/session')
+      case 'history': return pathname.startsWith('/history')
+      case 'match': return pathname.startsWith('/match')
+      case 'events': return pathname.startsWith('/events')
       case 'profile':
-        return pathname.startsWith('/(app)/profile') || pathname === '/(app)/settings'
+        return pathname.startsWith('/profile') || pathname === '/settings'
     }
   }
 

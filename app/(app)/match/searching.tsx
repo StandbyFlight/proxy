@@ -6,24 +6,40 @@ import { colors } from '../../../lib/theme'
 import { fonts, type } from '../../../lib/typography'
 import { supabase } from '../../../lib/supabase'
 import { getAblyClient, userChannelName } from '../../../lib/ably'
-import { takePendingSession } from '../../../lib/pendingMatch'
-import { getActiveSession, getActiveMatch } from '../../../lib/session'
+import { getActiveSession, getActiveMatch, type Session } from '../../../lib/session'
+import { requestMatch, type MatcherResult } from '../../../lib/matcher'
 import { haptics } from '../../../lib/haptics'
 import { ManifestBoard } from '../../../components/ManifestBoard'
 import { primaryIataForCity } from '../../../lib/cities'
 import type Ably from 'ably'
 
-// The "actively searching" leaf. Standby keeps searching for the whole life of
-// the session: "We looked, nobody yet" is a status, not a dead end — the
-// matcher is re-invoked on an interval and the match poll keeps running until
-// the session actually expires. Re-invoking is idempotent per session (the
-// matcher excludes already-matched pairs), so repeat fires are harmless.
+// The "actively searching" leaf.
+//
+// One source of truth: the DATABASE. Every way a match can surface converges
+// on handleMatchFound(), which routes to match/room — and match/room reads the
+// row from Supabase and dispatches on its real status. Three signals feed it:
+//   1. the matcher's own response (fastest for the requester),
+//   2. an Ably match.created push (fastest for the partner),
+//   3. a 4s DB poll (guaranteed fallback — works with Ably fully down).
+// Ably setup failing never blocks the search: the matcher is invoked from the
+// session-load path, not the subscription path.
 
 type ScreenState = 'searching' | 'curiosity' | 'exhausted' | 'no-session'
 
 const REMATCH_INTERVAL_MS = 45_000
 const MATCH_POLL_MS = 4_000
 const CURIOSITY_DELAY_MS = 15_000
+
+// matched:false reasons that mean "keep waiting quietly" rather than an error.
+const QUIET_REASONS = new Set([
+  'no_candidates_at_airport',
+  'all_candidates_filtered',
+  'pool_exhausted',
+  'below_threshold',
+  'curiosity_requester_wait',
+  'curiosity_no_waiting_candidates',
+  'insert_race',
+])
 
 interface CuriosityData {
   match_id: string
@@ -37,68 +53,111 @@ export default function SearchingScreen() {
   const insets = useSafeAreaInsets()
   const channelRef = useRef<Ably.RealtimeChannel | null>(null)
   const declinedMatchIds = useRef(new Set<string>())
+  const navigatedRef = useRef(false)
 
   const [firstName, setFirstName] = useState('')
   const [iata, setIata] = useState('···')
-  const [flightIata, setFlightIata] = useState<string | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [state, setState] = useState<ScreenState>('searching')
   const [curiosity, setCuriosity] = useState<CuriosityData | null>(null)
-  const [matcherBody, setMatcherBody] = useState<Record<string, unknown> | null>(null)
+  const [matcherError, setMatcherError] = useState(false)
 
-  // Resolve profile + active session on focus. If a match already exists for
-  // this session, deep-link to match/room — the user shouldn't sit in the
-  // searching loop when a match is live.
+  // The single exit: every match signal lands here exactly once. match/room
+  // re-reads the row from the DB, so a stale/foreign payload can't mis-route.
+  const handleMatchFound = useCallback((matchId: string, source: 'response' | 'ably' | 'poll') => {
+    if (navigatedRef.current) return
+    if (declinedMatchIds.current.has(matchId)) return
+    navigatedRef.current = true
+    console.log(`[searching] match found via ${source}: ${matchId}`)
+    router.replace({ pathname: '/(app)/match/room', params: { match_id: matchId } })
+  }, [router])
+
+  // Interpret a matcher response. Returns true if it resolved the search.
+  const applyMatcherResult = useCallback((result: MatcherResult): boolean => {
+    if ('matched' in result && result.matched) {
+      handleMatchFound(result.match_id, 'response')
+      return true
+    }
+    if ('matched' in result && !result.matched) {
+      if (result.reason === 'blocked_by_existing_match' && result.match_id) {
+        // A live match already exists for this session — surface it instead
+        // of searching forever behind it.
+        handleMatchFound(result.match_id, 'response')
+        return true
+      }
+      if (result.reason === 'requester_session_inactive') {
+        setState('no-session')
+        return true
+      }
+      if (QUIET_REASONS.has(result.reason)) {
+        setMatcherError(false)
+        setState(s => (s === 'curiosity' ? s : 'exhausted'))
+      }
+      return false
+    }
+    // Real failure — keep polling (a match made by the partner's invocation
+    // still surfaces), but tell the user something is off.
+    setMatcherError(true)
+    return false
+  }, [handleMatchFound])
+
+  const runSearch = useCallback(async (sess: Session, opts?: { curiosity?: boolean }) => {
+    const result = await requestMatch(sess, opts)
+    applyMatcherResult(result)
+  }, [applyMatcherResult])
+
+  // ── Session load (also the matcher kick-off — independent of Ably) ────────
   useFocusEffect(useCallback(() => {
     let cancelled = false
+    navigatedRef.current = false
     async function load() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session || cancelled) return
+      const { data: { session: auth } } = await supabase.auth.getSession()
+      if (!auth || cancelled) return
 
       const { data: profile } = await supabase
         .from('users')
         .select('first_name, base_city')
-        .eq('id', session.user.id)
+        .eq('id', auth.user.id)
         .maybeSingle()
       if (cancelled) return
       if (profile?.first_name) setFirstName(profile.first_name)
       if (profile?.base_city) setIata(primaryIataForCity(profile.base_city))
 
-      const activeSession = await getActiveSession()
+      const active = await getActiveSession()
       if (cancelled) return
-      if (!activeSession) { setState('no-session'); return }
-      if (activeSession.flight_iata) setFlightIata(activeSession.flight_iata)
+      if (!active) { setState('no-session'); return }
 
-      const existingMatch = await getActiveMatch(activeSession.id)
+      const existing = await getActiveMatch(active.id)
       if (cancelled) return
-      if (existingMatch) {
-        router.replace({ pathname: '/(app)/match/room', params: { match_id: existingMatch.id } })
+      if (existing) {
+        handleMatchFound(existing.id, 'poll')
         return
       }
 
-      // The matcher body is derived from the session row itself — searching is
-      // idempotent per session, regardless of boarding-pass contents.
-      const { flight_iata: _f, ...rest } = activeSession as unknown as Record<string, unknown>
-      setMatcherBody(rest)
+      setSession(active)
+      // First search attempt fires immediately — Ably connectivity is
+      // irrelevant to this path.
+      runSearch(active).catch(() => {})
     }
     load().catch(() => {})
     return () => { cancelled = true }
   }, []))
 
-  // Ably subscriptions for the user channel.
+  // ── Ably: fast-notify layer only (match/room re-reads the DB) ─────────────
   useEffect(() => {
     let cancelled = false
 
     async function subscribe() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session || cancelled) return
+      const { data: { session: auth } } = await supabase.auth.getSession()
+      if (!auth || cancelled) return
 
-      const ably = getAblyClient(session.user.id)
-      const channel = ably.channels.get(userChannelName(session.user.id))
+      const ably = getAblyClient(auth.user.id)
+      const channel = ably.channels.get(userChannelName(auth.user.id))
       channelRef.current = channel
 
       channel.subscribe('match.created', (msg) => {
         const { match_id } = msg.data as { match_id: string }
-        router.push({ pathname: '/(app)/match', params: { match_id } })
+        handleMatchFound(match_id, 'ably')
       }).catch(() => {})
 
       channel.subscribe('curiosity.match', (msg) => {
@@ -118,49 +177,31 @@ export default function SearchingScreen() {
         setState('curiosity')
         haptics.standbyStamp()
       }).catch(() => {})
-
-      channel.subscribe('pool.exhausted', () => {
-        // Not a dead end: show the quiet state, keep searching underneath.
-        setState(s => (s === 'curiosity' ? s : 'exhausted'))
-        setCuriosity(null)
-      }).catch(() => {})
-
-      // Subscriptions are live — safe to fire matching now. takePendingSession
-      // is set by intent.tsx after it creates the session row.
-      const pending = takePendingSession()
-      if (pending) {
-        setMatcherBody(pending)
-        supabase.functions.invoke('match-sessions', { body: pending }).catch(() => {})
-      }
     }
 
-    subscribe().catch(() => {})
+    subscribe().catch((e) => {
+      // Push notifications are an enhancement; the DB poll below covers us.
+      console.warn('[searching] Ably subscription unavailable (poll fallback active):', e?.message ?? e)
+    })
     return () => {
       cancelled = true
       channelRef.current?.unsubscribe()
       channelRef.current = null
     }
-  }, [])
+  }, [handleMatchFound])
 
-  // Curiosity-mode probe: after 15s of plain searching, ask the matcher to
-  // surface someone the user wasn't explicitly looking for. Backend enforces
-  // the same wait on the partner side, so a stale fire is harmless.
+  // ── Curiosity probe after 15s of quiet searching ───────────────────────────
   useEffect(() => {
-    if (state !== 'searching' || !matcherBody) return
+    if (state !== 'searching' || !session) return
     const timer = setTimeout(() => {
-      supabase.functions
-        .invoke('match-sessions', { body: { ...matcherBody, curiosity_mode: true } })
-        .catch(() => {})
+      runSearch(session, { curiosity: true }).catch(() => {})
     }, CURIOSITY_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [state, matcherBody])
+  }, [state, session, runSearch])
 
-  // Keep searching: re-invoke the matcher on an interval while in searching or
-  // exhausted state. Each tick re-reads the session — if it has expired or
-  // been archived (possibly from another device), stop instead of pushing a
-  // stale row at the matcher.
+  // ── Keep searching: intentional retry loop while quiet ────────────────────
   useEffect(() => {
-    if ((state !== 'searching' && state !== 'exhausted') || !matcherBody) return
+    if ((state !== 'searching' && state !== 'exhausted') || !session) return
     const interval = setInterval(async () => {
       try {
         const fresh = await getActiveSession()
@@ -168,38 +209,26 @@ export default function SearchingScreen() {
           setState('no-session')
           return
         }
-        // Use the fresh row for this invocation; matcherBody stays stable so
-        // the poll/curiosity effects don't churn their intervals.
-        const { flight_iata: _f, ...body } = fresh as unknown as Record<string, unknown>
-        supabase.functions.invoke('match-sessions', { body }).catch(() => {})
+        runSearch(fresh).catch(() => {})
       } catch { /* transient network failure — next tick retries */ }
     }, REMATCH_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [state, matcherBody])
+  }, [state, session, runSearch])
 
-  // Match poll — belt-and-braces alongside Ably. Runs in both searching and
-  // exhausted states so a match can always pull the user out of the quiet
-  // state. One query per tick, keyed on the session id we already hold.
+  // ── DB poll: the guaranteed fallback (partner-created matches, Ably down) ─
   useEffect(() => {
-    if ((state !== 'searching' && state !== 'exhausted') || !matcherBody) return
-    const sessionId = matcherBody.id as string
-    if (!sessionId) return
-
+    if ((state !== 'searching' && state !== 'exhausted') || !session) return
     const interval = setInterval(async () => {
       try {
-        const existingMatch = await getActiveMatch(sessionId)
-        if (existingMatch) {
+        const existing = await getActiveMatch(session.id)
+        if (existing) {
           clearInterval(interval)
-          router.replace({
-            pathname: '/(app)/match/room',
-            params: { match_id: existingMatch.id },
-          })
+          handleMatchFound(existing.id, 'poll')
         }
       } catch { /* transient network failure — next tick retries */ }
     }, MATCH_POLL_MS)
-
     return () => clearInterval(interval)
-  }, [state, matcherBody])
+  }, [state, session, handleMatchFound])
 
   function dismissCuriosity() {
     if (!curiosity) return
@@ -212,7 +241,7 @@ export default function SearchingScreen() {
   function openMatch() {
     if (!curiosity) return
     haptics.buttonTap()
-    router.push({ pathname: '/(app)/match', params: { match_id: curiosity.match_id } })
+    handleMatchFound(curiosity.match_id, 'ably')
   }
 
   if (state === 'no-session') {
@@ -246,7 +275,7 @@ export default function SearchingScreen() {
           <ManifestBoard
             firstName={firstName || 'YOU'}
             iata={iata}
-            flightIata={flightIata}
+            flightIata={session?.flight_iata ?? null}
             mode="static"
             status="standby"
             stranger={
@@ -259,6 +288,12 @@ export default function SearchingScreen() {
             }
           />
         </View>
+
+        {matcherError ? (
+          <Text style={styles.errorLine}>
+            Trouble reaching the matcher. Still checking for matches.
+          </Text>
+        ) : null}
 
         {state === 'curiosity' && curiosity ? (
           <View style={styles.curiosityPanel}>
@@ -293,6 +328,11 @@ const styles = StyleSheet.create({
   body: { flex: 1, justifyContent: 'center', gap: 20 },
   headline: { color: colors.text },
   boardWrap: { marginTop: 8 },
+  errorLine: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.subtle,
+  },
   curiosityPanel: { marginTop: 8, gap: 14 },
   curiosityLine: { color: colors.text },
   curiosityActions: {

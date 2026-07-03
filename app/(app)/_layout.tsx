@@ -4,19 +4,20 @@ import { Slot, usePathname, useFocusEffect } from 'expo-router'
 import { colors } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
 import { getActiveSession, getActiveMatch } from '../../lib/session'
+import { normalizePathname } from '../../lib/routes'
 import { BottomNav } from '../../components/BottomNav'
 
 // Routes that own the whole screen and should not show the nav bar.
-// Back gestures are disabled on the decision card and post-meetup; the
-// persistent nav would defeat the same intent. Exact match only (no prefix),
-// to avoid hiding it on sibling routes like /match/searching.
+// Runtime paths only (usePathname strips route groups). Exact match, no
+// prefix — /match/searching keeps its nav bar, /match (the decision card)
+// does not.
 const FULLSCREEN_EXACT = new Set([
-  '/(app)/match',           // flat match.tsx — the decision card
-  '/(app)/post-meetup',
+  '/match',           // flat match.tsx — the decision card
+  '/post-meetup',
 ])
 
 function shouldHideNav(pathname: string): boolean {
-  return FULLSCREEN_EXACT.has(pathname)
+  return FULLSCREEN_EXACT.has(normalizePathname(pathname))
 }
 
 export default function AppLayout() {

@@ -330,6 +330,18 @@ async function publishToAbly(userId: string, eventName: string, data: unknown) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
+// Every "no match" outcome carries a machine-readable `reason` so the client
+// (and anyone reading logs) can tell no-candidates apart from filtered-out,
+// blocked-by-existing-match, race, or a real failure. Never a vague false.
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+const LIVE_MATCH_STATUSES = ['pending', 'pending_a', 'pending_b', 'mutual']
+
 Deno.serve(async (req) => {
   try {
     const body = await req.json()
@@ -352,10 +364,10 @@ Deno.serve(async (req) => {
     const CURIOSITY_MIN_WAIT_MS = 15 * 1000
 
     if (!sessionId || !userId || !originIata || !intent) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields: id, user_id, origin_iata, connection_intent' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      )
+      return json({
+        error: 'Missing required fields: id, user_id, origin_iata, connection_intent',
+        debug_code: 'invalid_request',
+      }, 400)
     }
 
     // Never trust the client's copy of the session: verify the row is still
@@ -375,10 +387,29 @@ Deno.serve(async (req) => {
       new Date(requesterSession.expires_at as string).getTime() <= Date.now()
 
     if (requesterExpired) {
-      return new Response(
-        JSON.stringify({ matched: false, reason: 'requester session not active' }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
+      console.log(`[match] session ${sessionId}: requester session inactive/expired`)
+      return json({ matched: false, reason: 'requester_session_inactive' })
+    }
+
+    // If the requester's session already holds a live match, say so explicitly
+    // — with the blocking match id — instead of letting the insert trigger
+    // reject it later as an opaque 23505. The client routes to that match.
+    const { data: blockingMatch } = await supabase
+      .from('matches')
+      .select('id, status')
+      .or(`session_id_a.eq.${sessionId},session_id_b.eq.${sessionId}`)
+      .in('status', LIVE_MATCH_STATUSES)
+      .limit(1)
+      .maybeSingle()
+
+    if (blockingMatch) {
+      console.log(`[match] session ${sessionId}: blocked by existing ${blockingMatch.status} match ${blockingMatch.id}`)
+      return json({
+        matched: false,
+        reason: 'blocked_by_existing_match',
+        match_id: blockingMatch.id,
+        match_status: blockingMatch.status,
+      })
     }
 
     // In curiosity mode, verify the requester has actually been waiting ≥ 15s
@@ -389,10 +420,7 @@ Deno.serve(async (req) => {
         : null
 
       if (!requesterCreatedAt || Date.now() - requesterCreatedAt < CURIOSITY_MIN_WAIT_MS) {
-        return new Response(
-          JSON.stringify({ matched: false, reason: 'curiosity: requester has not waited 15s' }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } }
-        )
+        return json({ matched: false, reason: 'curiosity_requester_wait' })
       }
     }
 
@@ -435,16 +463,33 @@ Deno.serve(async (req) => {
 
     const candidates = (rawCandidates ?? []) as unknown as SessionRecord[]
 
-    // Terminal reachable + intent compatible
-    const stage1 = candidates.filter(c =>
-      intentsCompatible(intent, c.connection_intent) &&
-      terminalsReachable(originIata, myTerminal, c.terminal)
-    )
+    if (candidates.length === 0) {
+      console.log(`[match] session ${sessionId}: no active sessions at ${originIata}`)
+      return json({ matched: false, reason: 'no_candidates_at_airport' })
+    }
 
-    // Always send pool.exhausted when no one is at the airport — regardless of mode
+    // Terminal reachable + intent compatible — log why each rejection happened
+    // so a stuck session can be diagnosed from function logs alone.
+    let rejectedIntent = 0
+    let rejectedTerminal = 0
+    const stage1 = candidates.filter(c => {
+      if (!intentsCompatible(intent, c.connection_intent)) { rejectedIntent++; return false }
+      if (!terminalsReachable(originIata, myTerminal, c.terminal)) { rejectedTerminal++; return false }
+      return true
+    })
+
     if (stage1.length === 0) {
-      await publishToAbly(userId, 'pool.exhausted', {})
-      return new Response(JSON.stringify({ matched: false, reason: 'no stage1 candidates' }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      console.log(
+        `[match] session ${sessionId}: all ${candidates.length} candidates filtered ` +
+        `(intent-incompatible=${rejectedIntent}, terminal-unreachable=${rejectedTerminal})`
+      )
+      return json({
+        matched: false,
+        reason: 'all_candidates_filtered',
+        candidates: candidates.length,
+        rejected_intent: rejectedIntent,
+        rejected_terminal: rejectedTerminal,
+      })
     }
 
     // ── Parallel DB lookups ───────────────────────────────────────────────────
@@ -505,18 +550,26 @@ Deno.serve(async (req) => {
       (pendingMatches ?? []).flatMap((m: MatchPair) => [m.session_id_a, m.session_id_b])
     )
 
-    let available = stage1.filter(c =>
-      !excludedByMe.has(c.id) && !lockedInPending.has(c.id)
-    )
+    let rejectedSeen = 0
+    let rejectedLocked = 0
+    const available0 = stage1.filter(c => {
+      if (excludedByMe.has(c.id)) { rejectedSeen++; return false }
+      if (lockedInPending.has(c.id)) { rejectedLocked++; return false }
+      return true
+    })
+    let available = available0
 
     if (available.length === 0) {
-      // Don't fire pool.exhausted from the curiosity probe — it isn't really
-      // "no one's here," it's "no one new since the last probe." The user's
-      // earlier high-confidence search already drove that signal if relevant.
-      if (!isCuriosityMode) {
-        await publishToAbly(userId, 'pool.exhausted', {})
-      }
-      return new Response(JSON.stringify({ matched: false, reason: 'pool exhausted' }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      console.log(
+        `[match] session ${sessionId}: pool exhausted ` +
+        `(already-seen=${rejectedSeen}, locked-in-live-match=${rejectedLocked})`
+      )
+      return json({
+        matched: false,
+        reason: 'pool_exhausted',
+        already_seen: rejectedSeen,
+        locked: rejectedLocked,
+      })
     }
 
     // Curiosity mode: only candidates who have also been waiting ≥ 90s are
@@ -529,10 +582,7 @@ Deno.serve(async (req) => {
         return new Date(c.created_at).getTime() <= cutoff
       })
       if (available.length === 0) {
-        return new Response(
-          JSON.stringify({ matched: false, reason: 'curiosity: no candidate has waited 90s' }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } }
-        )
+        return json({ matched: false, reason: 'curiosity_no_waiting_candidates' })
       }
     }
 
@@ -589,10 +639,7 @@ Deno.serve(async (req) => {
 
     if (!isCuriosityMode && best.result.score < HIGH_CONFIDENCE_THRESHOLD) {
       console.log(`[match] score ${best.result.score} below threshold ${HIGH_CONFIDENCE_THRESHOLD} — no match`)
-      return new Response(
-        JSON.stringify({ matched: false, reason: 'score below threshold', score: best.result.score }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
+      return json({ matched: false, reason: 'below_threshold', score: best.result.score })
     }
 
     // ── Race condition guard ──────────────────────────────────────────────────
@@ -609,10 +656,8 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (existingPair) {
-      return new Response(
-        JSON.stringify({ matched: false, reason: 'match already created by concurrent invocation' }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
+      console.log(`[match] session ${sessionId}: pair already matched (${existingPair.id}) by concurrent invocation`)
+      return json({ matched: false, reason: 'insert_race', match_id: existingPair.id })
     }
 
     // ── Create match ─────────────────────────────────────────────────────────
@@ -675,18 +720,37 @@ Deno.serve(async (req) => {
       .select('id')
       .single()
 
-    // Fix 3: catch the unique-constraint violation (Postgres error 23505) that
-    // fires when the canonical-pair index blocks a duplicate A↔B insert from a
-    // concurrent invocation — return gracefully instead of throwing a 500.
+    // 23505 comes from two distinct sources — tell them apart instead of
+    // reporting a generic race:
+    //  - enforce_single_active_match trigger ("session already has an active
+    //    match"): one side is holding a live match → report which one.
+    //  - canonical-pair unique index: a concurrent invocation inserted this
+    //    exact pair a moment ago → benign race.
     if (matchErr) {
-      if ((matchErr as unknown as { code?: string }).code === '23505') {
-        console.log('[match] race condition — match already exists')
-        return new Response(
-          JSON.stringify({ matched: false, reason: 'race_condition' }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } }
-        )
+      const errCode = (matchErr as unknown as { code?: string }).code
+      const errMessage = (matchErr as unknown as { message?: string }).message ?? ''
+      if (errCode === '23505') {
+        if (errMessage.includes('active match')) {
+          const { data: nowBlocking } = await supabase
+            .from('matches')
+            .select('id, status')
+            .or(`session_id_a.eq.${sessionId},session_id_b.eq.${sessionId}`)
+            .in('status', LIVE_MATCH_STATUSES)
+            .limit(1)
+            .maybeSingle()
+          console.log(`[match] session ${sessionId}: insert blocked by live match (trigger) — ${nowBlocking?.id ?? 'partner side'}`)
+          return json({
+            matched: false,
+            reason: 'blocked_by_existing_match',
+            match_id: nowBlocking?.id ?? null,
+            match_status: nowBlocking?.status ?? null,
+          })
+        }
+        console.log('[match] insert race — canonical pair already exists')
+        return json({ matched: false, reason: 'insert_race' })
       }
-      throw matchErr
+      console.error('[match] insert failed:', errCode, errMessage)
+      return json({ error: `match insert failed: ${errMessage}`, debug_code: 'db_constraint_failure' }, 500)
     }
 
     console.log(`[match] created match ${matchRow.id} type=${matchType} score=${best.result.score} signal=${bestSignal?.type}`)
@@ -708,7 +772,10 @@ Deno.serve(async (req) => {
       ? { ...basePayload, ...curiosityExtras }
       : { ...basePayload, ...highConfidenceExtras }
 
-    await Promise.all([
+    // Ably is a fast-notification layer only — the match row already exists
+    // and clients poll the DB as fallback, so a publish failure must never
+    // fail match creation.
+    const publishResults = await Promise.allSettled([
       publishToAbly(userId, eventName, payload),
       // Fix 6: send initiator's real flight_iata to partner so their manifest board
       // stranger row shows a flight number instead of a blank string.
@@ -717,15 +784,25 @@ Deno.serve(async (req) => {
         ...(isCuriosityMode ? { origin_iata: originIata, flight_iata: myFlightIata } : {}),
       }),
     ])
+    for (const r of publishResults) {
+      if (r.status === 'rejected') {
+        console.error('[match] Ably publish failed (non-fatal, clients fall back to DB poll):', r.reason)
+      }
+    }
 
-    return new Response(
-      JSON.stringify({ matched: true, match_id: matchRow.id, match_type: matchType, score: best.result.score }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    )
+    return json({
+      matched: true,
+      match_id: matchRow.id,
+      session_id_a: sessionId,
+      session_id_b: partner.id,
+      suggested_meetup_location: suggestedMeetupLocation,
+      match_type: matchType,
+      score: best.result.score,
+    })
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('match-sessions error:', message)
-    return new Response(JSON.stringify({ error: message }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+    return json({ error: message, debug_code: 'unhandled_exception' }, 500)
   }
 })

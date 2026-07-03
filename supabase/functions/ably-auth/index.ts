@@ -73,8 +73,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: `Ably token request failed (${tokenRes.status}): ${text}` }), { status: 502 })
   }
 
-  const token = await tokenRes.json()
-  return new Response(JSON.stringify(token), {
+  const ablyToken = await tokenRes.json()
+  return new Response(JSON.stringify(ablyToken), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   })
