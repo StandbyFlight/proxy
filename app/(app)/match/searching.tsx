@@ -24,7 +24,10 @@ import type Ably from 'ably'
 // Ably setup failing never blocks the search: the matcher is invoked from the
 // session-load path, not the subscription path.
 
-type ScreenState = 'searching' | 'curiosity' | 'exhausted' | 'no-session'
+// 'loading' is the neutral initial state: the screen shows nothing about
+// searching until the async session/match check resolves, so the "Finding
+// the person…" copy never flashes before we know there's an active session.
+type ScreenState = 'loading' | 'searching' | 'curiosity' | 'exhausted' | 'no-session'
 
 const REMATCH_INTERVAL_MS = 45_000
 const MATCH_POLL_MS = 4_000
@@ -68,7 +71,7 @@ export default function SearchingScreen() {
   const [firstName, setFirstName] = useState('')
   const [iata, setIata] = useState('···')
   const [session, setSession] = useState<Session | null>(null)
-  const [state, setState] = useState<ScreenState>('searching')
+  const [state, setState] = useState<ScreenState>('loading')
   const [curiosity, setCuriosity] = useState<CuriosityData | null>(null)
   const [matcherError, setMatcherError] = useState(false)
 
@@ -148,6 +151,9 @@ export default function SearchingScreen() {
       }
 
       setSession(active)
+      // Session confirmed active with no existing match — only now do we enter
+      // the visible 'searching' state (leaving the neutral 'loading' gate).
+      setState('searching')
       // First search attempt fires immediately — Ably connectivity is
       // irrelevant to this path.
       runSearch(active).catch(() => {})
@@ -255,6 +261,16 @@ export default function SearchingScreen() {
     if (!curiosity) return
     haptics.buttonTap()
     handleMatchFound(curiosity.match_id, 'ably')
+  }
+
+  if (state === 'loading') {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
+        <View style={styles.body}>
+          <Text style={[type.headline, styles.headline]}>Checking your pass…</Text>
+        </View>
+      </View>
+    )
   }
 
   if (state === 'no-session') {

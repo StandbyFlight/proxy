@@ -11,7 +11,6 @@ import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { passDate, passTime } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
-import { completeMatchAndSession } from '../../lib/session'
 import { BackButton } from '../../components/BackButton'
 import { MapPinGlyph, MessageGlyph } from '../../components/Glyphs'
 
@@ -36,8 +35,6 @@ export default function MeetupScreen() {
   const { match_id } = useLocalSearchParams<{ match_id: string }>()
 
   const [iAmA, setIAmA] = useState<boolean | null>(null)
-  const [mySessionId, setMySessionId] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
   const [pointOfConnection, setPointOfConnection] = useState<string | null>(null)
   const [assignedLocation, setAssignedLocation] = useState<string | null>(null)
   const [myWearing, setMyWearing] = useState<string | null>(null)
@@ -46,7 +43,6 @@ export default function MeetupScreen() {
   const [myGate, setMyGate] = useState<string | null>(null)
   const [myDeparture, setMyDeparture] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   // Unread-badge state (additive, isolated to this screen). `hasUnread` drives
@@ -101,7 +97,6 @@ export default function MeetupScreen() {
         : null
 
       setIAmA(amA)
-      setMySessionId((amA ? match.session_id_a : match.session_id_b) ?? null)
       setPointOfConnection(match.point_of_connection ?? null)
       setAssignedLocation(match.suggested_meetup_location ?? null)
       setMyWearing((amA ? match.wearing_a : match.wearing_b) ?? null)
@@ -181,50 +176,6 @@ export default function MeetupScreen() {
     AsyncStorage.setItem(`chat-seen-${match_id}`, seenAt).catch(() => {})
     setHasUnread(false)
     router.push({ pathname: '/(app)/chat', params: { match_id } })
-  }
-
-  async function confirm() {
-    if (iAmA === null || saving) return
-    setSaving(true)
-    setError('')
-
-    try {
-      // Anchor the post-meetup prompt to 45 min before the earlier departure —
-      // matched users may fly to different cities, so meetup happens pre-boarding.
-      const myDep = myDeparture ? new Date(myDeparture) : null
-      const theirDep = their?.departureTime ? new Date(their.departureTime) : null
-      let meetup_time: string | null = null
-      if (myDep && theirDep) {
-        const earlier = myDep < theirDep ? myDep : theirDep
-        meetup_time = new Date(earlier.getTime() - 45 * 60 * 1000).toISOString()
-      } else if (myDep) {
-        meetup_time = new Date(myDep.getTime() - 45 * 60 * 1000).toISOString()
-      }
-
-      const { error: updateErr } = await supabase
-        .from('matches')
-        .update({ meetup_time })
-        .eq('id', match_id)
-
-      if (updateErr) throw updateErr
-
-      // Move the match mutual → completed and the session → completed. This is
-      // the terminal transition: getActiveMatch returns null afterwards, so the
-      // user is no longer looped back into the active meetup flow forever.
-      if (mySessionId) {
-        await completeMatchAndSession(match_id, mySessionId)
-      }
-
-      haptics.success()
-      setSaved(true)
-      // Land in history, where the completed pass now lives.
-      setTimeout(() => router.replace('/(app)/history'), 900)
-    } catch (err: any) {
-      haptics.error()
-      setError(err.message ?? 'Something went wrong. Try again.')
-    } finally {
-      setSaving(false)
-    }
   }
 
   // Recovery path: matches made before wearing was collected at accept time
@@ -435,32 +386,11 @@ export default function MeetupScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-        <View style={styles.footerLinks}>
-          <Pressable
-            onPress={() => { haptics.buttonTap(); router.push({ pathname: '/(app)/post-meetup', params: { match_id } }) }}
-            style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.5 }]}
-          >
-            <Text style={styles.linkBtnText}>LOG HOW IT WENT</Text>
-          </Pressable>
-        </View>
-
-        {saved ? (
-          <Text style={styles.savedText}>Meetup saved to history.</Text>
-        ) : null}
-
         <Pressable
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            (saving || saved) && styles.primaryBtnDisabled,
-            pressed && !saving && !saved && { opacity: 0.85 },
-          ]}
-          onPress={() => { haptics.buttonTap(); confirm() }}
-          disabled={saving || saved}
+          style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
+          onPress={() => { haptics.buttonTap(); router.push({ pathname: '/(app)/post-meetup', params: { match_id } }) }}
         >
-          {saving
-            ? <ActivityIndicator color={colors.white} />
-            : <Text style={styles.primaryBtnText}>{saved ? 'Saved' : 'Confirm meetup'}</Text>
-          }
+          <Text style={styles.primaryBtnText}>LOG HOW IT WENT</Text>
         </Pressable>
 
         <Pressable
@@ -713,7 +643,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
   },
-  // Confirm meetup — red accent, large / rounded / full-width.
+  // Log how it went — red accent, large / rounded / full-width.
   primaryBtn: {
     backgroundColor: colors.accent,
     paddingVertical: 16,

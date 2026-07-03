@@ -1,11 +1,11 @@
-import { Text, Pressable, StyleSheet } from 'react-native'
+import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { colors } from '../lib/theme'
-import { fonts } from '../lib/typography'
 import { haptics } from '../lib/haptics'
 
 // The one back-navigation component. Every screen uses this — no bespoke back
-// buttons. Falls back to `fallback` when there's no stack to pop.
+// buttons. Renders a thin left-pointing (backwards) triangle. Falls back to
+// `fallback` when there's no stack to pop. `label` is kept for accessibility.
 
 export function BackButton({
   label = 'BACK',
@@ -30,10 +30,10 @@ export function BackButton({
       onPress={goBack}
       hitSlop={14}
       accessibilityRole="button"
-      accessibilityLabel="Go back"
+      accessibilityLabel={label === 'BACK' ? 'Go back' : label}
       style={({ pressed }) => [styles.btn, pressed && { opacity: 0.5 }]}
     >
-      <Text style={styles.text}>{label}</Text>
+      <View style={styles.triangle} />
     </Pressable>
   )
 }
@@ -42,13 +42,17 @@ const styles = StyleSheet.create({
   btn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     paddingVertical: 10,
   },
-  text: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.subtle,
-    letterSpacing: 1.4,
+  // A thin left-pointing (backwards) triangle drawn from borders.
+  triangle: {
+    width: 0,
+    height: 0,
+    borderTopWidth: 6,
+    borderBottomWidth: 6,
+    borderRightWidth: 10,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderRightColor: colors.text,
   },
 })

@@ -154,7 +154,6 @@ export default function ChatScreen() {
       </View>
 
       <View style={styles.header}>
-        <Text style={[type.eyebrow, styles.eyebrow]}>MESSAGES</Text>
         <Text style={[type.headline, styles.headline]}>{partnerName}</Text>
       </View>
 
