@@ -10,7 +10,7 @@ import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { passDate, passTime } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
-import { BoardingPass } from '../../components/BoardingPass'
+import { completeMatchAndSession } from '../../lib/session'
 import { BackButton } from '../../components/BackButton'
 
 // The confirmed-match screen. Both users land here at the same time once both
@@ -34,6 +34,8 @@ export default function MeetupScreen() {
   const { match_id } = useLocalSearchParams<{ match_id: string }>()
 
   const [iAmA, setIAmA] = useState<boolean | null>(null)
+  const [mySessionId, setMySessionId] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
   const [pointOfConnection, setPointOfConnection] = useState<string | null>(null)
   const [assignedLocation, setAssignedLocation] = useState<string | null>(null)
   const [myWearing, setMyWearing] = useState<string | null>(null)
@@ -91,6 +93,7 @@ export default function MeetupScreen() {
         : null
 
       setIAmA(amA)
+      setMySessionId((amA ? match.session_id_a : match.session_id_b) ?? null)
       setPointOfConnection(match.point_of_connection ?? null)
       setAssignedLocation(match.suggested_meetup_location ?? null)
       setMyWearing((amA ? match.wearing_a : match.wearing_b) ?? null)
@@ -137,10 +140,17 @@ export default function MeetupScreen() {
 
       if (updateErr) throw updateErr
 
+      // Move the match mutual → completed and the session → completed. This is
+      // the terminal transition: getActiveMatch returns null afterwards, so the
+      // user is no longer looped back into the active meetup flow forever.
+      if (mySessionId) {
+        await completeMatchAndSession(match_id, mySessionId)
+      }
+
       haptics.success()
-      // Confirming locks it in; the match stays reachable from the Match tab
-      // and "how it went" is logged afterwards via the link below.
-      router.replace('/(app)/')
+      setSaved(true)
+      // Land in history, where the completed pass now lives.
+      setTimeout(() => router.replace('/(app)/history'), 900)
     } catch (err: any) {
       haptics.error()
       setError(err.message ?? 'Something went wrong. Try again.')
@@ -232,63 +242,115 @@ export default function MeetupScreen() {
           <Text style={[type.headline, styles.poc]}>{pointOfConnection}</Text>
         ) : null}
 
-        <View style={styles.locationCard}>
-          <Text style={styles.locationLabel}>SUGGESTED MEET SPOT</Text>
-          <Text style={styles.locationValue}>{spotName}</Text>
+        {/* ── Boarding-pass ticket: the other person's pass ── */}
+        <View style={styles.ticket}>
+          <View style={styles.ticketHeader}>
+            <Text style={styles.ticketHeaderLabel}>BOARDING PASS</Text>
+            <Text style={styles.ticketWordmark}>STANDBY</Text>
+          </View>
+
+          <View style={styles.ticketBody}>
+            {/* Punched perforation strip down the left edge */}
+            <View style={styles.perforation} pointerEvents="none">
+              {Array.from({ length: 14 }).map((_, i) => (
+                <View key={i} style={styles.perfDot} />
+              ))}
+            </View>
+
+            <View style={styles.ticketBox}>
+              <Text style={styles.boxLabel}>NAME OF PASSENGER</Text>
+              <Text style={styles.boxValue} numberOfLines={1}>
+                {their.firstName ? their.firstName.toUpperCase() : '——'}
+              </Text>
+            </View>
+
+            <View style={styles.ticketRow}>
+              <View style={[styles.ticketBox, styles.rowBox]}>
+                <Text style={styles.boxLabel}>FROM</Text>
+                <Text style={styles.boxValueLg} numberOfLines={1}>{their.originIata || '——'}</Text>
+              </View>
+              <View style={[styles.ticketBox, styles.rowBox]}>
+                <Text style={styles.boxLabel}>TO</Text>
+                <Text style={styles.boxValueLg} numberOfLines={1}>{their.destinationIata || '——'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.ticketRow}>
+              <View style={[styles.ticketBox, styles.rowBox]}>
+                <Text style={styles.boxLabel}>FLIGHT</Text>
+                <Text style={styles.boxValue} numberOfLines={1}>{their.flightIata || '——'}</Text>
+              </View>
+              <View style={[styles.ticketBox, styles.rowBox]}>
+                <Text style={styles.boxLabel}>DATE</Text>
+                <Text style={styles.boxValue} numberOfLines={1}>{theirPassDate || '——'}</Text>
+              </View>
+              <View style={[styles.ticketBox, styles.rowBox]}>
+                <Text style={styles.boxLabel}>TIME</Text>
+                <Text style={styles.boxValue} numberOfLines={1}>{theirPassTime || '——'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.ticketRow}>
+              <View style={[styles.ticketBox, styles.rowBox]}>
+                <Text style={styles.boxLabel}>GATE</Text>
+                <Text style={styles.boxValue} numberOfLines={1}>{their.gate || '——'}</Text>
+              </View>
+              <View style={[styles.ticketBox, styles.rowBox]}>
+                <Text style={styles.boxLabel}>TERM</Text>
+                <Text style={styles.boxValue} numberOfLines={1}>{their.terminal || '——'}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.ticketBarcode}>
+              SBY · {their.flightIata || '····'}{their.originIata ? ` · ${their.originIata}` : ''}
+            </Text>
+
+            <Text style={styles.ticketStamp}>STANDBY · CLEARED</Text>
+          </View>
+        </View>
+
+        {/* ── Suggested meet spot ── */}
+        <View style={styles.infoBox}>
+          <Text style={styles.boxLabel}>SUGGESTED MEET SPOT</Text>
+          <Text style={styles.infoValue}>{spotName}</Text>
           {spotGuidance ? (
-            <Text style={styles.locationGuidance}>
+            <Text style={styles.infoBody}>
               Meet near {spotGuidance} — a central place for both of you.
             </Text>
           ) : null}
           <Pressable
             onPress={openInMaps}
             hitSlop={10}
-            style={({ pressed }) => [styles.mapsLink, pressed && { opacity: 0.5 }]}
+            style={({ pressed }) => [styles.inlineLink, pressed && { opacity: 0.5 }]}
           >
-            <Text style={styles.mapsLinkText}>OPEN IN MAPS</Text>
+            <Text style={styles.inlineLinkText}>OPEN IN MAPS</Text>
           </Pressable>
         </View>
 
-        <View style={styles.wearingRow}>
-          <View style={styles.wearingCell}>
-            <Text style={styles.wearingLabel}>THEY'RE WEARING</Text>
-            <Text style={styles.wearingValue}>{their.wearing || '—'}</Text>
-          </View>
-          <View style={styles.wearingCell}>
-            <Text style={styles.wearingLabel}>YOU'RE WEARING</Text>
-            {myWearing ? (
-              <Text style={styles.wearingValue}>{myWearing}</Text>
-            ) : (
-              <TextInput
-                style={styles.wearingInput}
-                placeholder="Navy puffer…"
-                placeholderTextColor={colors.subtle}
-                value={wearingDraft}
-                onChangeText={setWearingDraft}
-                onSubmitEditing={saveWearing}
-                onBlur={saveWearing}
-                returnKeyType="done"
-                maxLength={80}
-                selectionColor={colors.accent}
-              />
-            )}
-          </View>
+        {/* ── How each of you is recognized ── */}
+        <View style={styles.infoBox}>
+          <Text style={styles.boxLabel}>THEY'RE WEARING</Text>
+          <Text style={styles.infoBody}>{their.wearing || '—'}</Text>
         </View>
-
-        <BoardingPass
-          airline="STANDBY"
-          classLabel="THEIR PASS"
-          passenger={their.firstName}
-          origin={their.originIata}
-          destination={their.destinationIata}
-          flight={their.flightIata}
-          date={theirPassDate}
-          time={theirPassTime}
-          gate={their.gate}
-          terminal={their.terminal}
-          status="MATCHED"
-          compact
-        />
+        <View style={styles.infoBox}>
+          <Text style={styles.boxLabel}>YOU'RE WEARING</Text>
+          {myWearing ? (
+            <Text style={styles.infoBody}>{myWearing}</Text>
+          ) : (
+            <TextInput
+              style={styles.wearingInput}
+              placeholder="Navy puffer…"
+              placeholderTextColor={colors.subtle}
+              value={wearingDraft}
+              onChangeText={setWearingDraft}
+              onSubmitEditing={saveWearing}
+              onBlur={saveWearing}
+              returnKeyType="done"
+              maxLength={80}
+              selectionColor={colors.accent}
+            />
+          )}
+        </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </ScrollView>
@@ -307,27 +369,32 @@ export default function MeetupScreen() {
           >
             <Text style={styles.linkBtnText}>LOG HOW IT WENT</Text>
           </Pressable>
-          <Pressable
-            onPress={cancelMatch}
-            style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.5 }]}
-          >
-            <Text style={styles.linkBtnText}>CANCEL</Text>
-          </Pressable>
         </View>
+
+        {saved ? (
+          <Text style={styles.savedText}>Meetup saved to history.</Text>
+        ) : null}
 
         <Pressable
           style={({ pressed }) => [
             styles.primaryBtn,
-            saving && styles.primaryBtnDisabled,
-            pressed && !saving && { opacity: 0.85 },
+            (saving || saved) && styles.primaryBtnDisabled,
+            pressed && !saving && !saved && { opacity: 0.85 },
           ]}
           onPress={() => { haptics.buttonTap(); confirm() }}
-          disabled={saving}
+          disabled={saving || saved}
         >
           {saving
-            ? <ActivityIndicator color={colors.onAccent} />
-            : <Text style={styles.primaryBtnText}>Confirm meetup</Text>
+            ? <ActivityIndicator color={colors.white} />
+            : <Text style={styles.primaryBtnText}>{saved ? 'Saved' : 'Confirm meetup'}</Text>
           }
+        </Pressable>
+
+        <Pressable
+          onPress={cancelMatch}
+          style={({ pressed }) => [styles.cancelBtn, pressed && { opacity: 0.5 }]}
+        >
+          <Text style={styles.cancelBtnText}>CANCEL</Text>
         </Pressable>
       </View>
     </View>
@@ -336,10 +403,14 @@ export default function MeetupScreen() {
 
 
 
+// Warm taupe ticket stock — a neutral surface, not one of the four accents, so
+// the boarding pass reads as printed card against the white page.
+const TICKET_STOCK = '#C9C3B6'
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   center: { alignItems: 'center', justifyContent: 'center' },
-  inner: { paddingHorizontal: 24, gap: 18 },
+  inner: { paddingHorizontal: 20, gap: 16 },
 
   eyebrow: { color: colors.subtle },
 
@@ -349,68 +420,151 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
 
-  locationCard: {
-    backgroundColor: colors.periwinkle,
-    borderRadius: 4,
-    padding: 16,
-    gap: 6,
+  // ── Boarding-pass ticket ──
+  ticket: {
+    backgroundColor: TICKET_STOCK,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.12)',
   },
-  locationLabel: {
-    fontFamily: fonts.body,
-    fontSize: 10,
-    letterSpacing: 1.8,
-    color: colors.text,
-    opacity: 0.6,
-  },
-  locationValue: {
-    fontFamily: fonts.body,
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    color: colors.text,
-  },
-  locationGuidance: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.text,
-    opacity: 0.75,
-  },
-  mapsLink: { alignSelf: 'flex-start', paddingTop: 4 },
-  mapsLinkText: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    color: colors.text,
-    opacity: 0.6,
-  },
-
-  wearingRow: {
+  ticketHeader: {
+    backgroundColor: colors.accent,
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  ticketHeaderLabel: {
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    fontSize: 13,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    color: colors.white,
+  },
+  ticketWordmark: {
+    fontFamily: fonts.display,
+    fontSize: 22,
+    letterSpacing: 1,
+    color: colors.white,
+  },
+  ticketBody: {
+    position: 'relative',
+    paddingTop: 16,
+    paddingBottom: 14,
+    paddingRight: 16,
+    paddingLeft: 20,
     gap: 12,
   },
-  wearingCell: {
-    flex: 1,
-    backgroundColor: colors.periwinkle,
-    borderRadius: 4,
-    padding: 12,
-    gap: 4,
+  perforation: {
+    position: 'absolute',
+    left: 3,
+    top: 12,
+    bottom: 12,
+    width: 8,
+    alignItems: 'center',
+    justifyContent: 'space-around',
   },
-  wearingLabel: {
+  perfDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.bg,
+  },
+  ticketBox: {
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    gap: 2,
+  },
+  ticketRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  rowBox: { flex: 1 },
+  boxLabel: {
     fontFamily: fonts.body,
+    fontWeight: '700',
     fontSize: 9,
     letterSpacing: 1.4,
-    color: colors.text,
-    opacity: 0.6,
+    textTransform: 'uppercase',
+    color: colors.accent,
   },
-  wearingValue: {
+  boxValue: {
+    fontFamily: fonts.display,
+    fontSize: 22,
+    lineHeight: 26,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    color: colors.black,
+  },
+  boxValueLg: {
+    fontFamily: fonts.display,
+    fontSize: 34,
+    lineHeight: 38,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: colors.black,
+  },
+  ticketBarcode: {
     fontFamily: fonts.body,
-    fontSize: 14,
+    fontSize: 11,
+    letterSpacing: 2,
+    textAlign: 'center',
+    color: colors.subtle,
+    marginTop: 4,
+  },
+  ticketStamp: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 172,
+    textAlign: 'center',
+    fontFamily: fonts.display,
+    fontSize: 30,
+    letterSpacing: 4,
+    color: colors.accent,
+    opacity: 0.22,
+    transform: [{ rotate: '-15deg' }],
+  },
+
+  // ── Outlined info boxes (meet spot + identification) ──
+  infoBox: {
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 8,
+    padding: 14,
+    gap: 6,
+    backgroundColor: colors.surface,
+  },
+  infoValue: {
+    fontFamily: fonts.display,
+    fontSize: 20,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
     color: colors.text,
+  },
+  infoBody: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 21,
+    color: colors.text,
+  },
+  inlineLink: { alignSelf: 'flex-start', paddingTop: 2 },
+  inlineLinkText: {
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    fontSize: 11,
+    letterSpacing: 1.4,
+    color: colors.accent,
   },
   wearingInput: {
     fontFamily: fonts.body,
-    fontSize: 14,
+    fontSize: 15,
     color: colors.text,
     paddingVertical: 2,
   },
@@ -422,14 +576,17 @@ const styles = StyleSheet.create({
   },
 
   footer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 12,
     gap: 12,
     backgroundColor: colors.bg,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.08)',
   },
   footerLinks: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 28,
   },
   linkBtn: { paddingVertical: 4 },
   linkBtnText: {
@@ -438,18 +595,36 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     color: colors.subtle,
   },
-  primaryBtn: {
-    backgroundColor: colors.accent,
-    paddingVertical: 14,
-    alignItems: 'center',
+  savedText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    letterSpacing: 0.4,
+    color: colors.text,
+    textAlign: 'center',
   },
-  primaryBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
+  // Confirm meetup — the app's blue token, large / rounded / full-width.
+  primaryBtn: {
+    backgroundColor: colors.periwinkle,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  primaryBtnDisabled: { opacity: 0.5 },
   primaryBtnText: {
     fontFamily: fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
+    fontWeight: '700',
+    fontSize: 14,
+    letterSpacing: 1.6,
     textTransform: 'uppercase',
-    color: colors.onAccent,
+    color: colors.white,
+  },
+  // Cancel — minimal, centered beneath the main button.
+  cancelBtn: { alignSelf: 'center', paddingVertical: 6 },
+  cancelBtnText: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    color: colors.subtle,
   },
 })

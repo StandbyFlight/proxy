@@ -9,7 +9,9 @@ import { supabase } from './supabase'
 //                      insert can't wipe state) and declines its open matches.
 //   getActiveSession() — the one canonical active-session query.
 //   endActiveSession() — explicit archive.
-//   getSessionHistory() — every past/upcoming session, never deleted.
+//   archiveSession()/deleteSession() — per-session archive / soft delete.
+//   completeMatchAndSession() — terminal "we met" transition from Confirm Meetup.
+//   getSessionHistory() — every past/upcoming session, hides soft-deleted rows.
 //
 // A session expires only when the flight window has actually passed:
 // expires_at = departure_time + EXPIRY_GRACE. Nothing else expires it.
@@ -99,6 +101,19 @@ export async function getActiveSession(): Promise<Session | null> {
   return data ? toSession(data as unknown as RawSessionRow) : null
 }
 
+// Fetch one of the current user's sessions by id (any status).
+export async function getSessionById(sessionId: string): Promise<Session | null> {
+  const userId = await requireUserId()
+  if (!userId) return null
+  const { data } = await supabase
+    .from('sessions')
+    .select(SESSION_SELECT)
+    .eq('id', sessionId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  return data ? toSession(data as unknown as RawSessionRow) : null
+}
+
 export type CreateSessionInput = {
   flight_id: string
   origin_iata: string | null
@@ -177,6 +192,60 @@ export async function endActiveSession(): Promise<void> {
   await supabase.from('sessions').update({ status: 'archived' }).in('id', ids)
 }
 
+// Archive one specific session (regardless of active/expired state) and
+// decline its live matches — same semantics as endActiveSession, per-id.
+export async function archiveSession(sessionId: string): Promise<void> {
+  const userId = await requireUserId()
+  if (!userId) return
+  await releaseMatchesFor([sessionId])
+  const { error } = await supabase
+    .from('sessions')
+    .update({ status: 'archived' })
+    .eq('id', sessionId)
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+// SOFT delete: the row stays in the DB (there is no DELETE RLS policy, and
+// history integrity matters) but is hidden from getSessionHistory. Live
+// matches are declined so the partner isn't left holding a ghost meetup.
+export async function deleteSession(sessionId: string): Promise<void> {
+  const userId = await requireUserId()
+  if (!userId) return
+  await releaseMatchesFor([sessionId])
+  const { error } = await supabase
+    .from('sessions')
+    .update({ status: 'deleted' })
+    .eq('id', sessionId)
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+// Terminal "we met" transition, called by Confirm Meetup. The match moves
+// mutual → completed (guarded on 'mutual' so the accept state machine is
+// untouched — a pending/declined match is never force-completed) and the
+// session leaves the active pool as 'completed'. Nothing is declined and the
+// meetup location/time are preserved for history.
+export async function completeMatchAndSession(
+  matchId: string,
+  sessionId: string,
+): Promise<void> {
+  const userId = await requireUserId()
+  if (!userId) throw new Error('Not authenticated')
+  const { error: matchErr } = await supabase
+    .from('matches')
+    .update({ status: 'completed' })
+    .eq('id', matchId)
+    .eq('status', 'mutual')
+  if (matchErr) throw matchErr
+  const { error: sessionErr } = await supabase
+    .from('sessions')
+    .update({ status: 'completed' })
+    .eq('id', sessionId)
+    .eq('user_id', userId)
+  if (sessionErr) throw sessionErr
+}
+
 // Decline any live matches on the given sessions — including mutual ones —
 // so the other party is released back to searching instead of holding a ghost
 // meetup with someone who left (and being blocked from new matches by the
@@ -244,6 +313,7 @@ export async function getSessionHistory(limit = 60): Promise<HistoryEntry[]> {
     .from('sessions')
     .select(SESSION_SELECT)
     .eq('user_id', userId)
+    .neq('status', 'deleted')
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -261,7 +331,9 @@ export async function getSessionHistory(limit = 60): Promise<HistoryEntry[]> {
   const outcomeBySession = new Map<string, 'met' | 'matched'>()
   for (const m of matches ?? []) {
     for (const sid of [m.session_id_a, m.session_id_b]) {
-      if (m.status === 'mutual') outcomeBySession.set(sid, 'met')
+      // A completed meetup is a met — Confirm Meetup writes 'completed', which
+      // is the terminal form of a mutual match, so it must read as history.
+      if (m.status === 'mutual' || m.status === 'completed') outcomeBySession.set(sid, 'met')
       else if (!outcomeBySession.has(sid)) outcomeBySession.set(sid, 'matched')
     }
   }

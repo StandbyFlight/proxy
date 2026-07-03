@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
-import { useRouter, useFocusEffect } from 'expo-router'
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../../lib/theme'
 import { fonts, type } from '../../../lib/typography'
 import { supabase } from '../../../lib/supabase'
 import { getAblyClient, userChannelName } from '../../../lib/ably'
-import { getActiveSession, getActiveMatch, type Session } from '../../../lib/session'
+import { getActiveSession, getActiveMatch, getSessionById, type Session } from '../../../lib/session'
 import { requestMatch, type MatcherResult } from '../../../lib/matcher'
 import { haptics } from '../../../lib/haptics'
 import { ManifestBoard } from '../../../components/ManifestBoard'
@@ -51,9 +51,19 @@ interface CuriosityData {
 export default function SearchingScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  // When opened from a specific history card, scope the search to that session
+  // instead of the current active one. Falls back to getActiveSession() for the
+  // normal availability-screen entry (no param).
+  const { session_id } = useLocalSearchParams<{ session_id?: string }>()
   const channelRef = useRef<Ably.RealtimeChannel | null>(null)
   const declinedMatchIds = useRef(new Set<string>())
   const navigatedRef = useRef(false)
+
+  // The one session resolver — honors the session_id param when present.
+  const resolveSession = useCallback(
+    () => (session_id ? getSessionById(session_id) : getActiveSession()),
+    [session_id],
+  )
 
   const [firstName, setFirstName] = useState('')
   const [iata, setIata] = useState('···')
@@ -69,8 +79,11 @@ export default function SearchingScreen() {
     if (declinedMatchIds.current.has(matchId)) return
     navigatedRef.current = true
     console.log(`[searching] match found via ${source}: ${matchId}`)
-    router.replace({ pathname: '/(app)/match/room', params: { match_id: matchId } })
-  }, [router])
+    router.replace({
+      pathname: '/(app)/match/room',
+      params: { match_id: matchId, ...(session_id ? { session_id } : {}) },
+    })
+  }, [router, session_id])
 
   // Interpret a matcher response. Returns true if it resolved the search.
   const applyMatcherResult = useCallback((result: MatcherResult): boolean => {
@@ -123,7 +136,7 @@ export default function SearchingScreen() {
       if (profile?.first_name) setFirstName(profile.first_name)
       if (profile?.base_city) setIata(primaryIataForCity(profile.base_city))
 
-      const active = await getActiveSession()
+      const active = await resolveSession()
       if (cancelled) return
       if (!active) { setState('no-session'); return }
 
@@ -204,7 +217,7 @@ export default function SearchingScreen() {
     if ((state !== 'searching' && state !== 'exhausted') || !session) return
     const interval = setInterval(async () => {
       try {
-        const fresh = await getActiveSession()
+        const fresh = await resolveSession()
         if (!fresh) {
           setState('no-session')
           return
@@ -213,7 +226,7 @@ export default function SearchingScreen() {
       } catch { /* transient network failure — next tick retries */ }
     }, REMATCH_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [state, session, runSearch])
+  }, [state, session, runSearch, resolveSession])
 
   // ── DB poll: the guaranteed fallback (partner-created matches, Ably down) ─
   useEffect(() => {

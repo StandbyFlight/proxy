@@ -109,7 +109,13 @@ export function BottomNav({
                   </View>
                 ) : null}
               </View>
-              <Text style={[styles.label, active && styles.labelActive]}>{tab.label}</Text>
+              <Text
+                style={[styles.label, active && styles.labelActive]}
+                numberOfLines={1}
+                allowFontScaling={false}
+              >
+                {tab.label}
+              </Text>
             </Pressable>
           )
         })}
@@ -130,6 +136,7 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     alignItems: 'center',
+    paddingHorizontal: 2,
     paddingTop: 4,
     paddingBottom: 2,
     gap: 3,
@@ -148,8 +155,9 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fonts.body,
     fontSize: 9,
-    letterSpacing: 1.4,
+    letterSpacing: 1.0,
     color: colors.subtle,
+    textAlign: 'center',
   },
   // The tab you're on renders fully in the accent so it's unmistakable.
   labelActive: {

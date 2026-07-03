@@ -6,6 +6,7 @@ import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
+import { completeMatchAndSession } from '../../lib/session'
 import { BackButton } from '../../components/BackButton'
 
 export default function PostMeetupScreen() {
@@ -24,7 +25,7 @@ export default function PostMeetupScreen() {
 
     const { data: match } = await supabase
       .from('matches')
-      .select('session_id_a, session_a:sessions!session_id_a(user_id)')
+      .select('session_id_a, session_id_b, session_a:sessions!session_id_a(user_id)')
       .eq('id', match_id)
       .single()
 
@@ -39,6 +40,15 @@ export default function PostMeetupScreen() {
           .from('matches')
           .update({ status: 'declined' })
           .eq('id', match_id)
+      } else {
+        // "We met" is a terminal outcome too — drive the match/session to
+        // completed so a match that reached here still mutual doesn't re-enter
+        // the active flow. completeMatchAndSession guards the match update on
+        // status='mutual', so an already-completed match is a safe no-op.
+        const mySessionId = iAmA ? match.session_id_a : match.session_id_b
+        if (mySessionId) {
+          await completeMatchAndSession(match_id, mySessionId)
+        }
       }
     }
 

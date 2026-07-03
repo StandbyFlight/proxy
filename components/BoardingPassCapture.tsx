@@ -4,8 +4,9 @@ import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useRef, useState } from 'react'
 import {
   View, Text, Pressable, StyleSheet,
-  ActivityIndicator, SafeAreaView, Alert, Linking,
+  ActivityIndicator, Alert, Linking,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
 import { colors } from '../lib/theme'
 import { fonts, type } from '../lib/typography'
@@ -81,8 +82,30 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
       const data = await res.json()
       console.log('[boarding-pass] parsed result:', JSON.stringify(data))
 
-      if (!data?.flight_number) {
+      // flight_number is optional — the server nulls it whenever the raw value
+      // fails its regex, independently of the other fields. Accept the parse if
+      // the core session fields exist (origin + departure_date + departure_time)
+      // OR a flight number came through; the edit screen lets the user fill any
+      // remaining gaps and flight.tsx's canConfirm still gates issuing a pass.
+      const hasCore = !!(data?.origin && data?.departure_date && data?.departure_time)
+      const hasFlightNumber = !!data?.flight_number
+
+      if (!hasCore && !hasFlightNumber && !data?.origin && !data?.destination && !data?.departure_date) {
+        console.warn('[boarding-pass] parse failed: no usable fields in result')
         throw new Error("Couldn't read the boarding pass. Try a clearer, well-lit photo.")
+      }
+
+      const optionalMissing = (
+        ['flight_number', 'origin', 'destination', 'departure_date', 'departure_time', 'gate', 'terminal'] as const
+      ).filter(k => !data?.[k])
+      if (optionalMissing.length === 0) {
+        console.log('[boarding-pass] parse OK: all fields present')
+      } else {
+        console.log(
+          '[boarding-pass] parse OK with minimum viable fields',
+          hasCore ? '(origin+date+time)' : '(flight_number)',
+          '— missing:', optionalMissing.join(', '),
+        )
       }
 
       haptics.success()
