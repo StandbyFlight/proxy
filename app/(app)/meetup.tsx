@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   View, Text, TextInput, Pressable,
   StyleSheet, ScrollView, ActivityIndicator, Alert, Linking,
 } from 'react-native'
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
@@ -12,6 +13,7 @@ import { passDate, passTime } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
 import { completeMatchAndSession } from '../../lib/session'
 import { BackButton } from '../../components/BackButton'
+import { MapPinGlyph, MessageGlyph } from '../../components/Glyphs'
 
 // The confirmed-match screen. Both users land here at the same time once both
 // accept. Shows: the app-assigned meeting location, each side's identifying
@@ -46,6 +48,12 @@ export default function MeetupScreen() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Unread-badge state (additive, isolated to this screen). `hasUnread` drives
+  // the red dot on the MESSAGES button; `lastPartnerAt` is the newest partner
+  // message timestamp we know about, used to advance the AsyncStorage marker.
+  const [hasUnread, setHasUnread] = useState(false)
+  const [lastPartnerAt, setLastPartnerAt] = useState<string | null>(null)
 
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -114,6 +122,66 @@ export default function MeetupScreen() {
     load().catch(() => setLoading(false))
     return () => { cancelled = true }
   }, [match_id]))
+
+  // Unread badge (additive, read-only). Finds the newest message from the
+  // partner and compares it against an AsyncStorage "seen" marker; also listens
+  // for realtime INSERTs. Never blocks render; all queries are guarded.
+  useEffect(() => {
+    let cancelled = false
+    let me: string | null = null
+
+    async function checkUnread() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session || cancelled) return
+        me = session.user.id
+        const { data: latest } = await supabase
+          .from('messages')
+          .select('sender_id, sent_at')
+          .eq('match_id', match_id)
+          .neq('sender_id', me)
+          .order('sent_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (cancelled || !latest) return
+        setLastPartnerAt(latest.sent_at)
+        const seen = await AsyncStorage.getItem(`chat-seen-${match_id}`)
+        if (cancelled) return
+        if (!seen || new Date(latest.sent_at) > new Date(seen)) {
+          setHasUnread(true)
+        }
+      } catch {
+        // Non-fatal: a missing badge should never break the screen.
+      }
+    }
+    checkUnread()
+
+    const channel = supabase
+      .channel(`meetup-messages-${match_id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `match_id=eq.${match_id}` },
+        (payload) => {
+          const msg = payload.new as { sender_id: string; sent_at: string }
+          if (me && msg.sender_id !== me) {
+            setLastPartnerAt(msg.sent_at)
+            setHasUnread(true)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => { cancelled = true; supabase.removeChannel(channel) }
+  }, [match_id])
+
+  // Mark the thread seen, clear the dot, then open the existing chat route.
+  function openMessages() {
+    haptics.buttonTap()
+    const seenAt = lastPartnerAt ?? new Date().toISOString()
+    AsyncStorage.setItem(`chat-seen-${match_id}`, seenAt).catch(() => {})
+    setHasUnread(false)
+    router.push({ pathname: '/(app)/chat', params: { match_id } })
+  }
 
   async function confirm() {
     if (iAmA === null || saving) return
@@ -311,19 +379,32 @@ export default function MeetupScreen() {
 
         {/* ── Suggested meet spot ── */}
         <View style={styles.infoBox}>
-          <Text style={styles.boxLabel}>SUGGESTED MEET SPOT</Text>
           <Text style={styles.infoValue}>{spotName}</Text>
           {spotGuidance ? (
             <Text style={styles.infoBody}>
               Meet near {spotGuidance} — a central place for both of you.
             </Text>
           ) : null}
+        </View>
+
+        {/* ── Actions: open in maps + open the logistics thread ── */}
+        <View style={styles.actionRow}>
           <Pressable
             onPress={openInMaps}
-            hitSlop={10}
-            style={({ pressed }) => [styles.inlineLink, pressed && { opacity: 0.5 }]}
+            style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
           >
-            <Text style={styles.inlineLinkText}>OPEN IN MAPS</Text>
+            <MapPinGlyph color={colors.black} size={18} />
+            <Text style={styles.actionBtnText}>OPEN IN MAPS</Text>
+          </Pressable>
+          <Pressable
+            onPress={openMessages}
+            style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
+          >
+            <View style={styles.actionGlyphWrap}>
+              <MessageGlyph color={colors.black} size={18} />
+              {hasUnread ? <View style={styles.unreadDot} /> : null}
+            </View>
+            <Text style={styles.actionBtnText}>MESSAGES</Text>
           </Pressable>
         </View>
 
@@ -357,12 +438,6 @@ export default function MeetupScreen() {
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <View style={styles.footerLinks}>
-          <Pressable
-            onPress={() => { haptics.buttonTap(); router.push({ pathname: '/(app)/chat', params: { match_id } }) }}
-            style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.5 }]}
-          >
-            <Text style={styles.linkBtnText}>MESSAGES</Text>
-          </Pressable>
           <Pressable
             onPress={() => { haptics.buttonTap(); router.push({ pathname: '/(app)/post-meetup', params: { match_id } }) }}
             style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.5 }]}
@@ -405,7 +480,7 @@ export default function MeetupScreen() {
 
 // Warm taupe ticket stock — a neutral surface, not one of the four accents, so
 // the boarding pass reads as printed card against the white page.
-const TICKET_STOCK = '#C9C3B6'
+const TICKET_STOCK = '#E6DEC9'
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
@@ -534,12 +609,50 @@ const styles = StyleSheet.create({
 
   // ── Outlined info boxes (meet spot + identification) ──
   infoBox: {
-    borderWidth: 1,
-    borderColor: colors.accent,
+    borderWidth: 2,
+    borderColor: colors.black,
     borderRadius: 8,
     padding: 14,
     gap: 6,
     backgroundColor: colors.surface,
+  },
+
+  // ── Action row: two equal black-outlined buttons with hand-built glyphs ──
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 2,
+    borderColor: colors.black,
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    backgroundColor: colors.surface,
+  },
+  actionBtnText: {
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 1.2,
+    color: colors.black,
+  },
+  actionGlyphWrap: {
+    position: 'relative',
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.accent,
   },
   infoValue: {
     fontFamily: fonts.display,
@@ -602,9 +715,9 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
   },
-  // Confirm meetup — the app's blue token, large / rounded / full-width.
+  // Confirm meetup — red accent, large / rounded / full-width.
   primaryBtn: {
-    backgroundColor: colors.periwinkle,
+    backgroundColor: colors.accent,
     paddingVertical: 16,
     alignItems: 'center',
     borderRadius: 10,

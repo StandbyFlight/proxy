@@ -143,18 +143,23 @@ const styles = StyleSheet.create({
   },
   iconRow: {
     flexDirection: 'row',
+    height: 20,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
   },
   icon: {
     fontSize: 16,
+    lineHeight: 20,
     color: colors.subtle,
     includeFontPadding: false,
+    textAlign: 'center',
   },
   iconActive: { color: colors.accent },
   label: {
     fontFamily: fonts.body,
     fontSize: 9,
+    lineHeight: 12,
     letterSpacing: 1.0,
     color: colors.subtle,
     textAlign: 'center',
