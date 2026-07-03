@@ -87,7 +87,6 @@ export default function IntentScreen() {
       >
         <View style={styles.topRow}>
           <BackButton fallback="/(app)/flight" />
-          <Text style={[type.eyebrow, styles.eyebrow]}>SESSION · 04 / 04</Text>
           <View style={styles.spacer} />
         </View>
 

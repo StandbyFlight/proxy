@@ -74,7 +74,6 @@ export default function EventScreen() {
       >
         <View style={styles.topRow}>
           <BackButton />
-          <Text style={[type.eyebrow, styles.eyebrow]}>SESSION · 03 / 04</Text>
           <View style={styles.spacer} />
         </View>
 

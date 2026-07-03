@@ -304,8 +304,6 @@ export default function MeetupScreen() {
       >
         <BackButton />
 
-        <Text style={[type.eyebrow, styles.eyebrow]}>MATCHED · {their.firstName.toUpperCase()}</Text>
-
         {pointOfConnection ? (
           <Text style={[type.headline, styles.poc]}>{pointOfConnection}</Text>
         ) : null}
@@ -609,7 +607,7 @@ const styles = StyleSheet.create({
 
   // ── Outlined info boxes (meet spot + identification) ──
   infoBox: {
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.black,
     borderRadius: 8,
     padding: 14,
@@ -628,7 +626,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.black,
     borderRadius: 10,
     paddingVertical: 14,

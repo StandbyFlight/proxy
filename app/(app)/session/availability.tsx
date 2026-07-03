@@ -52,10 +52,9 @@ export default function AvailabilityScreen() {
   }
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + 14 }]}>
+    <View style={[styles.root, { paddingTop: insets.top + 14, paddingBottom: Math.max(insets.bottom, 18) }]}>
       <View style={styles.topRow}>
         <BackButton />
-        <Text style={[type.eyebrow, styles.eyebrow]}>SESSION · READY</Text>
         <View style={styles.spacer} />
       </View>
 
@@ -64,9 +63,6 @@ export default function AvailabilityScreen() {
           Ready to meet someone?
         </Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-      </View>
-
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 18) }]}>
         <Pressable
           onPress={signal}
           disabled={loading}
@@ -78,16 +74,9 @@ export default function AvailabilityScreen() {
         >
           {loading
             ? <ActivityIndicator color={colors.onAccent} />
-            : (
-              <>
-                <Text style={styles.primaryBtnText}>GO ON STANDBY</Text>
-              </>
-            )
+            : <Text style={styles.primaryBtnText}>GO ON STANDBY</Text>
           }
         </Pressable>
-        <Text style={styles.privacyNote}>
-          NO NAME · NO PHOTO · NO PROFILE SHARED YET
-        </Text>
       </View>
     </View>
   )

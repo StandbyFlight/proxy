@@ -73,7 +73,6 @@ export default function LocationScreen() {
       >
         <View style={styles.topRow}>
           <BackButton />
-          <Text style={[type.eyebrow, styles.eyebrow]}>SESSION · 02 / 04</Text>
           <View style={styles.spacer} />
         </View>
 
@@ -120,7 +119,7 @@ export default function LocationScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>
-            GATE / LOUNGE  <Text style={styles.optional}>optional</Text>
+            GATE / LOUNGE
           </Text>
           <TextInput
             style={styles.fieldInput}

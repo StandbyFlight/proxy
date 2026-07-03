@@ -287,7 +287,6 @@ export default function FlightScreen() {
         {/* Top chrome */}
         <View style={styles.topRow}>
           <BackButton />
-          <Text style={[type.eyebrow, styles.eyebrow]}>SESSION · 01 / 04</Text>
           <View style={styles.spacer} />
         </View>
 

@@ -431,10 +431,6 @@ export default function MatchScreen() {
         {respondError ? (
           <Text style={styles.respondErrorText}>{respondError}</Text>
         ) : null}
-
-        <Text style={styles.privacyNote}>
-          NAMES STAY HIDDEN UNTIL YOU BOTH SAY YES
-        </Text>
       </View>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
