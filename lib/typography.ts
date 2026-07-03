@@ -2,17 +2,16 @@ import { Platform, TextStyle } from 'react-native'
 
 // Type system:
 //   display — Anton Regular: all major page titles and headings.
-//   body    — Roc Grotesk: all normal text, labels, buttons, tabs, body copy.
-//             Roc Grotesk is a licensed font; the family names resolve once
-//             the .otf files are added to assets/fonts and registered in
-//             app/_layout.tsx. Until then RN falls back to the system sans
-//             (the documented fallback), with weights preserved.
-//   mono    — Menlo: flip-board / mechanical text only.
+//   body    — Zalando Sans SemiExpanded: the basic subtext font for everything —
+//             all normal text, labels, buttons, tabs, body copy. Loaded from
+//             @expo-google-fonts/zalando-sans-semiexpanded in app/_layout.tsx.
+//   mono    — Menlo: flip-board components ONLY (FlipCell, InputFlipCell,
+//             ManifestBoard, EnrichmentRow). Nothing else should use mono.
 
 export const fonts = {
   display: 'Anton_400Regular',
-  body: 'RocGrotesk-Regular',
-  bodyBold: 'RocGrotesk-Bold',
+  body: 'ZalandoSansSemiExpanded_400Regular',
+  bodyBold: 'ZalandoSansSemiExpanded_700Bold',
   mono: Platform.select({
     ios: 'Menlo',
     android: 'monospace',

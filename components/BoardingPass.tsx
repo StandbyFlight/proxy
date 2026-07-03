@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
   },
   classLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     color: colors.boardDim,
     fontSize: 10,
     letterSpacing: 2,
@@ -175,14 +175,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   fieldLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 9,
     letterSpacing: 1.6,
     color: colors.boardDim,
     marginBottom: 3,
   },
   passengerName: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 18,
     color: colors.boardText,
     letterSpacing: 1.2,
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   routeCol: { flex: 1 },
   routeColRight: { alignItems: 'flex-end' },
   iata: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontWeight: '700',
     color: colors.boardText,
     letterSpacing: 2,
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   },
   fieldCell: { flex: 1, paddingRight: 8 },
   fieldValue: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 14,
     color: colors.boardText,
     letterSpacing: 0.6,
@@ -218,13 +218,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statusLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 9,
     letterSpacing: 1.6,
     color: colors.boardDim,
   },
   statusValue: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 2,
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.boardText,
   },
   barcodeText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 9,
     color: colors.boardDim,
     letterSpacing: 1.5,

@@ -5,15 +5,18 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { useFonts, Anton_400Regular } from '@expo-google-fonts/anton'
+// Per-weight subpath imports: pull ONLY the two weights we use, not all 16
+// weight/italic files the package index would otherwise bundle.
+import { ZalandoSansSemiExpanded_400Regular } from '@expo-google-fonts/zalando-sans-semiexpanded/400Regular'
+import { ZalandoSansSemiExpanded_700Bold } from '@expo-google-fonts/zalando-sans-semiexpanded/700Bold'
 import { supabase } from '../lib/supabase'
 import { connectAbly, disconnectAbly } from '../lib/ably'
 import { colors } from '../lib/theme'
 
 // Fonts load here before the app renders (the overlay stays up until they're
-// ready). Anton comes from @expo-google-fonts; Menlo is an iOS system font.
-// Roc Grotesk is licensed — when the .otf files are added under assets/fonts,
-// register them in this useFonts call (keys 'RocGrotesk-Regular' /
-// 'RocGrotesk-Bold'); until then the body token falls back to the system sans.
+// ready). Anton (display) and Zalando Sans SemiExpanded (body/subtext) come from
+// @expo-google-fonts; Menlo (mono, flip-board components only) is an iOS system
+// font and needs no loading.
 
 SplashScreen.preventAutoHideAsync()
 
@@ -24,6 +27,8 @@ export default function RootLayout() {
 
   const [fontsLoaded] = useFonts({
     Anton_400Regular,
+    ZalandoSansSemiExpanded_400Regular,
+    ZalandoSansSemiExpanded_700Bold,
   })
 
   // Hide native splash immediately — JS overlay (opacity 1) covers it so the

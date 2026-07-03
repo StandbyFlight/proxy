@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     opacity: 0.92,
   },
   label: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.body,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 3.5,
