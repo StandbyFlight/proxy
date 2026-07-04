@@ -2,6 +2,12 @@ import { StyleSheet, View } from 'react-native'
 import Mapbox, { MapView, Camera, PointAnnotation, UserLocation } from '@rnmapbox/maps'
 import { colors } from '../lib/theme'
 
+// Set the public Mapbox access token once, at module load, on native only. The
+// secret DOWNLOAD token (build-time SDK fetch) comes from the
+// RNMAPBOX_MAPS_DOWNLOAD_TOKEN env var during prebuild/build.
+const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN
+if (MAPBOX_TOKEN) Mapbox.setAccessToken(MAPBOX_TOKEN)
+
 // Presentational Mapbox surface for the meetup screen. Owns all @rnmapbox/maps
 // JSX so the route screen stays orchestration-only. Renders the destination
 // pin (always), an optional partner pin (periwinkle), and the OS blue-dot user

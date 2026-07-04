@@ -10,14 +10,12 @@ import {
   subscribeToMatchLiveLocations,
   type LiveLocationRow,
 } from '../../../lib/liveLocation'
-import Mapbox from '@rnmapbox/maps'
 import { BackButton } from '../../../components/BackButton'
 import { MeetupMap } from '../../../components/MeetupMap'
 
-// Set the public Mapbox access token once at module load. The secret DOWNLOAD
-// token (build-time SDK fetch) lives in app.json's @rnmapbox/maps plugin.
-const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN
-if (MAPBOX_TOKEN) Mapbox.setAccessToken(MAPBOX_TOKEN)
+// NOTE: this route imports MeetupMap, which resolves to MeetupMap.web.tsx on web
+// (a no-Mapbox fallback) and MeetupMap.tsx on native. @rnmapbox/maps is never
+// imported on web, so `expo start --web` bundles cleanly.
 
 // Mapbox meetup-navigation screen. Orchestration only — all @rnmapbox/maps JSX
 // lives in <MeetupMap>. This screen NEVER touches match logic: it only reads the

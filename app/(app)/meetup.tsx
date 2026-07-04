@@ -13,14 +13,17 @@ import { passDate, passTime } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
 import { resolveMeetupDestination } from '../../lib/airportPois'
 import {
+  requestForegroundLocationPermission,
   startMatchLocationSharing,
   stopMatchLocationSharing,
   subscribeToMatchLiveLocations,
   type LiveLocationHandle,
   type LiveLocationRow,
 } from '../../lib/liveLocation'
+import { Feather } from '@expo/vector-icons'
 import { BackButton } from '../../components/BackButton'
-import { MapPinGlyph, MessageGlyph } from '../../components/Glyphs'
+import { BoardingPass } from '../../components/BoardingPass'
+import { MeetupMap } from '../../components/MeetupMap'
 
 // The confirmed-match screen. Both users land here at the same time once both
 // accept. Shows: the app-assigned meeting location, each side's identifying
@@ -64,6 +67,9 @@ export default function MeetupScreen() {
     useState<{ name: string; latitude: number; longitude: number } | null>(null)
   const [isSharing, setIsSharing] = useState(false)
   const [arrivalText, setArrivalText] = useState<string | null>(null)
+  const [showUser, setShowUser] = useState(false)
+  const [partnerLocation, setPartnerLocation] =
+    useState<{ latitude: number; longitude: number } | null>(null)
   const shareHandleRef = useRef<LiveLocationHandle | null>(null)
   const meRef = useRef<string | null>(null)
 
@@ -212,6 +218,13 @@ export default function MeetupScreen() {
       const me = meRef.current
       const mine = me ? rows.find((r) => r.user_id === me) ?? null : null
       const partner = me ? rows.find((r) => r.user_id !== me) ?? null : rows[0] ?? null
+
+      // Drive the embedded map's partner marker: show it only while the other
+      // user is actively sharing (i.e. has a live row).
+      setPartnerLocation(
+        partner ? { latitude: partner.latitude, longitude: partner.longitude } : null
+      )
+
       const iArrived = mine?.arrived === true
       const theyArrived = partner?.arrived === true
 
@@ -228,6 +241,16 @@ export default function MeetupScreen() {
     return () => { unsubscribe() }
   }, [match_id, their?.firstName])
 
+  // Request foreground location once so the embedded map can render the user's
+  // own position dot. Non-blocking; denial just leaves the map without it.
+  useEffect(() => {
+    let cancelled = false
+    requestForegroundLocationPermission()
+      .then((granted) => { if (!cancelled) setShowUser(granted) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
   // Mark the thread seen, clear the dot, then open the existing chat route.
   function openMessages() {
     haptics.buttonTap()
@@ -235,21 +258,6 @@ export default function MeetupScreen() {
     AsyncStorage.setItem(`chat-seen-${match_id}`, seenAt).catch(() => {})
     setHasUnread(false)
     router.push({ pathname: '/(app)/chat', params: { match_id } })
-  }
-
-  // Open the Mapbox meetup screen. Passes the resolved destination when known;
-  // when unresolved, the map screen shows its own coordinates-missing fallback.
-  function openMap() {
-    haptics.buttonTap()
-    router.push({
-      pathname: '/(app)/match/map',
-      params: {
-        match_id,
-        destinationName: mapDestination?.name ?? spotName,
-        destinationLat: mapDestination ? String(mapDestination.latitude) : '',
-        destinationLng: mapDestination ? String(mapDestination.longitude) : '',
-      },
-    })
   }
 
   // Start live sharing. startMatchLocationSharing self-guards on mutual status
@@ -371,72 +379,20 @@ export default function MeetupScreen() {
           <Text style={[type.headline, styles.poc]}>{pointOfConnection}</Text>
         ) : null}
 
-        {/* ── Boarding-pass ticket: the other person's pass ── */}
-        <View style={styles.ticket}>
-          <View style={styles.ticketHeader}>
-            <Text style={styles.ticketHeaderLabel}>BOARDING PASS</Text>
-            <Text style={styles.ticketWordmark}>STANDBY</Text>
-          </View>
-
-          <View style={styles.ticketBody}>
-            {/* Punched perforation strip down the left edge */}
-            <View style={styles.perforation} pointerEvents="none">
-              {Array.from({ length: 14 }).map((_, i) => (
-                <View key={i} style={styles.perfDot} />
-              ))}
-            </View>
-
-            <View style={styles.ticketBox}>
-              <Text style={styles.boxLabel}>NAME OF PASSENGER</Text>
-              <Text style={styles.boxValue} numberOfLines={1}>
-                {their.firstName ? their.firstName.toUpperCase() : '——'}
-              </Text>
-            </View>
-
-            <View style={styles.ticketRow}>
-              <View style={[styles.ticketBox, styles.rowBox]}>
-                <Text style={styles.boxLabel}>FROM</Text>
-                <Text style={styles.boxValueLg} numberOfLines={1}>{their.originIata || '——'}</Text>
-              </View>
-              <View style={[styles.ticketBox, styles.rowBox]}>
-                <Text style={styles.boxLabel}>TO</Text>
-                <Text style={styles.boxValueLg} numberOfLines={1}>{their.destinationIata || '——'}</Text>
-              </View>
-            </View>
-
-            <View style={styles.ticketRow}>
-              <View style={[styles.ticketBox, styles.rowBox]}>
-                <Text style={styles.boxLabel}>FLIGHT</Text>
-                <Text style={styles.boxValue} numberOfLines={1}>{their.flightIata || '——'}</Text>
-              </View>
-              <View style={[styles.ticketBox, styles.rowBox]}>
-                <Text style={styles.boxLabel}>DATE</Text>
-                <Text style={styles.boxValue} numberOfLines={1}>{theirPassDate || '——'}</Text>
-              </View>
-              <View style={[styles.ticketBox, styles.rowBox]}>
-                <Text style={styles.boxLabel}>TIME</Text>
-                <Text style={styles.boxValue} numberOfLines={1}>{theirPassTime || '——'}</Text>
-              </View>
-            </View>
-
-            <View style={styles.ticketRow}>
-              <View style={[styles.ticketBox, styles.rowBox]}>
-                <Text style={styles.boxLabel}>GATE</Text>
-                <Text style={styles.boxValue} numberOfLines={1}>{their.gate || '——'}</Text>
-              </View>
-              <View style={[styles.ticketBox, styles.rowBox]}>
-                <Text style={styles.boxLabel}>TERM</Text>
-                <Text style={styles.boxValue} numberOfLines={1}>{their.terminal || '——'}</Text>
-              </View>
-            </View>
-
-            <Text style={styles.ticketBarcode}>
-              SBY · {their.flightIata || '····'}{their.originIata ? ` · ${their.originIata}` : ''}
-            </Text>
-
-            <Text style={styles.ticketStamp}>STANDBY · CLEARED</Text>
-          </View>
-        </View>
+        {/* ── Boarding pass: the other person's pass (shared component, same
+            style as History for consistency) ── */}
+        <BoardingPass
+          classLabel="MEETUP PASS"
+          passenger={their.firstName}
+          origin={their.originIata}
+          destination={their.destinationIata}
+          flight={their.flightIata}
+          date={theirPassDate}
+          time={theirPassTime}
+          gate={their.gate}
+          terminal={their.terminal}
+          status="MATCHED"
+        />
 
         {/* ── Suggested meet spot ── */}
         <View style={styles.infoBox}>
@@ -451,13 +407,46 @@ export default function MeetupScreen() {
           ) : null}
         </View>
 
+        {/* ── Embedded meetup map ── */}
+        {mapDestination ? (
+          <View style={styles.mapCard}>
+            <MeetupMap
+              destination={{
+                latitude: mapDestination.latitude,
+                longitude: mapDestination.longitude,
+                name: mapDestination.name,
+              }}
+              partnerLocation={partnerLocation}
+              showUser={showUser}
+            />
+          </View>
+        ) : (
+          <View style={[styles.infoBox, styles.mapFallback]}>
+            <Text style={styles.infoBody}>Map preview isn’t available for this spot yet.</Text>
+          </View>
+        )}
+
+        {/* ── Live-location sharing: primary-style button below the map ── */}
+        <Pressable
+          onPress={toggleSharing}
+          style={({ pressed }) => [
+            styles.shareBtn,
+            isSharing && styles.shareBtnActive,
+            pressed && { opacity: 0.85 },
+          ]}
+        >
+          <Text style={[styles.shareBtnText, isSharing && styles.shareBtnTextActive]}>
+            {isSharing ? 'STOP SHARING LOCATION' : 'SHARE LIVE LOCATION'}
+          </Text>
+        </Pressable>
+
         {/* ── Actions: open in maps + open the logistics thread ── */}
         <View style={styles.actionRow}>
           <Pressable
             onPress={openInMaps}
             style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
           >
-            <MapPinGlyph color={colors.black} size={18} />
+            <Feather name="map-pin" size={18} color={colors.black} />
             <Text style={styles.actionBtnText}>OPEN IN MAPS</Text>
           </Pressable>
           <Pressable
@@ -465,57 +454,25 @@ export default function MeetupScreen() {
             style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
           >
             <View style={styles.actionGlyphWrap}>
-              <MessageGlyph color={colors.black} size={18} />
+              <Feather name="message-square" size={18} color={colors.black} />
               {hasUnread ? <View style={styles.unreadDot} /> : null}
             </View>
             <Text style={styles.actionBtnText}>MESSAGES</Text>
           </Pressable>
         </View>
 
-        {/* ── Map + live-location sharing ── */}
-        <View style={styles.actionRow}>
-          <Pressable
-            onPress={openMap}
-            style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
-          >
-            <MapPinGlyph color={colors.black} size={18} />
-            <Text style={styles.actionBtnText}>OPEN MAP</Text>
-          </Pressable>
-          <Pressable
-            onPress={toggleSharing}
-            style={({ pressed }) => [
-              styles.actionBtn,
-              isSharing && styles.actionBtnActive,
-              pressed && { opacity: 0.6 },
-            ]}
-          >
-            <Text style={[styles.actionBtnText, isSharing && styles.actionBtnTextActive]}>
-              {isSharing ? 'SHARING LIVE' : 'SHARE LIVE LOCATION'}
-            </Text>
-          </Pressable>
-        </View>
-
-        {isSharing ? (
-          <Pressable
-            onPress={() => { void stopSharing() }}
-            style={({ pressed }) => [styles.stopBtn, pressed && { opacity: 0.6 }]}
-          >
-            <Text style={styles.stopBtnText}>STOP SHARING</Text>
-          </Pressable>
-        ) : null}
-
-        {/* ── How each of you is recognized ── */}
-        <View style={styles.infoBox}>
+        {/* ── How each of you is recognized — underlined text fields ── */}
+        <View style={styles.wearingField}>
           <Text style={styles.boxLabel}>THEY'RE WEARING</Text>
-          <Text style={styles.infoBody}>{their.wearing || '—'}</Text>
+          <Text style={styles.wearingValue}>{their.wearing || '—'}</Text>
         </View>
-        <View style={styles.infoBox}>
+        <View style={styles.wearingField}>
           <Text style={styles.boxLabel}>YOU'RE WEARING</Text>
           {myWearing ? (
-            <Text style={styles.infoBody}>{myWearing}</Text>
+            <Text style={styles.wearingValue}>{myWearing}</Text>
           ) : (
             <TextInput
-              style={styles.wearingInput}
+              style={styles.wearingValue}
               placeholder="Navy puffer…"
               placeholderTextColor={colors.subtle}
               value={wearingDraft}
@@ -553,16 +510,10 @@ export default function MeetupScreen() {
 
 
 
-// Warm taupe ticket stock — a neutral surface, not one of the four accents, so
-// the boarding pass reads as printed card against the white page.
-const TICKET_STOCK = '#E6DEC9'
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   center: { alignItems: 'center', justifyContent: 'center' },
   inner: { paddingHorizontal: 20, gap: 16 },
-
-  eyebrow: { color: colors.subtle },
 
   poc: {
     color: colors.text,
@@ -570,72 +521,6 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
 
-  // ── Boarding-pass ticket ──
-  ticket: {
-    backgroundColor: TICKET_STOCK,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.12)',
-  },
-  ticketHeader: {
-    backgroundColor: colors.accent,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-  },
-  ticketHeaderLabel: {
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    fontSize: 13,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: colors.white,
-  },
-  ticketWordmark: {
-    fontFamily: fonts.display,
-    fontSize: 22,
-    letterSpacing: 1,
-    color: colors.white,
-  },
-  ticketBody: {
-    position: 'relative',
-    paddingTop: 16,
-    paddingBottom: 14,
-    paddingRight: 16,
-    paddingLeft: 20,
-    gap: 12,
-  },
-  perforation: {
-    position: 'absolute',
-    left: 3,
-    top: 12,
-    bottom: 12,
-    width: 8,
-    alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-  perfDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.bg,
-  },
-  ticketBox: {
-    borderWidth: 1,
-    borderColor: colors.accent,
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    gap: 2,
-  },
-  ticketRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  rowBox: { flex: 1 },
   boxLabel: {
     fontFamily: fonts.body,
     fontWeight: '700',
@@ -644,42 +529,46 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: colors.accent,
   },
-  boxValue: {
-    fontFamily: fonts.display,
-    fontSize: 22,
-    lineHeight: 26,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    color: colors.black,
+
+  // ── Embedded meetup map ──
+  mapCard: {
+    height: 220,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  boxValueLg: {
-    fontFamily: fonts.display,
-    fontSize: 34,
-    lineHeight: 38,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.black,
+  mapFallback: {
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  ticketBarcode: {
+
+  // ── Share live location — primary (OPEN MEETUP) button style, compact ──
+  shareBtn: {
+    backgroundColor: colors.accent,
+    paddingVertical: 11,
+    alignItems: 'center',
+    borderRadius: 0,
+    alignSelf: 'center',
+    paddingHorizontal: 28,
+  },
+  shareBtnActive: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  shareBtnText: {
     fontFamily: fonts.body,
-    fontSize: 11,
-    letterSpacing: 2,
-    textAlign: 'center',
-    color: colors.subtle,
-    marginTop: 4,
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: colors.white,
   },
-  ticketStamp: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 172,
-    textAlign: 'center',
-    fontFamily: fonts.display,
-    fontSize: 30,
-    letterSpacing: 4,
+  shareBtnTextActive: {
     color: colors.accent,
-    opacity: 0.22,
-    transform: [{ rotate: '-15deg' }],
   },
 
   // ── Outlined info boxes (meet spot + identification) ──
@@ -705,8 +594,8 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderColor: colors.black,
-    borderRadius: 10,
-    paddingVertical: 14,
+    borderRadius: 0,
+    paddingVertical: 13,
     paddingHorizontal: 10,
     backgroundColor: colors.surface,
   },
@@ -719,33 +608,6 @@ const styles = StyleSheet.create({
   },
   actionGlyphWrap: {
     position: 'relative',
-  },
-  // Active (ON) state for the SHARE LIVE LOCATION toggle — filled accent so
-  // "sharing" reads as an active state, mirroring primaryBtn.
-  actionBtnActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  actionBtnTextActive: {
-    color: colors.white,
-  },
-  // STOP SHARING — outlined accent, between primaryBtn and cancel in prominence.
-  stopBtn: {
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: 12,
-    backgroundColor: colors.surface,
-  },
-  stopBtnText: {
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 1.2,
-    color: colors.accent,
   },
   // Arrival status line inside the meet-spot infoBox.
   arrivalText: {
@@ -785,9 +647,18 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     color: colors.accent,
   },
-  wearingInput: {
+  // Underlined text field (label + value with a thin bottom rule) — replaces
+  // the old black-boxed "wearing" rows.
+  wearingField: {
+    gap: 5,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  wearingValue: {
     fontFamily: fonts.body,
     fontSize: 15,
+    lineHeight: 21,
     color: colors.text,
     paddingVertical: 2,
   },
@@ -825,19 +696,21 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
   },
-  // Log how it went — red accent, large / rounded / full-width.
+  // Log how it went — red accent, compact, sharp corners, centered.
   primaryBtn: {
     backgroundColor: colors.accent,
-    paddingVertical: 16,
+    paddingVertical: 11,
+    paddingHorizontal: 28,
     alignItems: 'center',
-    borderRadius: 10,
+    alignSelf: 'center',
+    borderRadius: 0,
   },
   primaryBtnDisabled: { opacity: 0.5 },
   primaryBtnText: {
     fontFamily: fonts.body,
     fontWeight: '700',
-    fontSize: 14,
-    letterSpacing: 1.6,
+    fontSize: 12,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
     color: colors.white,
   },
