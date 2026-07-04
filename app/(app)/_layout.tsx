@@ -18,7 +18,11 @@ const FULLSCREEN_EXACT = new Set([
 ])
 
 function shouldHideNav(pathname: string): boolean {
-  return FULLSCREEN_EXACT.has(normalizePathname(pathname))
+  const normalized = normalizePathname(pathname)
+  // The Beta demo flow (/demo/*) is a focused, guided experience — hide the
+  // nav bar throughout so testers stay in the simulated path.
+  if (normalized.startsWith('/demo')) return true
+  return FULLSCREEN_EXACT.has(normalized)
 }
 
 export default function AppLayout() {

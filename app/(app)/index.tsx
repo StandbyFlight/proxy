@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect } from 'expo-router'
@@ -9,6 +9,8 @@ import { haptics } from '../../lib/haptics'
 import { getActiveSession, getActiveMatch, type Session, type MatchSummary } from '../../lib/session'
 import { ManifestBoard } from '../../components/ManifestBoard'
 import { primaryIataForCity } from '../../lib/cities'
+import { isDemoMode, trackDemo } from '../../lib/demo'
+import { BetaDemoBanner } from '../../components/BetaDemoBanner'
 
 // Home has one job: the current live travel session and its status.
 //   no session   → "Start a session" CTA → /(app)/flight
@@ -25,6 +27,12 @@ export default function HomeScreen() {
   const [activeSession, setActiveSession] = useState<Session | null>(null)
   const [activeMatch, setActiveMatch] = useState<MatchSummary | null>(null)
   const [loaded, setLoaded] = useState(false)
+
+  // Demo analytics: fire once when home first mounts in demo mode. Inert (and
+  // trackDemo itself no-ops) when demo mode is off.
+  useEffect(() => {
+    if (isDemoMode()) trackDemo('demo_app_opened')
+  }, [])
 
   useFocusEffect(useCallback(() => {
     let cancelled = false
@@ -87,6 +95,7 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
+      <BetaDemoBanner />
       <View style={styles.body}>
         {showCTA ? (
           <Text style={[type.headline, styles.headline]}>

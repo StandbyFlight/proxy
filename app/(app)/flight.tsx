@@ -13,6 +13,9 @@ import { BoardingPassCapture, type BoardingPassData } from '../../components/Boa
 import { BoardingPass } from '../../components/BoardingPass'
 import { StandbyStamp } from '../../components/StandbyStamp'
 import { BackButton } from '../../components/BackButton'
+import { isDemoMode, trackDemo } from '../../lib/demo'
+import { DEMO_ROUTES } from '../../lib/demoData'
+import { BetaDemoBanner } from '../../components/BetaDemoBanner'
 
 function buildDepartureISO(date: string, time: string): string | null {
   if (!date || !time) return null
@@ -290,6 +293,8 @@ export default function FlightScreen() {
           <View style={styles.spacer} />
         </View>
 
+        <BetaDemoBanner />
+
         {phase === 'landing' ? (
           <View style={styles.landingBody}>
             <Text style={[type.headline, styles.headline]}>Your flight.</Text>
@@ -320,6 +325,21 @@ export default function FlightScreen() {
               >
                 <Text style={styles.ghostLinkText}>FILL IN BY HAND</Text>
               </Pressable>
+
+              {/* Demo-only: skip the boarding pass entirely and jump into the
+                  simulated flow. Additive, gated, never touches real data. */}
+              {isDemoMode() ? (
+                <Pressable
+                  onPress={() => {
+                    haptics.selection()
+                    trackDemo('demo_flight_selected')
+                    router.push(DEMO_ROUTES.searching)
+                  }}
+                  style={({ pressed }) => [styles.demoBtn, pressed && { opacity: 0.6 }]}
+                >
+                  <Text style={styles.demoBtnText}>USE DEMO FLIGHT</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         ) : (
@@ -491,6 +511,25 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1.4,
     color: colors.subtle,
+  },
+
+  // Demo CTA — outlined secondary so it reads as an alternate path, not a
+  // competing primary against the red SCAN button.
+  demoBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 22,
+    borderWidth: 1,
+    borderColor: colors.black,
+    backgroundColor: colors.surface,
+  },
+  demoBtnText: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.4,
+    color: colors.black,
   },
 
   fieldList: { gap: 16 },
