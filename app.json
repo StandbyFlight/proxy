@@ -50,12 +50,7 @@
           "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to share your live location with your match while you walk to meet."
         }
       ],
-      [
-        "@rnmapbox/maps",
-        {
-          "RNMapboxMapsDownloadToken": "REPLACE_WITH_MAPBOX_SECRET_DOWNLOAD_TOKEN"
-        }
-      ]
+      "@rnmapbox/maps"
     ]
   }
 }
