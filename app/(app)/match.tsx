@@ -358,9 +358,6 @@ export default function MatchScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
         <BackButton />
-        <View style={styles.topRow}>
-          <Text style={[type.eyebrow, styles.eyebrow]}>MATCH · WAITING</Text>
-        </View>
         <View style={styles.waitBody}>
           <Text style={[type.subhead, styles.waitSubhead]}>
             You said yes. Waiting for them.
@@ -394,10 +391,6 @@ export default function MatchScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-      <View style={styles.topRow}>
-        <Text style={[type.eyebrow, styles.eyebrow]}>MATCH</Text>
-      </View>
-
       <View style={styles.body}>
         <View style={styles.reveal}>
           {lines.map((line, idx) => (
@@ -440,7 +433,7 @@ export default function MatchScreen() {
           hitSlop={14}
           style={({ pressed }) => [styles.skipBtn, pressed && { opacity: 0.5 }]}
         >
-          <Text style={styles.skipText}>SKIP</Text>
+          <Text style={styles.skipText}>DECLINE MATCH</Text>
         </Pressable>
 
         <Pressable

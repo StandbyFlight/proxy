@@ -32,17 +32,21 @@ export default function HomeScreen() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session || cancelled) return
 
-      const { data: profile } = await supabase
-        .from('users')
-        .select('first_name, base_city')
-        .eq('id', session.user.id)
-        .maybeSingle()
+      // Profile and active-session are independent — fetch them concurrently
+      // instead of serially so the board paints a full round-trip sooner.
+      const [profileRes, sess] = await Promise.all([
+        supabase
+          .from('users')
+          .select('first_name, base_city')
+          .eq('id', session.user.id)
+          .maybeSingle(),
+        getActiveSession(),
+      ])
       if (cancelled) return
+      const profile = profileRes.data
       if (profile?.first_name) setFirstName(profile.first_name)
       if (profile?.base_city) setBaseIata(primaryIataForCity(profile.base_city))
 
-      const sess = await getActiveSession()
-      if (cancelled) return
       const match = sess ? await getActiveMatch(sess.id) : null
       if (cancelled) return
 
@@ -74,6 +78,13 @@ export default function HomeScreen() {
   const showSession = loaded && activeSession && !activeMatch
   const showMatch = loaded && activeMatch
 
+  // Blank gate — hold the whole screen empty until every piece (profile, board
+  // data, buttons) is ready, so it all paints in one shot rather than the board
+  // appearing first and the text/buttons popping in after.
+  if (!loaded) {
+    return <View style={[styles.container, { paddingTop: insets.top + 14 }]} />
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
       <View style={styles.body}>
@@ -97,8 +108,8 @@ export default function HomeScreen() {
             iata={activeSession?.destination_iata?.toUpperCase() || baseIata}
             iataLabel={activeSession?.destination_iata ? 'TO' : 'BASE'}
             flightIata={activeSession?.flight_iata ?? null}
-            mode="static"
-            status="standby"
+            mode="populate"
+            status="none"
             stranger={null}
           />
         </View>

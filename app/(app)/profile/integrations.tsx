@@ -44,7 +44,6 @@ export default function Integrations() {
       >
         <View style={styles.topRow}>
           <BackButton fallback="/(app)/settings" />
-          <Text style={[type.eyebrow, styles.eyebrow]}>INTEGRATIONS</Text>
           <View style={styles.spacer} />
         </View>
 

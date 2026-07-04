@@ -12,16 +12,56 @@ export function FlipCell({
   stopAfter,
   cellSize = 58,
   cellWidth,
+  instant = false,
+  reveal = false,
 }: {
   targetChar: string
   stopAfter: number
   cellSize?: number
   cellWidth?: number
+  // Render the final character immediately — no scramble, no flip, no haptics.
+  // Used by static boards (searching) that should just populate.
+  instant?: boolean
+  // Start blank, then do ONE clean flip to the target char at `stopAfter` ms.
+  // Used by the home board to populate letters one at a time after it loads.
+  reveal?: boolean
 }) {
-  const [char, setChar] = useState(CHARS[Math.floor(Math.random() * CHARS.length)])
+  const [char, setChar] = useState(() =>
+    instant ? targetChar : reveal ? '' : CHARS[Math.floor(Math.random() * CHARS.length)],
+  )
   const scaleY = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
+    // Static render: keep the target char, run no animation at all.
+    if (instant) {
+      setChar(targetChar)
+      return
+    }
+
+    // Reveal: sit blank until our staggered slot, then a single flip in.
+    if (reveal) {
+      let cancelled = false
+      const timer = setTimeout(() => {
+        if (cancelled) return
+        Animated.timing(scaleY, {
+          toValue: 0,
+          duration: 90,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }).start(() => {
+          if (cancelled) return
+          setChar(targetChar)
+          Animated.timing(scaleY, {
+            toValue: 1,
+            duration: 120,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }).start()
+        })
+      }, stopAfter)
+      return () => { cancelled = true; clearTimeout(timer) }
+    }
+
     let timer: ReturnType<typeof setTimeout> | undefined
     let cancelled = false
     const start = Date.now()
@@ -66,7 +106,7 @@ export function FlipCell({
       cancelled = true
       if (timer) clearTimeout(timer)
     }
-  }, [targetChar, stopAfter])
+  }, [targetChar, stopAfter, instant, reveal])
 
   const s = stylesFor(cellSize, cellWidth)
   return (

@@ -78,9 +78,6 @@ export function OnboardingChrome({
       <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
         <View style={styles.topChrome}>
           <ProgressDashes step={step} total={total} />
-          {eyebrow ? (
-            <Text style={[type.eyebrow, styles.eyebrow]}>{eyebrow}</Text>
-          ) : null}
         </View>
 
         <ScrollView

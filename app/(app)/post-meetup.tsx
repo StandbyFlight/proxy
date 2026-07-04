@@ -63,7 +63,6 @@ export default function PostMeetupScreen() {
       >
         <BackButton onPress={() => router.replace('/(app)/')} />
 
-        <Text style={styles.eyebrow}>After</Text>
         <Text style={styles.headline}>Did you{'\n'}meet up?</Text>
 
         <View style={styles.actions}>

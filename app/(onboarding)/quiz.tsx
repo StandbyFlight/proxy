@@ -120,7 +120,6 @@ export default function QuizScreen() {
     <View style={[styles.root, { paddingTop: insets.top + 14 }]}>
       <View style={styles.topChrome}>
         <ProgressDashes step={step + 1} total={total} />
-        <Text style={[type.eyebrow, styles.eyebrow]}>QUIZ · {String(step + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}</Text>
       </View>
 
       <ScrollView

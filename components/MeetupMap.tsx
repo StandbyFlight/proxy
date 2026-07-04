@@ -29,6 +29,16 @@ function coord({ latitude, longitude }: LatLng): [number, number] {
 }
 
 export function MeetupMap({ destination, userLocation, partnerLocation, showUser }: Props) {
+  // The destination marker view. A PointAnnotation accepts exactly one marker
+  // subview (optionally plus a callout), so we render the pin alone when there's
+  // no name, and pin + callout when there is — never an empty placeholder,
+  // which the native layer counts as an illegal second subview.
+  const destPin = (
+    <View style={styles.destPin}>
+      <View style={styles.destPinInner} />
+    </View>
+  )
+
   return (
     <MapView
       style={styles.map}
@@ -45,14 +55,16 @@ export function MeetupMap({ destination, userLocation, partnerLocation, showUser
       />
 
       {/* Destination — red accent pin, always shown. */}
-      <PointAnnotation id="destination" coordinate={coord(destination)}>
-        <View style={styles.destPin}>
-          <View style={styles.destPinInner} />
-        </View>
-        {destination.name ? (
+      {destination.name ? (
+        <PointAnnotation id="destination" coordinate={coord(destination)}>
+          {destPin}
           <Mapbox.Callout title={destination.name} />
-        ) : <></>}
-      </PointAnnotation>
+        </PointAnnotation>
+      ) : (
+        <PointAnnotation id="destination" coordinate={coord(destination)}>
+          {destPin}
+        </PointAnnotation>
+      )}
 
       {/* Partner — periwinkle pin, only when a live location was passed in. */}
       {partnerLocation ? (

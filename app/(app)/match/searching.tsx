@@ -264,20 +264,15 @@ export default function SearchingScreen() {
   }
 
   if (state === 'loading') {
-    return (
-      <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-        <View style={styles.body}>
-          <Text style={[type.headline, styles.headline]}>Checking your pass…</Text>
-        </View>
-      </View>
-    )
+    // Neutral blank gate — no copy flashes before the session/match check
+    // resolves. Just the background until real content populates.
+    return <View style={[styles.container, { paddingTop: insets.top + 14 }]} />
   }
 
   if (state === 'no-session') {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
         <View style={styles.body}>
-          <Text style={[type.eyebrow, styles.eyebrow]}>NO SESSION</Text>
           <Text style={[type.headline, styles.headline]}>You're not in a session.</Text>
           <Pressable
             onPress={() => { haptics.buttonTap(); router.replace('/(app)/flight') }}
@@ -400,7 +395,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     paddingHorizontal: 22,
     paddingVertical: 14,
-    marginTop: 16,
     alignSelf: 'flex-start',
   },
   primaryBtnText: {

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
+import { View, Text, StyleSheet, Animated, Easing, Dimensions } from 'react-native'
 import { FlipCell } from './FlipCell'
 import { colors } from '../lib/theme'
 import { fonts } from '../lib/typography'
@@ -14,6 +14,7 @@ const BOARD_FONT = fonts.mono
 // mono caption below the board, in accent red.
 
 const CELL = 22
+const CELL_WIDTH = Math.round(CELL * 0.69)
 const CELL_GAP = 2
 const NAME_MIN_SLOTS = 6
 const ORIGIN_SLOTS = 3
@@ -21,10 +22,25 @@ const COL_GAP = 14
 const ROW_WRAP_GAP = 10
 const STAGGER_MS = 90
 const COLUMN_DELAY = 350
+// Per-cell delay for the home board's one-at-a-time populate reveal.
+const POPULATE_STAGGER = 60
 
 const FLIGHT_SLOTS = 6
 const FLIGHT_CELL_GAP = 0
-const flightColWidth = FLIGHT_SLOTS * Math.round(CELL * 0.69) + (FLIGHT_SLOTS - 1) * FLIGHT_CELL_GAP
+const flightColWidth = FLIGHT_SLOTS * CELL_WIDTH + (FLIGHT_SLOTS - 1) * FLIGHT_CELL_GAP
+
+// The board must stay on a single line. Compute how many passenger cells can
+// fit alongside the fixed FLIGHT and ORIGIN columns on the narrowest realistic
+// width, and cap the name to that — longer names are cut short rather than
+// wrapping the ORIGIN column onto a second line.
+//   screen padding (24 each side) + board padding (14 each side) = 76
+const HORIZONTAL_CHROME = 24 * 2 + 14 * 2
+const FIXED_COLS_WIDTH = flightColWidth + (ORIGIN_SLOTS * CELL_WIDTH + (ORIGIN_SLOTS - 1) * CELL_GAP) + 2 * COL_GAP
+const nameSlotBudget = Dimensions.get('window').width - HORIZONTAL_CHROME - FIXED_COLS_WIDTH
+const NAME_MAX_SLOTS = Math.max(
+  NAME_MIN_SLOTS,
+  Math.floor((nameSlotBudget + CELL_GAP) / (CELL_WIDTH + CELL_GAP)),
+)
 const FLIGHT_START = 0   // flight column settles first, before name
 const NAME_START = 500
 const STATUS_PAD = 250
@@ -44,12 +60,14 @@ export function ManifestBoard({
   iata: string
   iataLabel?: string
   flightIata?: string | null
-  mode?: 'cinematic' | 'static'
+  mode?: 'cinematic' | 'static' | 'populate'
   stranger?: { flightIata: string; originIata: string } | null
   status?: ManifestStatus
 }) {
   const nameUpper = firstName.toUpperCase()
-  const nameSlots = Math.max(NAME_MIN_SLOTS, nameUpper.length)
+  // Clamp between the minimum column and the one-line maximum — a long name is
+  // truncated (slice below) so ORIGIN never wraps to a second line.
+  const nameSlots = Math.min(NAME_MAX_SLOTS, Math.max(NAME_MIN_SLOTS, nameUpper.length))
   const namePadded = nameUpper.padEnd(nameSlots, ' ').slice(0, nameSlots)
   const passengerColWidth = colWidth(nameSlots)
   const iataPadded = iata.toUpperCase().padEnd(ORIGIN_SLOTS, ' ').slice(0, ORIGIN_SLOTS)
@@ -60,12 +78,23 @@ export function ManifestBoard({
     originStart + ORIGIN_SLOTS * STAGGER_MS + STATUS_PAD
 
   const isStatic = mode === 'static'
+  const isPopulate = mode === 'populate'
 
+  // Only the cinematic board fires the standby-stamp payoff. The static board is
+  // silent; the populate board does its own quiet single tick when it finishes.
   useEffect(() => {
-    if (isStatic) return
+    if (isStatic || isPopulate) return
     const t = setTimeout(haptics.standbyStamp, statusRevealMs)
     return () => clearTimeout(t)
-  }, [statusRevealMs, isStatic])
+  }, [statusRevealMs, isStatic, isPopulate])
+
+  // One soft tick once every letter has flipped in.
+  useEffect(() => {
+    if (!isPopulate) return
+    const total = (FLIGHT_SLOTS + nameSlots + ORIGIN_SLOTS) * POPULATE_STAGGER
+    const t = setTimeout(haptics.selection, total)
+    return () => clearTimeout(t)
+  }, [isPopulate, nameSlots])
 
   return (
     <View>
@@ -100,8 +129,14 @@ export function ManifestBoard({
                     <FlipCell
                       key={`f-${i}`}
                       targetChar={c}
-                      stopAfter={isStatic ? 0 : FLIGHT_START + i * STAGGER_MS}
+                      stopAfter={
+                        isStatic ? 0
+                          : isPopulate ? i * POPULATE_STAGGER
+                          : FLIGHT_START + i * STAGGER_MS
+                      }
                       cellSize={CELL}
+                      instant={isStatic}
+                      reveal={isPopulate}
                     />
                   )
                 )
@@ -120,8 +155,14 @@ export function ManifestBoard({
                 <FlipCell
                   key={`n-${i}`}
                   targetChar={c}
-                  stopAfter={isStatic ? 0 : NAME_START + i * STAGGER_MS}
+                  stopAfter={
+                    isStatic ? 0
+                      : isPopulate ? (FLIGHT_SLOTS + i) * POPULATE_STAGGER
+                      : NAME_START + i * STAGGER_MS
+                  }
                   cellSize={CELL}
+                  instant={isStatic}
+                  reveal={isPopulate}
                 />
               )
             )}
@@ -141,8 +182,14 @@ export function ManifestBoard({
                 <FlipCell
                   key={`o-${i}`}
                   targetChar={c}
-                  stopAfter={isStatic ? 0 : originStart + i * STAGGER_MS}
+                  stopAfter={
+                    isStatic ? 0
+                      : isPopulate ? (FLIGHT_SLOTS + nameSlots + i) * POPULATE_STAGGER
+                      : originStart + i * STAGGER_MS
+                  }
                   cellSize={CELL}
+                  instant={isStatic}
+                  reveal={isPopulate}
                 />
               )
             )}
@@ -293,8 +340,9 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    // Top-align so a wrapped second line of columns hangs below cleanly.
+    // Single line always — the passenger column is capped (NAME_MAX_SLOTS) so
+    // the trio fits without wrapping; a long name is truncated instead.
+    flexWrap: 'nowrap',
     alignItems: 'flex-start',
     columnGap: COL_GAP,
     rowGap: ROW_WRAP_GAP,

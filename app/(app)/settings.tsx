@@ -26,7 +26,6 @@ export default function Settings() {
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
       <View style={styles.topRow}>
         <BackButton />
-        <Text style={[type.eyebrow, styles.eyebrow]}>SETTINGS</Text>
         <View style={styles.spacer} />
       </View>
 
