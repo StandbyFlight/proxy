@@ -31,9 +31,31 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      ["expo-camera", { "cameraPermission": "Allow $(PRODUCT_NAME) to scan your boarding pass." }],
-      ["expo-image-picker", { "photosPermission": "Allow $(PRODUCT_NAME) to access your boarding pass photo." }],
-      "expo-font"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to scan your boarding pass."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your boarding pass photo."
+        }
+      ],
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to share your live location with your match while you walk to meet."
+        }
+      ],
+      [
+        "@rnmapbox/maps",
+        {
+          "RNMapboxMapsDownloadToken": "REPLACE_WITH_MAPBOX_SECRET_DOWNLOAD_TOKEN"
+        }
+      ]
     ]
   }
 }

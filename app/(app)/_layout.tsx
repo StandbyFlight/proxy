@@ -13,6 +13,7 @@ import { BottomNav } from '../../components/BottomNav'
 // does not.
 const FULLSCREEN_EXACT = new Set([
   '/match',           // flat match.tsx — the decision card
+  '/match/map',       // Mapbox meetup navigation — owns the whole screen
   '/post-meetup',
 ])
 

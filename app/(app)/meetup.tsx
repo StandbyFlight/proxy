@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View, Text, TextInput, Pressable,
   StyleSheet, ScrollView, ActivityIndicator, Alert, Linking,
@@ -11,6 +11,14 @@ import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { passDate, passTime } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
+import { resolveMeetupDestination } from '../../lib/airportPois'
+import {
+  startMatchLocationSharing,
+  stopMatchLocationSharing,
+  subscribeToMatchLiveLocations,
+  type LiveLocationHandle,
+  type LiveLocationRow,
+} from '../../lib/liveLocation'
 import { BackButton } from '../../components/BackButton'
 import { MapPinGlyph, MessageGlyph } from '../../components/Glyphs'
 
@@ -51,6 +59,14 @@ export default function MeetupScreen() {
   const [hasUnread, setHasUnread] = useState(false)
   const [lastPartnerAt, setLastPartnerAt] = useState<string | null>(null)
 
+  // Live-location + map integration (additive, isolated to this screen).
+  const [mapDestination, setMapDestination] =
+    useState<{ name: string; latitude: number; longitude: number } | null>(null)
+  const [isSharing, setIsSharing] = useState(false)
+  const [arrivalText, setArrivalText] = useState<string | null>(null)
+  const shareHandleRef = useRef<LiveLocationHandle | null>(null)
+  const meRef = useRef<string | null>(null)
+
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
@@ -59,6 +75,7 @@ export default function MeetupScreen() {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session || cancelled) { setLoading(false); return }
+      meRef.current = session.user.id
 
       const { data: match, error: matchErr } = await supabase
         .from('matches')
@@ -112,6 +129,24 @@ export default function MeetupScreen() {
         terminal: theirSession?.terminal ?? null,
         departureTime: theirSession?.departure_time ?? null,
       })
+
+      // Resolve the map/live-location destination from the assigned meetup
+      // location + the shared origin airport. Single-airport (RDU-style) matches
+      // share the origin, so origin_iata identifies the airport for both sides.
+      // resolveMeetupDestination is read-only and never throws.
+      const airportIata = theirSession?.origin_iata ?? mySession?.origin_iata ?? null
+      const resolved = await resolveMeetupDestination({
+        suggestedMeetupLocation: match.suggested_meetup_location ?? null,
+        airportIata,
+      })
+      if (!cancelled) {
+        setMapDestination(
+          resolved
+            ? { name: resolved.name, latitude: resolved.latitude, longitude: resolved.longitude }
+            : null
+        )
+      }
+
       setLoading(false)
     }
     load().catch(() => setLoading(false))
@@ -169,6 +204,30 @@ export default function MeetupScreen() {
     return () => { cancelled = true; supabase.removeChannel(channel) }
   }, [match_id])
 
+  // Live-location arrival status (additive, read-only subscription). Derives a
+  // status string from the two rows' `arrived` flags; self vs partner is decided
+  // by the cached auth id. Never writes match state.
+  useEffect(() => {
+    const unsubscribe = subscribeToMatchLiveLocations(match_id, (rows: LiveLocationRow[]) => {
+      const me = meRef.current
+      const mine = me ? rows.find((r) => r.user_id === me) ?? null : null
+      const partner = me ? rows.find((r) => r.user_id !== me) ?? null : rows[0] ?? null
+      const iArrived = mine?.arrived === true
+      const theyArrived = partner?.arrived === true
+
+      if (iArrived && theyArrived) {
+        setArrivalText('Both of you have arrived — sharing stopped')
+      } else if (iArrived && !theyArrived) {
+        setArrivalText(`Waiting for ${their?.firstName ?? 'them'} to arrive`)
+      } else if (iArrived) {
+        setArrivalText('You’ve arrived')
+      } else {
+        setArrivalText(null)
+      }
+    })
+    return () => { unsubscribe() }
+  }, [match_id, their?.firstName])
+
   // Mark the thread seen, clear the dot, then open the existing chat route.
   function openMessages() {
     haptics.buttonTap()
@@ -176,6 +235,54 @@ export default function MeetupScreen() {
     AsyncStorage.setItem(`chat-seen-${match_id}`, seenAt).catch(() => {})
     setHasUnread(false)
     router.push({ pathname: '/(app)/chat', params: { match_id } })
+  }
+
+  // Open the Mapbox meetup screen. Passes the resolved destination when known;
+  // when unresolved, the map screen shows its own coordinates-missing fallback.
+  function openMap() {
+    haptics.buttonTap()
+    router.push({
+      pathname: '/(app)/match/map',
+      params: {
+        match_id,
+        destinationName: mapDestination?.name ?? spotName,
+        destinationLat: mapDestination ? String(mapDestination.latitude) : '',
+        destinationLng: mapDestination ? String(mapDestination.longitude) : '',
+      },
+    })
+  }
+
+  // Start live sharing. startMatchLocationSharing self-guards on mutual status
+  // and location permission, returning null if either fails.
+  async function startSharing() {
+    if (isSharing || shareHandleRef.current) return
+    haptics.buttonTap()
+    const handle = await startMatchLocationSharing({
+      matchId: match_id,
+      destination: mapDestination
+        ? { latitude: mapDestination.latitude, longitude: mapDestination.longitude }
+        : null,
+    })
+    if (!handle) {
+      setError('Couldn’t start location sharing.')
+      return
+    }
+    shareHandleRef.current = handle
+    setIsSharing(true)
+  }
+
+  // Stop live sharing (OFF toggle + STOP SHARING button).
+  async function stopSharing() {
+    haptics.selection()
+    const handle = shareHandleRef.current
+    shareHandleRef.current = null
+    setIsSharing(false)
+    if (handle) await handle.stop()
+    else await stopMatchLocationSharing(match_id)
+  }
+
+  function toggleSharing() {
+    if (isSharing) { void stopSharing() } else { void startSharing() }
   }
 
   // Recovery path: matches made before wearing was collected at accept time
@@ -203,6 +310,11 @@ export default function MeetupScreen() {
         onPress: async () => {
           haptics.selection()
           await supabase.from('matches').update({ status: 'declined' }).eq('id', match_id)
+          // Tear down our own live-location row when we cancel (does not touch
+          // match logic — the status write above is unchanged).
+          if (shareHandleRef.current) await shareHandleRef.current.stop()
+          else await stopMatchLocationSharing(match_id)
+          shareHandleRef.current = null
           router.replace('/(app)/match/searching')
         },
       },
@@ -334,6 +446,9 @@ export default function MeetupScreen() {
               Meet near {spotGuidance} — a central place for both of you.
             </Text>
           ) : null}
+          {arrivalText ? (
+            <Text style={styles.arrivalText}>{arrivalText}</Text>
+          ) : null}
         </View>
 
         {/* ── Actions: open in maps + open the logistics thread ── */}
@@ -356,6 +471,38 @@ export default function MeetupScreen() {
             <Text style={styles.actionBtnText}>MESSAGES</Text>
           </Pressable>
         </View>
+
+        {/* ── Map + live-location sharing ── */}
+        <View style={styles.actionRow}>
+          <Pressable
+            onPress={openMap}
+            style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
+          >
+            <MapPinGlyph color={colors.black} size={18} />
+            <Text style={styles.actionBtnText}>OPEN MAP</Text>
+          </Pressable>
+          <Pressable
+            onPress={toggleSharing}
+            style={({ pressed }) => [
+              styles.actionBtn,
+              isSharing && styles.actionBtnActive,
+              pressed && { opacity: 0.6 },
+            ]}
+          >
+            <Text style={[styles.actionBtnText, isSharing && styles.actionBtnTextActive]}>
+              {isSharing ? 'SHARING LIVE' : 'SHARE LIVE LOCATION'}
+            </Text>
+          </Pressable>
+        </View>
+
+        {isSharing ? (
+          <Pressable
+            onPress={() => { void stopSharing() }}
+            style={({ pressed }) => [styles.stopBtn, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={styles.stopBtnText}>STOP SHARING</Text>
+          </Pressable>
+        ) : null}
 
         {/* ── How each of you is recognized ── */}
         <View style={styles.infoBox}>
@@ -572,6 +719,41 @@ const styles = StyleSheet.create({
   },
   actionGlyphWrap: {
     position: 'relative',
+  },
+  // Active (ON) state for the SHARE LIVE LOCATION toggle — filled accent so
+  // "sharing" reads as an active state, mirroring primaryBtn.
+  actionBtnActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  actionBtnTextActive: {
+    color: colors.white,
+  },
+  // STOP SHARING — outlined accent, between primaryBtn and cancel in prominence.
+  stopBtn: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 10,
+    paddingVertical: 12,
+    backgroundColor: colors.surface,
+  },
+  stopBtnText: {
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 1.2,
+    color: colors.accent,
+  },
+  // Arrival status line inside the meet-spot infoBox.
+  arrivalText: {
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    fontSize: 13,
+    letterSpacing: 0.6,
+    color: colors.accent,
   },
   unreadDot: {
     position: 'absolute',
