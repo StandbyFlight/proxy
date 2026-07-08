@@ -36,6 +36,16 @@ export const fonts = {
     android: 'monospace',
     default: 'Menlo, Consolas, monospace',
   }) as string,
+
+  // Elms Sans (@expo-google-fonts/elms-sans) — the boarding pass text and the
+  // bottom nav bar. Per-weight families are loaded in app/_layout.tsx; custom
+  // fonts need distinct family names per weight rather than `fontWeight`.
+  elmsSans: {
+    regular: 'ElmsSans_400Regular',
+    medium: 'ElmsSans_500Medium',
+    bold: 'ElmsSans_700Bold',
+    extrabold: 'ElmsSans_800ExtraBold',
+  },
 }
 
 // Centralized type scale. Existing keys (eyebrow, display, headline,

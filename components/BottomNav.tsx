@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   },
   iconActive: { color: colors.accent },
   label: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.elmsSans.regular,
     fontSize: 9,
     lineHeight: 12,
     letterSpacing: 1.0,
@@ -201,9 +201,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   numberBadgeText: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.elmsSans.bold,
     fontSize: 9,
-    fontWeight: '700',
     letterSpacing: 0.4,
     color: colors.onAccent,
   },

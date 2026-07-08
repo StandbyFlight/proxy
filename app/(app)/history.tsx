@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Alert,
+  Animated, PanResponder,
 } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -211,6 +212,17 @@ function Section({
   )
 }
 
+// Width of each revealed action button, and how far past a full reveal a
+// release fires delete outright (iOS voice-memo-style full swipe).
+const ACTION_W = 84
+const FULL_SWIPE_EXTRA = 72
+
+// A single history card with iOS-style swipe-to-delete. Swiping left drags the
+// pass over to reveal the DELETE (and ARCHIVE, for live sessions) actions that
+// sit behind it; a hard full swipe deletes directly. Built on core RN
+// Animated + PanResponder so no gesture-handler native dep is needed, and the
+// horizontal-only gesture check lets vertical scrolling pass through to the
+// enclosing ScrollView.
 function PassCard({
   entry, firstName, onOpen, onArchive, onDelete,
 }: {
@@ -221,37 +233,100 @@ function PassCard({
   onDelete: (e: HistoryEntry) => void
 }) {
   const openable = isOpenable(entry)
+  const showArchive = entry.status === 'active'
+  const revealW = (showArchive ? ACTION_W : 0) + ACTION_W
+
+  const translateX = useRef(new Animated.Value(0)).current
+  const offset = useRef(0)        // resting position: 0 (closed) or -revealW
+  const opened = useRef(false)
+
+  const settle = useCallback((to: number) => {
+    offset.current = to
+    opened.current = to !== 0
+    Animated.spring(translateX, {
+      toValue: to, useNativeDriver: true, bounciness: 0, speed: 20,
+    }).start()
+  }, [translateX])
+  const open = useCallback(() => { haptics.selection(); settle(-revealW) }, [settle, revealW])
+  const close = useCallback(() => settle(0), [settle])
+
+  const pan = useRef(
+    PanResponder.create({
+      // Claim the gesture only for clearly-horizontal drags, so a vertical
+      // scroll still reaches the ScrollView.
+      onMoveShouldSetPanResponder: (_, g) =>
+        Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderMove: (_, g) => {
+        let x = offset.current + g.dx
+        if (x > 0) x = 0                                   // never past closed
+        const min = -(revealW + FULL_SWIPE_EXTRA + 32)     // small overshoot
+        if (x < min) x = min
+        translateX.setValue(x)
+      },
+      onPanResponderRelease: (_, g) => {
+        const x = offset.current + g.dx
+        if (x <= -(revealW + FULL_SWIPE_EXTRA)) {          // full swipe → delete
+          close()
+          onDelete(entry)
+          return
+        }
+        if (x < -revealW / 2 || g.vx < -0.35) open()
+        else close()
+      },
+      onPanResponderTerminate: () => close(),
+    }),
+  ).current
+
+  // Tapping a swiped-open card just closes it; otherwise it reopens the flow.
+  function handlePress() {
+    if (opened.current) { close(); return }
+    if (openable) onOpen(entry)
+  }
+
   return (
     <View style={styles.cardWrap}>
-      <Pressable
-        disabled={!openable}
-        onPress={() => onOpen(entry)}
-        style={({ pressed }) => [pressed && openable && { opacity: 0.9 }]}
-      >
-        <BoardingPass
-          classLabel="SESSION PASS"
-          passenger={firstName || null}
-          origin={entry.origin_iata}
-          destination={entry.destination_iata}
-          flight={entry.flight_iata}
-          date={entry.departure_time ? passDate(entry.departure_time) : null}
-          time={entry.departure_time ? passTime(entry.departure_time) : null}
-          gate={null}
-          terminal={null}
-          status={statusLabel(entry)}
-          compact
-        />
-      </Pressable>
-      <View style={styles.actionRow}>
-        {entry.status === 'active' ? (
-          <Pressable onPress={() => onArchive(entry)} hitSlop={8}>
-            <Text style={styles.actionText}>ARCHIVE</Text>
+      {/* Actions revealed behind the pass when it's dragged left. */}
+      <View style={styles.actionsBehind} pointerEvents="box-none">
+        {showArchive ? (
+          <Pressable
+            onPress={() => { close(); onArchive(entry) }}
+            style={[styles.swipeAction, styles.archiveAction]}
+          >
+            <Text style={styles.swipeActionText}>ARCHIVE</Text>
           </Pressable>
         ) : null}
-        <Pressable onPress={() => onDelete(entry)} hitSlop={8}>
-          <Text style={[styles.actionText, styles.deleteText]}>DELETE</Text>
+        <Pressable
+          onPress={() => { close(); onDelete(entry) }}
+          style={[styles.swipeAction, styles.deleteAction]}
+        >
+          <Text style={styles.swipeActionText}>DELETE</Text>
         </Pressable>
       </View>
+
+      <Animated.View
+        style={{ transform: [{ translateX }] }}
+        {...pan.panHandlers}
+      >
+        <Pressable
+          onPress={handlePress}
+          style={({ pressed }) => [pressed && openable && { opacity: 0.9 }]}
+        >
+          <BoardingPass
+            classLabel="SESSION PASS"
+            passenger={firstName || null}
+            origin={entry.origin_iata}
+            destination={entry.destination_iata}
+            flight={entry.flight_iata}
+            date={entry.departure_time ? passDate(entry.departure_time) : null}
+            time={entry.departure_time ? passTime(entry.departure_time) : null}
+            gate={null}
+            terminal={null}
+            status={statusLabel(entry)}
+            compact
+          />
+        </Pressable>
+      </Animated.View>
     </View>
   )
 }
@@ -311,18 +386,27 @@ const styles = StyleSheet.create({
   },
   list: { gap: 16 },
 
-  cardWrap: { gap: 8 },
-  actionRow: {
+  cardWrap: { position: 'relative' },
+  // Sits behind the pass; buttons are right-aligned so they emerge as the pass
+  // slides left. overflow/radius match the card so nothing pokes past corners.
+  actionsBehind: {
+    ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 20,
-    paddingRight: 2,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
   },
-  actionText: {
+  swipeAction: {
+    width: ACTION_W,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  archiveAction: { backgroundColor: colors.subtle },
+  deleteAction: { backgroundColor: colors.scarlet },
+  swipeActionText: {
     fontFamily: fonts.body,
     fontSize: 11,
     letterSpacing: 1.4,
-    color: colors.subtle,
+    color: colors.onAccent,
   },
-  deleteText: { color: colors.accent },
 })

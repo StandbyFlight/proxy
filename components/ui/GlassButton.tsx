@@ -11,15 +11,18 @@ import {
 } from 'react-native'
 import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
-import { colors, shadow, blur, opacity, gradients, gradientDirection } from '../../lib/theme'
+import { colors, shadow, blur, opacity, gradients, gradientDirection, radius } from '../../lib/theme'
 import { type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 
-// Pill-shaped button, the single button primitive for the app.
-//   primary   — solid scarlet gradient, white label, scarlet glow (main CTA)
-//   gradient  — signature red→blue logo gradient fill (hero / celebratory CTA)
-//   secondary — frosted glass, charcoal label (secondary actions)
+// Pill-shaped button, the single button primitive for the app. Every non-ghost
+// button is one frosted "liquid glass" pill: a reduced-opacity white base under
+// a faint red→blue brand tint, charcoal label, light rim + top sheen.
+//   primary   — the glass pill with a touch more lift (main CTA)
+//   gradient  — same glass pill (hero / celebratory CTA)
+//   secondary — same glass pill, lightest lift (secondary actions)
 //   ghost     — text-only, subtle (tertiary / cancel)
+// Hierarchy now reads through shadow depth, not fill colour.
 // States: pressed (dim + slight press), disabled (dimmed, inert), loading.
 
 type Variant = 'primary' | 'gradient' | 'secondary' | 'ghost'
@@ -63,9 +66,10 @@ export function GlassButton({
 }: Props) {
   const s = sizing[size]
   const inert = disabled || loading
-  const isSolid = variant === 'primary' || variant === 'gradient'
-  const labelColor =
-    variant === 'ghost' ? colors.textSecondary : isSolid ? colors.onAccent : colors.textPrimary
+  const isGhost = variant === 'ghost'
+  // All non-ghost buttons are the same light glass now, so the label is
+  // charcoal on every one of them (white text would vanish on the pale fill).
+  const labelColor = isGhost ? colors.textSecondary : colors.textPrimary
 
   function press() {
     if (inert) return
@@ -83,37 +87,30 @@ export function GlassButton({
       style={({ pressed }) => [
         styles.base,
         fullWidth && styles.fullWidth,
-        variant === 'primary' && shadow.accentGlow,
-        variant === 'gradient' && shadow.card,
-        variant === 'secondary' && shadow.sm,
+        variant === 'primary' && shadow.card,
+        (variant === 'gradient' || variant === 'secondary') && shadow.sm,
         { paddingVertical: s.pv, paddingHorizontal: s.ph },
         pressed && !inert && styles.pressed,
         inert && { opacity: opacity.disabled },
         style,
       ]}
     >
-      {/* Fill layer per variant */}
-      {variant === 'primary' && (
-        <LinearGradient
-          colors={gradients.scarlet}
-          start={gradientDirection.start}
-          end={gradientDirection.end}
-          style={StyleSheet.absoluteFill}
-        />
-      )}
-      {variant === 'gradient' && (
-        <LinearGradient
-          colors={gradients.redToBlue}
-          start={gradientDirection.start}
-          end={gradientDirection.end}
-          style={StyleSheet.absoluteFill}
-        />
-      )}
-      {variant === 'secondary' && (
+      {/* Frosted glass fill — a blurred, reduced-opacity white base under a
+          faint red→blue brand tint. Shared by every non-ghost variant so all
+          buttons read as one translucent glass pill. */}
+      {!isGhost && (
         <>
-          <BlurView intensity={blur.subtle} tint={blur.tint} style={StyleSheet.absoluteFill} />
+          <BlurView intensity={blur.card} tint={blur.tint} style={StyleSheet.absoluteFill} />
           <View
-            style={[StyleSheet.absoluteFill, { backgroundColor: colors.glassWhiteStrong }]}
+            style={[StyleSheet.absoluteFill, { backgroundColor: colors.glassButtonFill }]}
+            pointerEvents="none"
+          />
+          <LinearGradient
+            colors={gradients.glassTint}
+            start={gradientDirection.start}
+            end={gradientDirection.end}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
           />
         </>
       )}
@@ -122,7 +119,7 @@ export function GlassButton({
           a faint pick-up glow at the bottom, and a light edge rim. Applied to
           every non-ghost variant so the button reads as a translucent glass
           pill (iOS 26 "Liquid Glass"). */}
-      {variant !== 'ghost' && !inert && (
+      {!isGhost && !inert && (
         <>
           <LinearGradient
             colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0.14)', 'rgba(255,255,255,0)']}
@@ -170,7 +167,7 @@ export function GlassButton({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: 0,
+    borderRadius: radius['2xl'],
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -193,7 +190,7 @@ const styles = StyleSheet.create({
   },
   glassRim: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 0,
+    borderRadius: radius['2xl'],
     borderWidth: StyleSheet.hairlineWidth * 2,
     borderTopColor: 'rgba(255,255,255,0.85)',
     borderLeftColor: 'rgba(255,255,255,0.55)',

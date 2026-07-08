@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     height: 32,
   },
   wordmark: {
-    fontFamily: fonts.extrabold,
+    fontFamily: fonts.elmsSans.extrabold,
     color: colors.charcoal,
     fontSize: 28,
     letterSpacing: -0.5,
@@ -249,14 +249,14 @@ const styles = StyleSheet.create({
   routeCol: { flex: 1 },
   routeColRight: { alignItems: 'flex-end' },
   cityName: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.elmsSans.medium,
     fontSize: 12,
     color: colors.charcoal,
     marginBottom: 2,
   },
   cityNameRight: { textAlign: 'right' },
   iata: {
-    fontFamily: fonts.extrabold,
+    fontFamily: fonts.elmsSans.extrabold,
     color: colors.charcoal,
     letterSpacing: 1,
   },
@@ -280,19 +280,19 @@ const styles = StyleSheet.create({
   },
   fieldCell: { flex: 1, paddingRight: 8 },
   fieldLabel: {
-    fontFamily: fonts.bold,
+    fontFamily: fonts.elmsSans.bold,
     fontSize: 10,
     letterSpacing: 0.8,
     color: colors.charcoal,
     marginBottom: 3,
   },
   fieldValue: {
-    fontFamily: fonts.regular,
+    fontFamily: fonts.elmsSans.regular,
     fontSize: 15,
     color: colors.charcoal,
   },
   statusWord: {
-    fontFamily: fonts.extrabold,
+    fontFamily: fonts.elmsSans.extrabold,
     fontSize: 26,
     letterSpacing: -0.4,
     marginLeft: 8,

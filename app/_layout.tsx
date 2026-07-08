@@ -18,6 +18,12 @@ import { ZalandoSansSemiExpanded_600SemiBold } from '@expo-google-fonts/zalando-
 import { ZalandoSansSemiExpanded_700Bold } from '@expo-google-fonts/zalando-sans-semiexpanded/700Bold'
 import { ZalandoSansSemiExpanded_800ExtraBold } from '@expo-google-fonts/zalando-sans-semiexpanded/800ExtraBold'
 import { ZalandoSansSemiExpanded_900Black } from '@expo-google-fonts/zalando-sans-semiexpanded/900Black'
+// Elms Sans — the boarding pass text and bottom nav bar. Only the weights the
+// type system references are pulled.
+import { ElmsSans_400Regular } from '@expo-google-fonts/elms-sans/400Regular'
+import { ElmsSans_500Medium } from '@expo-google-fonts/elms-sans/500Medium'
+import { ElmsSans_700Bold } from '@expo-google-fonts/elms-sans/700Bold'
+import { ElmsSans_800ExtraBold } from '@expo-google-fonts/elms-sans/800ExtraBold'
 import { supabase } from '../lib/supabase'
 import { connectAbly, disconnectAbly } from '../lib/ably'
 import { colors } from '../lib/theme'
@@ -44,6 +50,10 @@ export default function RootLayout() {
     ZalandoSansSemiExpanded_800ExtraBold,
     ZalandoSansSemiExpanded_900Black,
     Anton_400Regular,
+    ElmsSans_400Regular,
+    ElmsSans_500Medium,
+    ElmsSans_700Bold,
+    ElmsSans_800ExtraBold,
   })
 
   // Hide native splash immediately — JS overlay (opacity 1) covers it so the

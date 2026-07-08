@@ -42,6 +42,9 @@ export const colors = {
   // background or a gradient glow, with a BlurView behind them.
   glassWhite: 'rgba(255,255,255,0.62)',
   glassWhiteStrong: 'rgba(255,255,255,0.78)',
+  // Reduced-opacity frosted fill for the glass buttons — deliberately more
+  // see-through than the surfaces above so the button reads as light glass.
+  glassButtonFill: 'rgba(255,255,255,0.42)',
   glassGrey: 'rgba(231,231,231,0.45)',
   glassGreyStrong: 'rgba(231,231,231,0.62)',
 
@@ -101,6 +104,9 @@ export const gradients = {
   lilacGlow: ['rgba(167,150,174,0.20)', 'rgba(167,150,174,0.0)'] as const,
   // A very light top-to-bottom sheen for glass card surfaces.
   glassSheen: ['rgba(255,255,255,0.30)', 'rgba(255,255,255,0.04)'] as const,
+  // Faint red→blue wash (brand scarlet → sky blue, very low alpha) laid over
+  // the frosted glass buttons for the signature warm-left / cool-right tint.
+  glassTint: ['rgba(222,23,23,0.13)', 'rgba(151,208,227,0.15)'] as const,
 }
 
 // Standard diagonal for the signature gradient (top-left → bottom-right).
