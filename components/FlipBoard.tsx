@@ -31,10 +31,10 @@ export function FlipBoard({
           gap: cellGap,
           paddingVertical: framed ? boardPad * 0.5 : 0,
           paddingHorizontal: framed ? boardPad * 0.4 : 0,
-          backgroundColor: framed ? colors.board : 'transparent',
+          backgroundColor: framed ? colors.boardFrame : 'transparent',
           borderRadius: radius.md,
         },
-        // Grey-glass frame: soft slate edge + diffuse shadow so the board reads
+        // Grey frame: soft grey edge + diffuse shadow so the white board reads
         // as a premium panel rather than a flat slab.
         framed && styles.framed,
       ]}
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   },
   framed: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.boardTileBorder,
     ...shadow.card,
   },
 })

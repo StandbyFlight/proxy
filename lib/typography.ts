@@ -22,7 +22,7 @@ export const fonts = {
   black: 'ElmsSans_900Black',
 
   // Semantic roles (what most styles reference).
-  display: 'ElmsSans_800ExtraBold', // big page titles / headlines
+  display: 'Anton_400Regular',      // big page titles / headlines — Anton
   heading: 'ElmsSans_700Bold',
   title: 'ElmsSans_600SemiBold',
   body: 'ElmsSans_400Regular',
@@ -50,19 +50,21 @@ export const type: Record<string, TextStyle> = {
     letterSpacing: 2.0,
     textTransform: 'uppercase',
   },
-  // Largest page title.
+  // Largest page title — Anton.
   display: {
-    fontFamily: fonts.black,
-    fontSize: 40,
-    lineHeight: 46,
-    letterSpacing: -0.5,
+    fontFamily: fonts.display,
+    fontSize: 42,
+    lineHeight: 48,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
-  // Primary screen headline.
+  // Primary screen headline — Anton.
   headline: {
-    fontFamily: fonts.extrabold,
-    fontSize: 28,
-    lineHeight: 34,
-    letterSpacing: -0.4,
+    fontFamily: fonts.display,
+    fontSize: 30,
+    lineHeight: 36,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   // Section / card heading.
   heading: {

@@ -14,12 +14,11 @@ import { fonts } from '../lib/typography'
 
 const DASH = '──'
 
-// The logo asset. Until the real origami-bird PNG exists, LOGO stays null and
-// the <StandbyMark> View fallback renders a brand-colored stand-in. Once you
-// drop the file in (e.g. assets/standby-logo.png), set:
-//   const LOGO = require('../assets/standby-logo.png')
-// and the header swaps to the real logo automatically.
-const LOGO: number | null = null
+// The logo asset. Drop your logo at assets/logo.png (already wired here) and
+// the boarding-pass header renders it instead of the old triangle shapes. To
+// swap it, replace that file — no code change needed. Set LOGO to null to fall
+// back to the <StandbyMark> stand-in.
+const LOGO: number | null = require('../assets/logo.png')
 
 export type BoardingPassProps = {
   airline?: string            // header wordmark; defaults to 'Standby'

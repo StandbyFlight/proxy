@@ -68,19 +68,21 @@ export const colors = {
   // ------------------------------------------------------------------
   accent: brand.scarlet,      // was #D12D35 → brand scarlet
   periwinkle: brand.skyBlue,  // was #7AA5C8 → brand sky blue
-  bg: brand.offWhite,         // screen background — off-white, not pure white
+  bg: brand.white,            // screen background — full white
   surface: 'rgba(255,255,255,0.62)', // card/surface → glass
   border: 'rgba(28,27,32,0.10)',     // was #000000 → soft glass hairline
   text: brand.charcoal,       // was #000000 → deep charcoal
   subtle: 'rgba(28,27,32,0.56)',
   error: brand.scarlet,
 
-  // Split-flap / boarding board — modernized into a deep slate "grey glass"
-  // rather than heavy pure black, while keeping the airport-board contrast.
-  board: '#26262C',
-  boardSeam: 'rgba(0,0,0,0.32)',
-  boardText: '#F4F3F6',
-  boardDim: 'rgba(244,243,246,0.46)',
+  // Split-flap / boarding board — light theme: white flap tiles with a soft
+  // grey frame + seams, and near-black ink so the airport board reads clean.
+  board: '#FFFFFF',           // flap tile fill
+  boardFrame: '#E7E7E7',      // grey frame behind the tiles
+  boardSeam: 'rgba(28,27,32,0.14)',
+  boardText: brand.charcoal,  // black ink on the tiles
+  boardDim: 'rgba(28,27,32,0.42)',
+  boardTileBorder: 'rgba(28,27,32,0.12)', // grey hairline around each white tile
 }
 
 // ---------------------------------------------------------------------------
@@ -90,7 +92,7 @@ export const colors = {
 export const gradients = {
   redToBlue: ['#DE1717', '#97D0E3'] as const,
   redToLilacToBlue: ['#DE1717', '#A796AE', '#97D0E3'] as const,
-  scarlet: ['#E5352F', '#C21212'] as const,        // button fill (subtle depth)
+  scarlet: ['#EE615C', '#DC4A46'] as const,        // button fill — softer, lighter red
   sky: ['#A9D8E8', '#7FBFD6'] as const,
   // Soft, near-transparent washes for background glows behind glass.
   softGlassGlow: ['rgba(222,23,23,0.12)', 'rgba(151,208,227,0.12)'] as const,
@@ -122,14 +124,14 @@ export const spacing = {
 }
 
 // ---------------------------------------------------------------------------
-// Radius — generous, pill-forward.
+// Radius — tightened; flatter, less-curved surfaces throughout.
 // ---------------------------------------------------------------------------
 export const radius = {
-  sm: 10,
-  md: 16,
-  lg: 22,
-  xl: 28,
-  '2xl': 34,
+  sm: 6,
+  md: 10,
+  lg: 14,
+  xl: 18,
+  '2xl': 22,
   pill: 999,
 }
 

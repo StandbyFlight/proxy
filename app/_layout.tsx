@@ -5,6 +5,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { useFonts } from '@expo-google-fonts/elms-sans'
+// Anton — the display family for big page titles (type.display / headline).
+import { Anton_400Regular } from '@expo-google-fonts/anton'
 // Elms Sans — the single brand family for all UI text. Per-weight subpath
 // imports pull ONLY the weights the type system references, not the whole
 // package index.
@@ -40,6 +42,7 @@ export default function RootLayout() {
     ElmsSans_700Bold,
     ElmsSans_800ExtraBold,
     ElmsSans_900Black,
+    Anton_400Regular,
   })
 
   // Hide native splash immediately — JS overlay (opacity 1) covers it so the

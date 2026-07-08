@@ -328,14 +328,14 @@ const colWidth = (slots: number) => slots * Math.round(CELL * 0.69) + (slots - 1
 
 const styles = StyleSheet.create({
   board: {
-    backgroundColor: colors.board,
+    backgroundColor: colors.boardFrame,
     paddingVertical: 16,
     paddingHorizontal: 16,
     alignSelf: 'flex-start',
-    // Grey-glass frame: rounded, soft slate edge, diffuse shadow.
+    // Grey frame: rounded, soft grey edge, diffuse shadow.
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.boardTileBorder,
     ...shadow.card,
     // Hard right boundary — the board cannot grow past its parent's content
     // width, regardless of what's inside. Combined with flexWrap on the row,

@@ -136,11 +136,11 @@ function stylesFor(cellSize: number, cellWidth?: number) {
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
-      // Softer tile corners + a faint top-light inner edge so each flap reads
-      // as its own glass tile against the slate board.
-      borderRadius: Math.max(2, Math.round(cellSize * 0.1)),
+      // Flatter tile corners + a grey hairline so each white flap reads as its
+      // own tile against the grey board.
+      borderRadius: Math.max(2, Math.round(cellSize * 0.06)),
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(255,255,255,0.06)',
+      borderColor: colors.boardTileBorder,
     },
     cellChar: {
       color: colors.boardText,
