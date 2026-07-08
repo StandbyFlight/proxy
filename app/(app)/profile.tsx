@@ -56,7 +56,6 @@ const TRAVEL_STYLES = [
   { key: 'light_packer',  label: 'Light packer' },
   { key: 'carry_on_only', label: 'Carry-on only' },
   { key: 'frequent_flyer', label: 'Frequent flyer' },
-  { key: 'remote_worker', label: 'Remote / digital nomad' },
 ]
 
 const TRAVEL_MOTIVATIONS = [
@@ -312,21 +311,21 @@ export default function ProfileScreen() {
               </View>
 
               <FieldLine label="RIGHT NOW I'M INTO" value={profile.currently_into}
-                onChange={set('currently_into')} placeholder="planning my Patagonia trip" maxLength={60} />
+                onChange={set('currently_into')} placeholder="planning my trip" maxLength={60} />
               <FieldLine label="ASK ME ABOUT" value={profile.ask_me_about}
-                onChange={set('ask_me_about')} placeholder="venture capital, hiking the PCT…" maxLength={60} />
+                onChange={set('ask_me_about')} placeholder="venture capital, hiking..." maxLength={60} />
               <FieldLine label="NEXT ON MY LIST" value={profile.next_on_list}
-                onChange={set('next_on_list')} placeholder="Japan, finishing my first novel…" maxLength={60} />
+                onChange={set('next_on_list')} placeholder="japan, finishing my first novel…" maxLength={60} />
               <FieldLine label="I KNOW A LOT ABOUT" value={profile.know_a_lot_about}
-                onChange={set('know_a_lot_about')} placeholder="specialty coffee, French cuisine…" maxLength={60} />
+                onChange={set('know_a_lot_about')} placeholder="specialty coffee, french cuisine…" maxLength={60} />
               <FieldLine label="HOMETOWN" value={profile.hometown} onChange={set('hometown')}
-                placeholder="Chapel Hill, NC" autoCapitalize="words" maxLength={48} />
+                placeholder="providence, rhode island" autoCapitalize="words" maxLength={48} />
               <FieldLine label="SCHOOL" value={profile.school} onChange={set('school')}
-                placeholder="UNC" autoCapitalize="words" maxLength={48} />
+                placeholder="unc" autoCapitalize="words" maxLength={48} />
               <FieldLine label="CITIES I KNOW WELL" value={profile.cities_know_well}
-                onChange={set('cities_know_well')} placeholder="Boston, Charlotte, Tokyo" maxLength={80} />
+                onChange={set('cities_know_well')} placeholder="boston, charlotte, tokyo" maxLength={80} />
               <FieldLine label="I'M MOVING TO" value={profile.moving_to_city}
-                onChange={set('moving_to_city')} placeholder="San Francisco, Austin…"
+                onChange={set('moving_to_city')} placeholder="san francisco, austin…"
                 autoCapitalize="words" maxLength={48} />
             </View>
 
@@ -345,7 +344,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.pickerSection}>
-              <Text style={styles.fieldLabel}>I TRAVEL TO  <Text style={styles.chipHint}>(pick up to 2)</Text></Text>
+              <Text style={styles.fieldLabel}>I TRAVEL TO  <Text style={styles.chipHint}></Text></Text>
               <View style={styles.chips}>
                 {TRAVEL_MOTIVATIONS.map(tm => (
                   <Chip

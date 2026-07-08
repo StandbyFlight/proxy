@@ -55,6 +55,7 @@ export function ManifestBoard({
   mode = 'cinematic',
   stranger,
   status = 'standby',
+  tiled = false,
 }: {
   firstName: string
   iata: string
@@ -63,6 +64,8 @@ export function ManifestBoard({
   mode?: 'cinematic' | 'static' | 'populate'
   stranger?: { flightIata: string; originIata: string } | null
   status?: ManifestStatus
+  // Curved grey boxes (no seams) + a flippier 3D animation — the home board.
+  tiled?: boolean
 }) {
   const nameUpper = firstName.toUpperCase()
   // Clamp between the minimum column and the one-line maximum — a long name is
@@ -122,7 +125,7 @@ export function ManifestBoard({
             {flightIata
               ? flightIata.toUpperCase().padEnd(FLIGHT_SLOTS, ' ').slice(0, FLIGHT_SLOTS).split('').map((c, i) =>
                   c === ' ' ? (
-                    <View key={`f-${i}`} style={{ width: Math.round(CELL * 0.69), height: CELL, backgroundColor: colors.board }}>
+                    <View key={`f-${i}`} style={styles.manifestEmpty}>
                       <Text style={styles.dimGlyph}>·</Text>
                     </View>
                   ) : (
@@ -137,6 +140,7 @@ export function ManifestBoard({
                       cellSize={CELL}
                       instant={isStatic}
                       reveal={isPopulate}
+                      tile={tiled}
                     />
                   )
                 )
@@ -148,7 +152,7 @@ export function ManifestBoard({
           <View style={[styles.cellsRow, { width: passengerColWidth }]}>
             {namePadded.split('').map((c, i) =>
               c === ' ' ? (
-                <View key={`n-${i}`} style={{ width: Math.round(CELL * 0.69), height: CELL, backgroundColor: colors.board }}>
+                <View key={`n-${i}`} style={styles.manifestEmpty}>
                   <Text style={styles.dimGlyph}>·</Text>
                 </View>
               ) : (
@@ -163,6 +167,7 @@ export function ManifestBoard({
                   cellSize={CELL}
                   instant={isStatic}
                   reveal={isPopulate}
+                  tile={tiled}
                 />
               )
             )}
@@ -174,7 +179,7 @@ export function ManifestBoard({
               c === ' ' || c === '·' ? (
                 <View
                   key={`o-${i}`}
-                  style={{ width: Math.round(CELL * 0.69), height: CELL, backgroundColor: colors.board }}
+                  style={styles.manifestEmpty}
                 >
                   <Text style={styles.dimGlyph}>·</Text>
                 </View>
@@ -190,6 +195,7 @@ export function ManifestBoard({
                   cellSize={CELL}
                   instant={isStatic}
                   reveal={isPopulate}
+                  tile={tiled}
                 />
               )
             )}
@@ -260,7 +266,7 @@ function StrangerRow({
       <View style={[styles.cellsRow, { width: flightColWidth, gap: FLIGHT_CELL_GAP }]}>
         {flightPadded.split('').map((c, i) =>
           c === ' ' ? (
-            <View key={`sf-${i}`} style={{ width: Math.round(CELL * 0.69), height: CELL, backgroundColor: colors.board }}>
+            <View key={`sf-${i}`} style={{ width: Math.round(CELL * 0.69), height: CELL, backgroundColor: colors.boardTile }}>
               <Text style={styles.dimGlyph}>·</Text>
             </View>
           ) : (
@@ -278,7 +284,7 @@ function StrangerRow({
           c === ' ' ? (
             <View
               key={`s-${i}`}
-              style={{ width: Math.round(CELL * 0.69), height: CELL, backgroundColor: colors.board }}
+              style={{ width: Math.round(CELL * 0.69), height: CELL, backgroundColor: colors.boardTile }}
             >
               <Text style={styles.dimGlyph}>·</Text>
             </View>
@@ -327,6 +333,8 @@ function StatusCaption({
 const colWidth = (slots: number) => slots * Math.round(CELL * 0.69) + (slots - 1) * CELL_GAP
 
 const styles = StyleSheet.create({
+  // Empty flap slot — a grey square box, matching the populated FlipCells.
+  manifestEmpty: { width: CELL_WIDTH, height: CELL, backgroundColor: colors.boardTile },
   board: {
     backgroundColor: colors.board,
     paddingVertical: 16,
@@ -372,6 +380,8 @@ const styles = StyleSheet.create({
     fontSize: Math.round(CELL * 0.62),
     lineHeight: Math.round(CELL * 0.78),
     textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   caption: {
     flexDirection: 'row',

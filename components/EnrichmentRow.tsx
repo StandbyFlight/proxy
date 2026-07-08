@@ -82,7 +82,6 @@ export function EnrichmentRow({
             {glyph}
           </Text>
         </Animated.View>
-        <View style={styles.seam} />
       </View>
 
       <View style={styles.label}>
@@ -114,27 +113,22 @@ const styles = StyleSheet.create({
   cell: {
     width: CELL_WIDTH,
     height: CELL_SIZE,
-    backgroundColor: colors.board,
+    backgroundColor: colors.boardTile,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    borderRadius: 2,
+    borderRadius: 0,
   },
   cellChar: {
     fontFamily: BOARD_FONT,
     fontSize: 20,
     lineHeight: 26,
     textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   cellCharDim: { color: colors.boardText, opacity: 0.35 },
   cellCharOn: { color: colors.accent, opacity: 1 },
-  seam: {
-    position: 'absolute',
-    left: 0, right: 0,
-    top: Math.round(CELL_SIZE * 0.48),
-    height: 1,
-    backgroundColor: colors.boardSeam,
-  },
   label: { flex: 1, gap: 2 },
   provider: {
     fontFamily: fonts.board,

@@ -126,6 +126,7 @@ export default function HomeScreen() {
             mode="populate"
             status="none"
             stranger={null}
+            tiled
           />
         </View>
       </View>

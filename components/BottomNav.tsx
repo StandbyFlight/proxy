@@ -132,9 +132,10 @@ const styles = StyleSheet.create({
   wrap: {
     overflow: 'hidden',
   },
-  // Translucent frosted fill so the bar reads as glass over the screen glow.
+  // Solid white fill — the bar reads as a clean, fully-white panel (no
+  // off-white translucency showing the content behind it).
   fill: {
-    backgroundColor: colors.glassWhiteStrong,
+    backgroundColor: colors.white,
   },
   topBorder: {
     position: 'absolute',

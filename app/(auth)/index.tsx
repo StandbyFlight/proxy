@@ -11,11 +11,6 @@ import { haptics } from '../../lib/haptics'
 const PHONE_DIGITS = 10
 const OTP_DIGITS = 6
 
-function formatPhonePretty(digits: string): string {
-  const d = digits.padEnd(PHONE_DIGITS, ' ').slice(0, PHONE_DIGITS)
-  return `(${d.slice(0, 3).trim()}) ${d.slice(3, 6).trim()}-${d.slice(6).trim()}`.trim()
-}
-
 export default function LoginScreen() {
   const router = useRouter()
   const [phone, setPhone] = useState('')
@@ -87,7 +82,6 @@ export default function LoginScreen() {
         step={1}
         total={2}
         title="What's your number?"
-        subtitle="We'll text you a six-digit code."
         onContinue={sendOtp}
         continueDisabled={!phoneValid}
         continueLoading={loading}
@@ -121,11 +115,6 @@ export default function LoginScreen() {
       step={2}
       total={2}
       title="Enter the code."
-      subtitle={
-        <Text style={[type.subhead, { color: colors.subtle }]}>
-          Sent to   <Text style={styles.phoneInline}>+1 {formatPhonePretty(phone)}</Text>
-        </Text>
-      }
       onContinue={verifyOtp}
       continueDisabled={!otpValid}
       continueLoading={loading}
@@ -163,12 +152,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: colors.text,
     letterSpacing: 1,
-  },
-  phoneInline: {
-    fontFamily: fonts.body,
-    fontSize: 15,
-    letterSpacing: 1,
-    color: colors.text,
   },
   otpWrap: {
     gap: 14,

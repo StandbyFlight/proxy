@@ -86,6 +86,7 @@ export const colors = {
   boardText: '#FFFFFF',       // white ink on the tiles
   boardDim: 'rgba(255,255,255,0.42)',
   boardTileBorder: 'rgba(255,255,255,0.12)', // faint hairline around each tile
+  boardTile: '#3A3A42',       // grey flap-tile fill (home board's curved boxes)
 }
 
 // ---------------------------------------------------------------------------

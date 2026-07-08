@@ -81,10 +81,10 @@ export function BoardingPass({
   const servicesValue =
     services ?? ([gate, terminal].filter(Boolean).join(', ') || null)
 
-  const topFields: Array<{ label: string; value: string | null | undefined; flex?: number }> = [
+  const topFields: Array<{ label: string; value: string | null | undefined; flex?: number; right?: boolean }> = [
     { label: 'FLIGHT', value: flight, flex: 1.1 },
     { label: 'DATE', value: date, flex: 0.9 },
-    { label: 'DOOR CLOSES', value: time, flex: 1.2 },
+    { label: 'DOOR CLOSES', value: time, flex: 1.2, right: true },
   ]
 
   return (
@@ -92,7 +92,7 @@ export function BoardingPass({
       <View style={styles.row}>
         {/* ── Left: printed content ── */}
         <View style={[styles.content, compact && styles.contentCompact]}>
-          {/* Header — logo + wordmark */}
+          {/* Header — logo + wordmark, with the status word alongside it */}
           <View style={styles.header}>
             {LOGO ? (
               <Image source={LOGO} style={styles.logoImg} resizeMode="contain" />
@@ -102,6 +102,14 @@ export function BoardingPass({
             <Text style={[styles.wordmark, compact && styles.wordmarkCompact]} numberOfLines={1}>
               {wordmark(airline)}
             </Text>
+            {status ? (
+              <Text
+                style={[styles.statusHeader, compact && styles.statusHeaderCompact, { color: statusTone(status) }]}
+                numberOfLines={1}
+              >
+                {titleCase(status)}
+              </Text>
+            ) : null}
           </View>
 
           {/* Route — city name over big IATA, plane glyph between */}
@@ -120,9 +128,9 @@ export function BoardingPass({
           {/* FLIGHT / DATE / DOOR CLOSES */}
           <View style={styles.fieldRow}>
             {topFields.map(f => (
-              <View key={f.label} style={[styles.fieldCell, { flex: f.flex ?? 1 }]}>
+              <View key={f.label} style={[styles.fieldCell, { flex: f.flex ?? 1 }, f.right && styles.fieldCellRight]}>
                 <FieldLabel>{f.label}</FieldLabel>
-                <Text style={styles.fieldValue}>{f.value || DASH}</Text>
+                <Text style={[styles.fieldValue, f.right && styles.fieldValueRight]}>{f.value || DASH}</Text>
               </View>
             ))}
           </View>
@@ -135,26 +143,18 @@ export function BoardingPass({
                 {(passenger && passenger.length > 0) ? passenger : DASH}
               </Text>
             </View>
-            <View style={[styles.fieldCell, { flex: 1.2 }]}>
+            <View style={[styles.fieldCell, { flex: 1.2 }, styles.fieldCellRight]}>
               <FieldLabel>BOARDING</FieldLabel>
-              <Text style={styles.fieldValue}>{boarding || time || DASH}</Text>
+              <Text style={[styles.fieldValue, styles.fieldValueRight]}>{boarding || time || DASH}</Text>
             </View>
           </View>
 
-          {/* SERVICES + big status word */}
+          {/* SERVICES */}
           <View style={styles.servicesRow}>
             <View style={styles.fieldCell}>
               <FieldLabel>SERVICES</FieldLabel>
               <Text style={styles.fieldValue}>{servicesValue || DASH}</Text>
             </View>
-            {status ? (
-              <Text
-                style={[styles.statusWord, compact && styles.statusWordCompact, { color: statusTone(status) }]}
-                numberOfLines={1}
-              >
-                {titleCase(status)}
-              </Text>
-            ) : null}
           </View>
         </View>
 
@@ -279,6 +279,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   fieldCell: { flex: 1, paddingRight: 8 },
+  // Rightmost columns (DOOR CLOSES, BOARDING) sit flush to the right edge.
+  fieldCellRight: { alignItems: 'flex-end', paddingRight: 0 },
+  fieldValueRight: { textAlign: 'right' },
   fieldLabel: {
     fontFamily: fonts.elmsSans.bold,
     fontSize: 10,
@@ -291,14 +294,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.charcoal,
   },
-  statusWord: {
-    fontFamily: fonts.elmsSans.extrabold,
-    fontSize: 26,
-    letterSpacing: -0.4,
-    marginLeft: 8,
+  statusHeader: {
+    fontFamily: fonts.board, // Inter (Inter_700Bold)
+    fontSize: 16,
+    letterSpacing: -0.2,
+    marginLeft: 'auto',   // push it to the right edge of the header
+    paddingLeft: 10,
+    flexShrink: 1,
+    textAlign: 'right',
   },
-  statusWordCompact: {
-    fontSize: 20,
+  statusHeaderCompact: {
+    fontSize: 13,
   },
   barcode: {
     width: 46,

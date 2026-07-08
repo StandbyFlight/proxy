@@ -14,6 +14,7 @@ export function FlipCell({
   cellWidth,
   instant = false,
   reveal = false,
+  tile = false,
 }: {
   targetChar: string
   stopAfter: number
@@ -25,6 +26,8 @@ export function FlipCell({
   // Start blank, then do ONE clean flip to the target char at `stopAfter` ms.
   // Used by the home board to populate letters one at a time after it loads.
   reveal?: boolean
+  // Curved grey box (no seam) + a fuller 3D rotateX flip. Home board look.
+  tile?: boolean
 }) {
   const [char, setChar] = useState(() =>
     instant ? targetChar : reveal ? '' : CHARS[Math.floor(Math.random() * CHARS.length)],
@@ -109,12 +112,21 @@ export function FlipCell({
   }, [targetChar, stopAfter, instant, reveal])
 
   const s = stylesFor(cellSize, cellWidth)
+  // Tile mode swaps the flat squash for a fuller 3D flap flip (rotateX with
+  // perspective), which reads as much "flippier".
+  const flipStyle = tile
+    ? {
+        transform: [
+          { perspective: 320 },
+          { rotateX: scaleY.interpolate({ inputRange: [0, 1], outputRange: ['90deg', '0deg'] }) },
+        ],
+      }
+    : { transform: [{ scaleY }] }
   return (
     <View style={s.cell}>
-      <Animated.View style={{ transform: [{ scaleY }] }}>
+      <Animated.View style={flipStyle}>
         <Text style={s.cellChar}>{char}</Text>
       </Animated.View>
-      <View style={s.cellSeam} />
     </View>
   )
 }
@@ -126,33 +138,25 @@ function stylesFor(cellSize: number, cellWidth?: number) {
   const width = cellWidth ?? Math.round(cellSize * 0.69)
   const fontSize = cellWidth != null ? Math.round(cellWidth * 1.1) : Math.round(cellSize * 0.66)
   const lineHeight = cellWidth != null ? Math.round(cellWidth * 1.4) : Math.round(cellSize * 0.79)
-  const seamTop = Math.round(cellSize * 0.48)
-  const seamHeight = Math.max(1, Math.round(cellSize * 0.034))
   cache[key] = StyleSheet.create({
+    // Grey box, square corners, no seam — the tile used across every board.
     cell: {
       width,
       height: cellSize,
-      backgroundColor: colors.board,
+      backgroundColor: colors.boardTile,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
-      borderRadius: Math.max(1, Math.round(cellSize * 0.034)),
+      borderRadius: 0,
     },
     cellChar: {
       color: colors.boardText,
       fontSize,
       fontFamily: BOARD_FONT,
       lineHeight,
-      letterSpacing: 0.5,
       textAlign: 'center',
-    },
-    cellSeam: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      top: seamTop,
-      height: seamHeight,
-      backgroundColor: colors.boardSeam,
+      textAlignVertical: 'center',
+      includeFontPadding: false,
     },
   })
   return cache[key]

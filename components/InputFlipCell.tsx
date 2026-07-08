@@ -59,7 +59,6 @@ export function InputFlipCell({
       <Animated.View style={{ transform: [{ scaleY }] }}>
         <Text style={[s.cellChar, renderedIsEmpty && s.cellCharDim]}>{rendered}</Text>
       </Animated.View>
-      <View style={s.cellSeam} />
     </View>
   )
 }
@@ -72,35 +71,26 @@ function stylesFor(cellSize: number, cellWidth?: number) {
   const width = cellWidth ?? Math.round(cellSize * 0.69)
   const fontSize = Math.round(cellSize * 0.62)
   const lineHeight = Math.round(cellSize * 0.78)
-  const seamTop = Math.round(cellSize * 0.48)
-  const seamHeight = Math.max(1, Math.round(cellSize * 0.034))
   cache[key] = StyleSheet.create({
     cell: {
       width,
       height: cellSize,
-      backgroundColor: colors.board,
+      backgroundColor: colors.boardTile,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
-      borderRadius: Math.max(1, Math.round(cellSize * 0.05)),
+      borderRadius: 0,
     },
     cellChar: {
       color: colors.boardText,
       fontSize,
       fontFamily: BOARD_FONT,
       lineHeight,
-      letterSpacing: 0.5,
       textAlign: 'center',
+      textAlignVertical: 'center',
+      includeFontPadding: false,
     },
     cellCharDim: { opacity: 0.22 },
-    cellSeam: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      top: seamTop,
-      height: seamHeight,
-      backgroundColor: colors.boardSeam,
-    },
   })
   return cache[key]
 }

@@ -4,7 +4,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
-import { colors } from '../../../lib/theme'
+import { colors, radius } from '../../../lib/theme'
 import { fonts, type } from '../../../lib/typography'
 import { haptics } from '../../../lib/haptics'
 import { listEvents, type Event } from '../../../lib/events'
@@ -60,12 +60,13 @@ export default function EventsIndex() {
               onPress={() => { haptics.selection(); router.push(`/(app)/events/${ev.id}`) }}
               style={({ pressed }) => pressed && { opacity: 0.85 }}
             >
-              <GlassCard rounded="lg" padding={16} style={styles.row}>
-                <View style={styles.rowMain}>
-                  <Text style={styles.rowName}>{ev.name}</Text>
-                  <Text style={styles.rowMeta}>
-                    {ev.dates_label}  ·  {ev.city.toUpperCase()}
-                  </Text>
+              <GlassCard rounded="lg" padding={16}>
+                <View style={styles.row}>
+                  <Text style={styles.rowName} numberOfLines={1}>{ev.name}</Text>
+                  <View style={styles.badges}>
+                    <Text style={[styles.badge, styles.cityBadge]} numberOfLines={1}>{ev.city}</Text>
+                    <Text style={[styles.badge, styles.dateBadge]} numberOfLines={1}>{ev.dates_label}</Text>
+                  </View>
                 </View>
               </GlassCard>
             </Pressable>
@@ -97,24 +98,36 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 
-  list: { gap: 10, marginTop: 8 },
+  list: { gap: 14, marginTop: 8 },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 14,
+    paddingLeft: 8, // extra breathing room so the name isn't tight to the edge
   },
-  rowMain: { flex: 1, gap: 4 },
   rowName: {
-    fontFamily: fonts.bodyBold,
-    fontWeight: '700',
-    fontSize: 17,
+    flexShrink: 1,
+    fontFamily: fonts.bold, // Zalando Sans SemiExpanded
+    fontSize: 19,
+    letterSpacing: -0.2,
     color: colors.text,
   },
-  rowMeta: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    letterSpacing: 1,
-    color: colors.text,
-    opacity: 0.6,
+  // City + date pills, stacked and pinned to the right edge of the card.
+  badges: {
+    gap: 6,
+    alignItems: 'flex-end',
   },
+  badge: {
+    fontFamily: fonts.semibold, // Zalando Sans SemiExpanded
+    fontSize: 13,
+    color: colors.charcoal,
+    textAlign: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
+  cityBadge: { backgroundColor: colors.skyBlue },
+  dateBadge: { backgroundColor: '#E38079' }, // soft coral-red
 })
