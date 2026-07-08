@@ -74,7 +74,6 @@ export default function SearchingScreen() {
   const [session, setSession] = useState<Session | null>(null)
   const [state, setState] = useState<ScreenState>('loading')
   const [curiosity, setCuriosity] = useState<CuriosityData | null>(null)
-  const [matcherError, setMatcherError] = useState(false)
 
   // The single exit: every match signal lands here exactly once. match/room
   // re-reads the row from the DB, so a stale/foreign payload can't mis-route.
@@ -107,14 +106,12 @@ export default function SearchingScreen() {
         return true
       }
       if (QUIET_REASONS.has(result.reason)) {
-        setMatcherError(false)
         setState(s => (s === 'curiosity' ? s : 'exhausted'))
       }
       return false
     }
-    // Real failure — keep polling (a match made by the partner's invocation
-    // still surfaces), but tell the user something is off.
-    setMatcherError(true)
+    // Real failure — keep polling silently (a match made by the partner's
+    // invocation still surfaces).
     return false
   }, [handleMatchFound])
 
@@ -318,12 +315,6 @@ export default function SearchingScreen() {
           />
         </View>
 
-        {matcherError ? (
-          <Text style={styles.errorLine}>
-            Trouble reaching the matcher. Still checking for matches.
-          </Text>
-        ) : null}
-
         {state === 'curiosity' && curiosity ? (
           <GlassCard rounded="lg" tint="lilac" style={styles.curiosityPanel}>
             <Text style={[type.subhead, styles.curiosityLine]}>
@@ -361,11 +352,6 @@ const styles = StyleSheet.create({
   headline: { color: colors.text },
   boardWrap: { marginTop: 8 },
   startBtn: { marginTop: 20, alignSelf: 'flex-start' },
-  errorLine: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.subtle,
-  },
   curiosityPanel: { marginTop: 8, gap: 14 },
   curiosityLine: { color: colors.text },
   curiosityActions: {

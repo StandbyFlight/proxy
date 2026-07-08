@@ -5,7 +5,7 @@ import { fonts } from '../lib/typography'
 import { haptics } from '../lib/haptics'
 
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-const BOARD_FONT = fonts.bold
+const BOARD_FONT = fonts.board
 
 export function FlipCell({
   targetChar,
@@ -136,11 +136,7 @@ function stylesFor(cellSize: number, cellWidth?: number) {
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
-      // Flatter tile corners + a grey hairline so each white flap reads as its
-      // own tile against the grey board.
-      borderRadius: Math.max(2, Math.round(cellSize * 0.06)),
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.boardTileBorder,
+      borderRadius: Math.max(1, Math.round(cellSize * 0.034)),
     },
     cellChar: {
       color: colors.boardText,

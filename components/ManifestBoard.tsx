@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, Animated, Easing, Dimensions } from 'react-native'
 import { FlipCell } from './FlipCell'
-import { colors, radius, shadow } from '../lib/theme'
+import { colors } from '../lib/theme'
 import { fonts } from '../lib/typography'
 import { haptics } from '../lib/haptics'
 import { ChurningStatusText } from './ChurningStatusText'
 
-const BOARD_FONT = fonts.mono
+const BOARD_FONT = fonts.board
 
 // Departure-board row for the profile-preview screen. Three columns —
 // FLIGHT (placeholder dashes), PASSENGER, ORIGIN — fit comfortably on
@@ -328,15 +328,11 @@ const colWidth = (slots: number) => slots * Math.round(CELL * 0.69) + (slots - 1
 
 const styles = StyleSheet.create({
   board: {
-    backgroundColor: colors.boardFrame,
+    backgroundColor: colors.board,
     paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     alignSelf: 'flex-start',
-    // Grey frame: rounded, soft grey edge, diffuse shadow.
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.boardTileBorder,
-    ...shadow.card,
+    borderRadius: 4,
     // Hard right boundary — the board cannot grow past its parent's content
     // width, regardless of what's inside. Combined with flexWrap on the row,
     // any column that doesn't fit drops to a new line starting at the left.
@@ -384,13 +380,13 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   captionLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.board,
     fontSize: 11,
     color: colors.subtle,
     letterSpacing: 1.8,
   },
   captionStandby: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.board,
     fontSize: 12,
     color: colors.accent,
     letterSpacing: 2,

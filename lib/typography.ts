@@ -37,6 +37,11 @@ export const fonts = {
     default: 'Menlo, Consolas, monospace',
   }) as string,
 
+  // Board font — Inter, used by the split-flap flip-board components
+  // (FlipCell, InputFlipCell, ManifestBoard, EnrichmentRow). Replaces the old
+  // DepartureMono/Menlo "airport board" mono for a cleaner modern read.
+  board: 'Inter_700Bold',
+
   // Elms Sans (@expo-google-fonts/elms-sans) — the boarding pass text and the
   // bottom nav bar. Per-weight families are loaded in app/_layout.tsx; custom
   // fonts need distinct family names per weight rather than `fontWeight`.

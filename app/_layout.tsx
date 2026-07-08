@@ -24,6 +24,8 @@ import { ElmsSans_400Regular } from '@expo-google-fonts/elms-sans/400Regular'
 import { ElmsSans_500Medium } from '@expo-google-fonts/elms-sans/500Medium'
 import { ElmsSans_700Bold } from '@expo-google-fonts/elms-sans/700Bold'
 import { ElmsSans_800ExtraBold } from '@expo-google-fonts/elms-sans/800ExtraBold'
+// Inter — the split-flap flip-board font.
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold'
 import { supabase } from '../lib/supabase'
 import { connectAbly, disconnectAbly } from '../lib/ably'
 import { colors } from '../lib/theme'
@@ -54,6 +56,7 @@ export default function RootLayout() {
     ElmsSans_500Medium,
     ElmsSans_700Bold,
     ElmsSans_800ExtraBold,
+    Inter_700Bold,
   })
 
   // Hide native splash immediately — JS overlay (opacity 1) covers it so the

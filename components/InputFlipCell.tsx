@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
 import { colors } from '../lib/theme'
 import { fonts } from '../lib/typography'
 
-const BOARD_FONT = fonts.mono
+const BOARD_FONT = fonts.board
 
 // A flip cell driven by an external `char` prop.
 // When `char` changes, plays a single fast flip-out / flip-in animation.
@@ -82,10 +82,7 @@ function stylesFor(cellSize: number, cellWidth?: number) {
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
-      // Flatter tile corners + a grey hairline, matching FlipCell.
-      borderRadius: Math.max(2, Math.round(cellSize * 0.06)),
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.boardTileBorder,
+      borderRadius: Math.max(1, Math.round(cellSize * 0.05)),
     },
     cellChar: {
       color: colors.boardText,

@@ -6,7 +6,7 @@ import { haptics } from '../lib/haptics'
 import { colors } from '../lib/theme'
 import { fonts, type } from '../lib/typography'
 
-const BOARD_FONT = fonts.mono
+const BOARD_FONT = fonts.board
 
 export type EnrichmentState = 'idle' | 'connecting' | 'connected' | 'coming_soon'
 
@@ -108,8 +108,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     gap: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.borderHair,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.08)',
   },
   cell: {
     width: CELL_WIDTH,
@@ -118,10 +118,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    // Flatter tile corner + grey hairline, matching the board flip cells.
-    borderRadius: Math.max(2, Math.round(CELL_SIZE * 0.06)),
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.boardTileBorder,
+    borderRadius: 2,
   },
   cellChar: {
     fontFamily: BOARD_FONT,
@@ -140,7 +137,7 @@ const styles = StyleSheet.create({
   },
   label: { flex: 1, gap: 2 },
   provider: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.board,
     fontSize: 13,
     color: colors.text,
     letterSpacing: 1.6,
@@ -158,7 +155,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   status: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.board,
     fontSize: 10,
     color: colors.subtle,
     letterSpacing: 1.2,

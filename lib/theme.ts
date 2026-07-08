@@ -78,14 +78,14 @@ export const colors = {
   subtle: 'rgba(28,27,32,0.56)',
   error: brand.scarlet,
 
-  // Split-flap / boarding board — light theme: white flap tiles with a soft
-  // grey frame + seams, and near-black ink so the airport board reads clean.
-  board: '#FFFFFF',           // flap tile fill
-  boardFrame: '#E7E7E7',      // grey frame behind the tiles
-  boardSeam: 'rgba(28,27,32,0.14)',
-  boardText: brand.charcoal,  // black ink on the tiles
-  boardDim: 'rgba(28,27,32,0.42)',
-  boardTileBorder: 'rgba(28,27,32,0.12)', // grey hairline around each white tile
+  // Split-flap / boarding board — black flap tiles with white ink, like a
+  // classic airport departure board.
+  board: '#111114',           // flap tile fill — deep near-black
+  boardFrame: '#000000',      // frame behind the tiles
+  boardSeam: 'rgba(255,255,255,0.16)', // light seam line across each flap
+  boardText: '#FFFFFF',       // white ink on the tiles
+  boardDim: 'rgba(255,255,255,0.42)',
+  boardTileBorder: 'rgba(255,255,255,0.12)', // faint hairline around each tile
 }
 
 // ---------------------------------------------------------------------------
