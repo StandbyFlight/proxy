@@ -8,6 +8,7 @@ import { disconnectAbly } from '../../lib/ably'
 import { haptics } from '../../lib/haptics'
 import { BackButton } from '../../components/BackButton'
 import { GradientBackground } from '../../components/ui'
+import { isDemoMode } from '../../lib/demo'
 
 // Account-level settings. Profile fields are edited directly on the Profile
 // page, not here.
@@ -48,13 +49,16 @@ export default function Settings() {
             <Text style={styles.rowHint}>Step away</Text>
           </Pressable>
 
-          <Pressable
-            onPress={() => { haptics.selection(); router.push('/(app)/dev') }}
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-          >
-            <Text style={styles.rowLabel}>DEV TOOLS</Text>
-            <Text style={styles.rowHint}>Internal</Text>
-          </Pressable>
+          {/* Dev tools are hidden in demo mode — a clean build for beta users. */}
+          {!isDemoMode() ? (
+            <Pressable
+              onPress={() => { haptics.selection(); router.push('/(app)/dev') }}
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+            >
+              <Text style={styles.rowLabel}>DEV TOOLS</Text>
+              <Text style={styles.rowHint}>Internal</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </GradientBackground>
