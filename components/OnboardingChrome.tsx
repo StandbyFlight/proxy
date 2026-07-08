@@ -1,14 +1,15 @@
 import { ReactNode } from 'react'
 import {
   View, Text, Pressable, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ScrollView,
   Dimensions,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { colors } from '../lib/theme'
-import { fonts, type } from '../lib/typography'
+import { colors, spacing } from '../lib/theme'
+import { type } from '../lib/typography'
 import { ProgressDashes } from './ProgressDashes'
+import { GlassButton } from './ui'
 import { haptics } from '../lib/haptics'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -116,23 +117,16 @@ export function OnboardingChrome({
             </Pressable>
           )}
 
-          <Pressable
-            onPress={() => { if (!continueDisabled && !continueLoading) haptics.buttonTap(); onContinue() }}
-            disabled={continueDisabled || continueLoading}
-            style={({ pressed }) => [
-              styles.continueBtn,
-              continueDisabled && styles.continueBtnDisabled,
-              pressed && !continueDisabled && { opacity: 0.85 },
-            ]}
-          >
-            {continueLoading ? (
-              <ActivityIndicator color={colors.onAccent} />
-            ) : (
-              <>
-                <Text style={styles.continueText}>{continueLabel}</Text>
-              </>
-            )}
-          </Pressable>
+          <GlassButton
+            label={continueLabel}
+            onPress={onContinue}
+            variant="primary"
+            size="lg"
+            disabled={continueDisabled}
+            loading={continueLoading}
+            fullWidth={false}
+            style={styles.continueBtn}
+          />
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -141,7 +135,7 @@ export function OnboardingChrome({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
+  container: { flex: 1, backgroundColor: 'transparent', paddingHorizontal: spacing.screenX },
   topChrome: { gap: 12, marginBottom: 24 },
   eyebrow: { color: colors.subtle },
   scroll: { flex: 1 },
@@ -150,7 +144,7 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.subtle, marginTop: 10 },
   body: { marginTop: 32 },
   error: {
-    fontFamily: fonts.body,
+    ...type.body,
     fontSize: 14,
     color: colors.error,
     marginTop: 16,
@@ -170,30 +164,11 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   backText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
+    ...type.hint,
     color: colors.subtle,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
   },
   continueBtn: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    minWidth: 140,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  continueBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
-  continueText: {
-    fontFamily: fonts.body,
-    color: colors.onAccent,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
+    minWidth: 150,
   },
   storyBody: { alignSelf: 'stretch' },
 })

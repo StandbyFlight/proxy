@@ -1,15 +1,10 @@
-import { View, StyleSheet } from 'react-native'
 import { Slot } from 'expo-router'
-import { colors } from '../../lib/theme'
+import { GradientBackground } from '../../components/ui'
 
 export default function AuthLayout() {
   return (
-    <View style={styles.container}>
+    <GradientBackground>
       <Slot />
-    </View>
+    </GradientBackground>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-})

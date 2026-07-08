@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { colors } from '../../../lib/theme'
+import { colors, radius } from '../../../lib/theme'
 import { fonts, type } from '../../../lib/typography'
 import { supabase } from '../../../lib/supabase'
 import {
@@ -12,6 +12,7 @@ import {
 } from '../../../lib/liveLocation'
 import { BackButton } from '../../../components/BackButton'
 import { MeetupMap } from '../../../components/MeetupMap'
+import { GradientBackground, GlassButton, GlassCard } from '../../../components/ui'
 
 // NOTE: this route imports MeetupMap, which resolves to MeetupMap.web.tsx on web
 // (a no-Mapbox fallback) and MeetupMap.tsx on native. @rnmapbox/maps is never
@@ -87,18 +88,20 @@ export default function MatchMapScreen() {
   // Fallback: no usable destination coordinates for this meetup.
   if (!hasDestination) {
     return (
-      <View style={[styles.root, styles.center, { paddingTop: insets.top + 14 }]}>
-        <View style={styles.fallbackBack}><BackButton /></View>
-        <Text style={[type.headline, styles.fallbackTitle]}>MAP UNAVAILABLE</Text>
-        <Text style={styles.fallbackBody}>
-          {destinationName
-            ? `We couldn't place "${destinationName}" on the map yet.`
-            : 'This meetup spot isn’t on the map yet.'}
-        </Text>
-        <Text style={styles.fallbackBody}>
-          Use OPEN IN MAPS on the meetup screen for directions.
-        </Text>
-      </View>
+      <GradientBackground>
+        <View style={[styles.root, styles.center, { paddingTop: insets.top + 14 }]}>
+          <View style={styles.fallbackBack}><BackButton /></View>
+          <Text style={[type.headline, styles.fallbackTitle]}>MAP UNAVAILABLE</Text>
+          <Text style={styles.fallbackBody}>
+            {destinationName
+              ? `We couldn't place "${destinationName}" on the map yet.`
+              : 'This meetup spot isn’t on the map yet.'}
+          </Text>
+          <Text style={styles.fallbackBody}>
+            Use OPEN IN MAPS on the meetup screen for directions.
+          </Text>
+        </View>
+      </GradientBackground>
     )
   }
 
@@ -112,20 +115,19 @@ export default function MatchMapScreen() {
 
       {/* Floating back control over the map. */}
       <View style={[styles.overlayTop, { top: insets.top + 8 }]}>
-        <View style={styles.overlayCard}>
+        <GlassCard rounded="pill" padding={6} intensity="panel" style={styles.overlayCard}>
           <BackButton />
-        </View>
+        </GlassCard>
       </View>
 
       {/* Prompt to enable location if permission wasn't granted. */}
       {!showUser ? (
         <View style={[styles.overlayBottom, { bottom: insets.bottom + 20 }]}>
-          <Pressable
+          <GlassButton
+            label="ENABLE LOCATION"
+            variant="primary"
             onPress={enableLocation}
-            style={({ pressed }) => [styles.enableBtn, pressed && { opacity: 0.7 }]}
-          >
-            <Text style={styles.enableBtnText}>ENABLE LOCATION</Text>
-          </Pressable>
+          />
         </View>
       ) : null}
     </View>
@@ -133,7 +135,7 @@ export default function MatchMapScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   center: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 12 },
 
   fallbackBack: { position: 'absolute', top: 0, left: 20 },
@@ -147,29 +149,7 @@ const styles = StyleSheet.create({
   },
 
   overlayTop: { position: 'absolute', left: 16 },
-  overlayCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
-    paddingRight: 16,
-  },
+  overlayCard: {},
 
   overlayBottom: { position: 'absolute', left: 20, right: 20, alignItems: 'center' },
-  enableBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    alignSelf: 'stretch',
-    alignItems: 'center',
-  },
-  enableBtnText: {
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    fontSize: 13,
-    letterSpacing: 1.4,
-    color: colors.white,
-  },
 })

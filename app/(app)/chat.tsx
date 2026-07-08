@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  View, Text, TextInput, Pressable, StyleSheet, ScrollView,
+  View, Text, TextInput, StyleSheet, ScrollView,
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { colors } from '../../lib/theme'
+import { colors, radius } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
 import { BackButton } from '../../components/BackButton'
+import { GradientBackground, GlassButton } from '../../components/ui'
 
 // Logistics-only chat for matched users. Per app_plan §3.4 the framing is
 // "in case you can't find each other" — a fallback thread, not a chat product.
@@ -145,6 +146,7 @@ export default function ChatScreen() {
   }
 
   return (
+    <GradientBackground>
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -215,22 +217,20 @@ export default function ChatScreen() {
           selectionColor={colors.accent}
           editable={!sending}
         />
-        <Pressable
+        <GlassButton
+          label="SEND"
           onPress={send}
+          variant="primary"
+          size="sm"
+          fullWidth={false}
+          loading={sending}
           disabled={!draft.trim() || sending}
-          style={({ pressed }) => [
-            styles.sendBtn,
-            (!draft.trim() || sending) && styles.sendBtnDisabled,
-            pressed && draft.trim() && !sending && { opacity: 0.85 },
-          ]}
-        >
-          {sending
-            ? <ActivityIndicator color={colors.onAccent} />
-            : <Text style={styles.sendBtnText}>SEND</Text>
-          }
-        </Pressable>
+          haptic={false}
+          style={styles.sendBtn}
+        />
       </View>
     </KeyboardAvoidingView>
+    </GradientBackground>
   )
 }
 
@@ -246,7 +246,7 @@ function formatTime(iso: string): string {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   topRow: {
@@ -287,9 +287,10 @@ const styles = StyleSheet.create({
     maxWidth: '78%',
     paddingHorizontal: 14,
     paddingVertical: 10,
+    borderRadius: radius.lg,
   },
-  bubbleMine: { backgroundColor: colors.text },
-  bubbleTheirs: { backgroundColor: colors.periwinkle },
+  bubbleMine: { backgroundColor: colors.text, borderBottomRightRadius: radius.sm },
+  bubbleTheirs: { backgroundColor: colors.periwinkle, borderBottomLeftRadius: radius.sm },
   bubbleText: {
     fontFamily: fonts.body,
     fontSize: 16,
@@ -318,38 +319,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.08)',
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
+    borderTopColor: colors.borderHair,
     paddingHorizontal: 24,
     paddingTop: 12,
-    backgroundColor: colors.bg,
+    backgroundColor: 'transparent',
   },
   input: {
     flex: 1,
     fontFamily: fonts.body,
     fontSize: 16,
     color: colors.text,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.16)',
-    paddingHorizontal: 12,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: colors.borderHair,
+    borderRadius: radius.lg,
+    backgroundColor: colors.glassWhite,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     minHeight: 44,
     maxHeight: 120,
   },
   sendBtn: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
     minWidth: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
-  sendBtnText: {
-    fontFamily: fonts.body,
-    color: colors.onAccent,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
+    marginBottom: 1,
   },
 })

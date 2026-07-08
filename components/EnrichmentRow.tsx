@@ -108,8 +108,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     gap: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.08)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderHair,
   },
   cell: {
     width: CELL_WIDTH,
@@ -118,7 +118,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    borderRadius: 2,
+    // Softer tile corner + faint top-light edge, matching the board flip cells.
+    borderRadius: Math.max(2, Math.round(CELL_SIZE * 0.1)),
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.06)',
   },
   cellChar: {
     fontFamily: BOARD_FONT,

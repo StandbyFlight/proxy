@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  View, Text, TextInput, Pressable,
+  View, Text, Pressable,
   StyleSheet, ScrollView,
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -10,6 +10,7 @@ import { fonts, type } from '../../../lib/typography'
 import { haptics } from '../../../lib/haptics'
 import { listEvents, type Event } from '../../../lib/events'
 import { BackButton } from '../../../components/BackButton'
+import { Screen, GlassInput, GlassButton, GlassCard } from '../../../components/ui'
 
 // Step 3 of session setup: optionally attach an event. An attached event is
 // additive context on the normal matching flow (a strong matching signal) —
@@ -64,13 +65,14 @@ export default function EventScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <Screen padded={false} edges={[]}>
       <ScrollView
         contentContainerStyle={[
           styles.inner,
           { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 24 },
         ]}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.topRow}>
           <BackButton />
@@ -79,19 +81,15 @@ export default function EventScreen() {
 
         <Text style={[type.headline, styles.headline]}>Flying to an event?</Text>
 
-        <View style={styles.searchBlock}>
-          <Text style={styles.sectionLabel}>EVENT NAME</Text>
-          <TextInput
-            style={styles.fieldInput}
-            value={query}
-            onChangeText={(v) => { setQuery(v); setSelectedId(null); setSelectedName('') }}
-            placeholder="Consensus 2026, ICML…"
-            placeholderTextColor={colors.subtle}
-            maxLength={80}
-            autoCorrect={false}
-            selectionColor={colors.accent}
-          />
-        </View>
+        <GlassInput
+          label="EVENT NAME"
+          containerStyle={styles.searchBlock}
+          value={query}
+          onChangeText={(v) => { setQuery(v); setSelectedId(null); setSelectedName('') }}
+          placeholder="Consensus 2026, ICML…"
+          maxLength={80}
+          autoCorrect={false}
+        />
 
         <View style={styles.list}>
           {filtered.map(ev => {
@@ -100,16 +98,18 @@ export default function EventScreen() {
               <Pressable
                 key={ev.id}
                 onPress={() => pick(ev.id, ev.name)}
-                style={({ pressed }) => [
-                  styles.row,
-                  selected && styles.rowSelected,
-                  pressed && !selected && { opacity: 0.7 },
-                ]}
+                style={({ pressed }) => [pressed && !selected && { opacity: 0.85 }]}
               >
-                <Text style={[styles.rowLabel, selected && styles.rowLabelSelected]}>
-                  {ev.name}
-                </Text>
-                <Text style={styles.rowTag}>{ev.dates_label} · {ev.city.toUpperCase()}</Text>
+                <GlassCard
+                  rounded="lg"
+                  padding={14}
+                  tint={selected ? 'sky' : 'none'}
+                  strong={selected}
+                  style={styles.row}
+                >
+                  <Text style={styles.rowLabel}>{ev.name}</Text>
+                  <Text style={styles.rowTag}>{ev.dates_label} · {ev.city.toUpperCase()}</Text>
+                </GlassCard>
               </Pressable>
             )
           })}
@@ -117,81 +117,54 @@ export default function EventScreen() {
           {/* Skip lives at the end of the list — "pick an event, or skip". */}
           <Pressable
             onPress={() => continueWith('', '')}
-            style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
+            style={({ pressed }) => [pressed && { opacity: 0.85 }]}
           >
-            <Text style={styles.rowLabelSkip}>Not attending an event</Text>
+            <GlassCard rounded="lg" padding={14} style={styles.row}>
+              <Text style={styles.rowLabelSkip}>Not attending an event</Text>
+            </GlassCard>
           </Pressable>
         </View>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
-        <Pressable
+        <GlassButton
+          label="ATTACH EVENT"
           onPress={() => continueWith(selectedId ?? '', attachedName)}
           disabled={!attachedName}
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            !attachedName && styles.primaryBtnDisabled,
-            pressed && !!attachedName && { opacity: 0.85 },
-          ]}
-        >
-          <Text style={styles.primaryBtnText}>ATTACH EVENT</Text>
-        </Pressable>
+          haptic={false}
+          variant="primary"
+          size="lg"
+        />
       </View>
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
   inner: { paddingHorizontal: 24, gap: 16 },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  eyebrow: { color: colors.subtle },
   spacer: { width: 64 },
 
   headline: { color: colors.text, marginTop: 4 },
 
-  searchBlock: { gap: 8, marginTop: 12 },
-  sectionLabel: {
-    fontFamily: fonts.body,
-    fontSize: 10,
-    letterSpacing: 1.6,
-    color: colors.subtle,
-  },
+  searchBlock: { marginTop: 12 },
 
-  fieldInput: {
-    fontFamily: fonts.body,
-    fontSize: 18,
-    color: colors.text,
-    paddingVertical: 6,
-    letterSpacing: 0.6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.25)',
-  },
-
-  list: { gap: 8, marginTop: 8 },
+  list: { gap: 10, marginTop: 8 },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 3,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
   },
-  rowSelected: { backgroundColor: colors.periwinkle },
   rowLabel: {
     fontFamily: fonts.bodyBold,
     fontWeight: '700',
     fontSize: 16,
     color: colors.text,
   },
-  rowLabelSelected: { color: colors.text },
   rowLabelSkip: {
     fontFamily: fonts.body,
     fontSize: 15,
@@ -207,22 +180,5 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 24,
     paddingTop: 12,
-    backgroundColor: colors.bg,
-  },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: colors.accent,
-    paddingVertical: 14,
-  },
-  primaryBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
-  primaryBtnText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    color: colors.onAccent,
   },
 })

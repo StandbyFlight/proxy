@@ -11,6 +11,7 @@ import { FlipBoard } from '../../components/FlipBoard'
 import { BoardingPass } from '../../components/BoardingPass'
 import { StandbyStamp } from '../../components/StandbyStamp'
 import { BackButton } from '../../components/BackButton'
+import { GradientBackground, GlassButton } from '../../components/ui'
 
 // Match status state machine:
 //   pending    — created, both users pushed the Accept/Decline card at once
@@ -332,22 +333,26 @@ export default function MatchScreen() {
 
   if (phase === 'loading') {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
-        <FlipBoard label="STANDBY" cellSize={32} initialFlipMs={900} staggerMs={120} />
-      </View>
+      <GradientBackground>
+        <View style={[styles.center, { paddingTop: insets.top }]}>
+          <FlipBoard label="STANDBY" cellSize={32} initialFlipMs={900} staggerMs={120} />
+        </View>
+      </GradientBackground>
     )
   }
 
   if (phase === 'error' || !match) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + 24 }]}>
-        <BackButton />
-        <View style={styles.body}>
-          <Text style={[type.subhead, styles.errorLine]}>
-            {error || 'Could not load match.'}
-          </Text>
+      <GradientBackground>
+        <View style={[styles.container, { paddingTop: insets.top + 24 }]}>
+          <BackButton />
+          <View style={styles.body}>
+            <Text style={[type.subhead, styles.errorLine]}>
+              {error || 'Could not load match.'}
+            </Text>
+          </View>
         </View>
-      </View>
+      </GradientBackground>
     )
   }
 
@@ -356,31 +361,33 @@ export default function MatchScreen() {
     const theirTime = match.theirDepartureTime ? passTime(match.theirDepartureTime) : null
 
     return (
-      <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-        <BackButton />
-        <View style={styles.waitBody}>
-          <Text style={[type.subhead, styles.waitSubhead]}>
-            You said yes. Waiting for them.
-          </Text>
+      <GradientBackground>
+        <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
+          <BackButton />
+          <View style={styles.waitBody}>
+            <Text style={[type.subhead, styles.waitSubhead]}>
+              You said yes. Waiting for them.
+            </Text>
 
-          <View style={styles.waitPassWrap}>
-            <BoardingPass
-              airline="STANDBY"
-              classLabel="MEETUP PASS"
-              passenger={null}
-              origin={match.theirOriginIata}
-              destination={match.destinationIata}
-              flight={match.theirFlightIata}
-              date={theirDate}
-              time={theirTime}
-              gate={match.theirGate}
-              terminal={match.theirTerminal}
-              status="PENDING"
-              stampSlot={<StandbyStamp label="PENDING" delayMs={400} angle={-12} />}
-            />
+            <View style={styles.waitPassWrap}>
+              <BoardingPass
+                airline="STANDBY"
+                classLabel="MEETUP PASS"
+                passenger={null}
+                origin={match.theirOriginIata}
+                destination={match.destinationIata}
+                flight={match.theirFlightIata}
+                date={theirDate}
+                time={theirTime}
+                gate={match.theirGate}
+                terminal={match.theirTerminal}
+                status="PENDING"
+                stampSlot={<StandbyStamp label="PENDING" delayMs={400} angle={-12} />}
+              />
+            </View>
           </View>
         </View>
-      </View>
+      </GradientBackground>
     )
   }
 
@@ -390,6 +397,7 @@ export default function MatchScreen() {
   const canAccept = wearing.trim().length > 0 && !acting
 
   return (
+    <GradientBackground>
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
       <View style={styles.body}>
         <View style={styles.reveal}>
@@ -427,36 +435,30 @@ export default function MatchScreen() {
       </View>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
-        <Pressable
+        <GlassButton
+          label="DECLINE MATCH"
+          variant="ghost"
           onPress={() => respond(false)}
           disabled={acting}
-          hitSlop={14}
-          style={({ pressed }) => [styles.skipBtn, pressed && { opacity: 0.5 }]}
-        >
-          <Text style={styles.skipText}>DECLINE MATCH</Text>
-        </Pressable>
+        />
 
-        <Pressable
+        <GlassButton
+          label="MEET THEM"
+          variant="primary"
           onPress={() => respond(true)}
           disabled={!canAccept}
-          style={({ pressed }) => [
-            styles.meetBtn,
-            pressed && { opacity: 0.85 },
-            !canAccept && { opacity: 0.4 },
-          ]}
-        >
-          <Text style={styles.meetText}>MEET THEM</Text>
-        </Pressable>
+        />
       </View>
     </View>
+    </GradientBackground>
   )
 }
 
 
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
-  center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: 'transparent', paddingHorizontal: 24 },
+  center: { flex: 1, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
   topRow: { alignItems: 'center' },
   eyebrow: { color: colors.subtle },
   body: {

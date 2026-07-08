@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { colors } from '../../lib/theme'
 import { type, fonts } from '../../lib/typography'
 import { OnboardingChrome } from '../../components/OnboardingChrome'
+import { GlassCard } from '../../components/ui'
 import { InputFlipBoard } from '../../components/InputFlipBoard'
 import { searchCities, CityEntry } from '../../lib/cities'
 import { haptics } from '../../lib/haptics'
@@ -97,7 +98,7 @@ export default function City() {
       </View>
 
       {suggestions.length > 0 ? (
-        <View style={styles.suggestionsWrap}>
+        <GlassCard rounded="lg" padding={6} style={styles.suggestionsWrap}>
           <FlatList
             data={suggestions}
             keyExtractor={(item) => `${item.name}-${item.state}`}
@@ -121,7 +122,7 @@ export default function City() {
               </Pressable>
             )}
           />
-        </View>
+        </GlassCard>
       ) : null}
 
       {picked ? (
@@ -146,6 +147,7 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     justifyContent: 'space-between',
     paddingVertical: 12,
+    paddingHorizontal: 12,
     gap: 12,
   },
   suggestionLeft: {
@@ -160,8 +162,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
   separator: {
-    height: 1,
-    backgroundColor: 'rgba(0,0,0,0.06)',
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 12,
+    backgroundColor: colors.borderHair,
   },
   pickedRow: {
     flexDirection: 'row',

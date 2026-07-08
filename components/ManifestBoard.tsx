@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, Animated, Easing, Dimensions } from 'react-native'
 import { FlipCell } from './FlipCell'
-import { colors } from '../lib/theme'
+import { colors, radius, shadow } from '../lib/theme'
 import { fonts } from '../lib/typography'
 import { haptics } from '../lib/haptics'
 import { ChurningStatusText } from './ChurningStatusText'
@@ -330,9 +330,13 @@ const styles = StyleSheet.create({
   board: {
     backgroundColor: colors.board,
     paddingVertical: 16,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     alignSelf: 'flex-start',
-    borderRadius: 4,
+    // Grey-glass frame: rounded, soft slate edge, diffuse shadow.
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.08)',
+    ...shadow.card,
     // Hard right boundary — the board cannot grow past its parent's content
     // width, regardless of what's inside. Combined with flexWrap on the row,
     // any column that doesn't fit drops to a new line starting at the left.

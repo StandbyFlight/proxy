@@ -1,8 +1,9 @@
 import { Pressable, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native'
 import { colors } from '../lib/theme'
-import { fonts } from '../lib/typography'
+import { type } from '../lib/typography'
 import { haptics } from '../lib/haptics'
 import { openFeedback } from '../lib/demo'
+import { GlassButton } from './ui'
 
 // Feedback affordance for demo screens. `openFeedback` already emits the
 // demo_feedback_clicked event and handles the URL-or-alert fallback, so this is
@@ -25,14 +26,14 @@ export function FeedbackButton({
 
   if (variant === 'button') {
     return (
-      <Pressable
+      <GlassButton
+        label={label}
         onPress={onPress}
-        accessibilityRole="button"
+        variant="secondary"
+        haptic={false}
         accessibilityLabel={label}
-        style={({ pressed }) => [styles.button, pressed && { opacity: 0.6 }, style]}
-      >
-        <Text style={styles.buttonText}>{label}</Text>
-      </Pressable>
+        style={style}
+      />
     )
   }
 
@@ -55,28 +56,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   linkText: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    letterSpacing: 1.4,
+    ...type.label,
     textTransform: 'uppercase',
-    color: colors.subtle,
-  },
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.black,
-    backgroundColor: colors.surface,
-    paddingVertical: 13,
-    paddingHorizontal: 18,
-  },
-  buttonText: {
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.black,
+    color: colors.textSecondary,
   },
 })

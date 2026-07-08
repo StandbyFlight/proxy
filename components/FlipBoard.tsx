@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native'
 import { FlipCell } from './FlipCell'
-import { colors } from '../lib/theme'
+import { colors, radius, shadow } from '../lib/theme'
 
 export function FlipBoard({
   label,
@@ -32,8 +32,11 @@ export function FlipBoard({
           paddingVertical: framed ? boardPad * 0.5 : 0,
           paddingHorizontal: framed ? boardPad * 0.4 : 0,
           backgroundColor: framed ? colors.board : 'transparent',
-          borderRadius: Math.max(2, Math.round(cellSize * 0.1)),
+          borderRadius: radius.md,
         },
+        // Grey-glass frame: soft slate edge + diffuse shadow so the board reads
+        // as a premium panel rather than a flat slab.
+        framed && styles.framed,
       ]}
     >
       {chars.map((c, i) => {
@@ -58,5 +61,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'center',
+  },
+  framed: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.08)',
+    ...shadow.card,
   },
 })

@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase'
 import { colors } from '../lib/theme'
 import { fonts, type } from '../lib/typography'
 import { haptics } from '../lib/haptics'
+import { GlassButton } from './ui'
 
 export type BoardingPassData = {
   flight_number: string | null
@@ -165,15 +166,11 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
       <View style={styles.center}>
         <Text style={styles.eyebrow}>Couldn't read it</Text>
         <Text style={styles.errorText}>{errorMsg}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
-          onPress={() => { haptics.buttonTap(); setMode('choose') }}
-        >
-          <Text style={styles.primaryBtnText}>Try again</Text>
-        </Pressable>
-        <Pressable onPress={onClose} hitSlop={12} style={styles.ghostLink}>
-          <Text style={styles.ghostLinkText}>Cancel</Text>
-        </Pressable>
+        <View style={styles.btnGroup}>
+          {/* GlassButton fires haptics.buttonTap itself — no manual tap here. */}
+          <GlassButton label="Try again" onPress={() => setMode('choose')} />
+          <GlassButton label="Cancel" variant="ghost" onPress={onClose} />
+        </View>
       </View>
     )
   }
@@ -209,23 +206,10 @@ export function BoardingPassCapture({ onParsed, onClose }: Props) {
       <Text style={styles.subhead}>Take a photo or upload a screenshot of one you already have.</Text>
 
       <View style={styles.btnGroup}>
-        <Pressable
-          style={({ pressed }) => [styles.primaryBtn, { width: '100%' }, pressed && { opacity: 0.85 }]}
-          onPress={() => { haptics.buttonTap(); openCamera() }}
-        >
-          <Text style={styles.primaryBtnText}>Take a photo</Text>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.7 }]}
-          onPress={() => { haptics.buttonTap(); pickFromLibrary() }}
-        >
-          <Text style={styles.secondaryBtnText}>Upload from photos</Text>
-        </Pressable>
-
-        <Pressable onPress={onClose} hitSlop={12} style={styles.ghostLink}>
-          <Text style={styles.ghostLinkText}>Cancel</Text>
-        </Pressable>
+        {/* GlassButton fires haptics.buttonTap itself — no manual tap here. */}
+        <GlassButton label="Take a photo" onPress={openCamera} />
+        <GlassButton label="Upload from photos" variant="secondary" onPress={pickFromLibrary} />
+        <GlassButton label="Cancel" variant="ghost" onPress={onClose} />
       </View>
     </View>
   )
@@ -257,42 +241,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   btnGroup: { gap: 10, width: '100%', marginTop: 8 },
-  primaryBtn: {
-    backgroundColor: colors.accent,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  primaryBtnText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: colors.onAccent,
-  },
-  secondaryBtn: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    width: '100%',
-  },
-  secondaryBtnText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.text,
-  },
-  ghostLink: { alignSelf: 'center', paddingVertical: 8 },
-  ghostLinkText: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.subtle,
-  },
   cameraUI: { flex: 1, justifyContent: 'space-between' },
   cameraBack: { padding: 20 },
   cameraBackText: {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
-  View, Text, Pressable, TextInput,
+  View, Text, Pressable,
   StyleSheet, ScrollView,
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -10,6 +10,7 @@ import { fonts, type } from '../../../lib/typography'
 import { haptics } from '../../../lib/haptics'
 import { REACHABILITY } from '../../../lib/airports'
 import { BackButton } from '../../../components/BackButton'
+import { Screen, GlassInput, GlassButton, Badge } from '../../../components/ui'
 
 // Step 2 of session setup. The location model is exactly two entries:
 //   TERMINAL     — determines who can walk over to you in time
@@ -63,13 +64,14 @@ export default function LocationScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <Screen padded={false} edges={[]}>
       <ScrollView
         contentContainerStyle={[
           styles.inner,
           { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 24 },
         ]}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.topRow}>
           <BackButton />
@@ -88,31 +90,23 @@ export default function LocationScreen() {
                   <Pressable
                     key={t}
                     onPress={() => { haptics.selection(); setTerminal(t) }}
-                    style={({ pressed }) => [
-                      styles.chip,
-                      selected && styles.chipSelected,
-                      pressed && !selected && { opacity: 0.7 },
-                    ]}
+                    style={({ pressed }) => [pressed && !selected && { opacity: 0.7 }]}
                   >
-                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                      {t}
-                    </Text>
+                    <Badge label={t} tone="glass" selected={selected} style={styles.chip} />
                   </Pressable>
                 )
               })}
             </View>
           ) : null}
           {terminalOptions.length === 0 || (terminal && !terminalOptions.includes(terminal)) ? (
-            <TextInput
-              style={styles.fieldInput}
+            <GlassInput
+              containerStyle={styles.field}
               value={terminal}
               onChangeText={(v) => setTerminal(v.toUpperCase())}
               placeholder="T1"
-              placeholderTextColor={colors.subtle}
               maxLength={4}
               autoCapitalize="characters"
               autoCorrect={false}
-              selectionColor={colors.accent}
             />
           ) : null}
         </View>
@@ -121,49 +115,41 @@ export default function LocationScreen() {
           <Text style={styles.sectionLabel}>
             GATE / LOUNGE
           </Text>
-          <TextInput
-            style={styles.fieldInput}
+          <GlassInput
+            containerStyle={styles.field}
             value={spot}
             onChangeText={setSpot}
             placeholder="B42, or Sky Club"
-            placeholderTextColor={colors.subtle}
             maxLength={32}
             autoCorrect={false}
-            selectionColor={colors.accent}
           />
         </View>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
-        <Pressable
+        <GlassButton
+          label="CONTINUE"
           onPress={proceed}
           disabled={!canContinue}
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            !canContinue && styles.primaryBtnDisabled,
-            pressed && canContinue && { opacity: 0.85 },
-          ]}
-        >
-          <Text style={styles.primaryBtnText}>CONTINUE</Text>
-        </Pressable>
+          haptic={false}
+          variant="primary"
+          size="lg"
+        />
       </View>
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
   inner: { paddingHorizontal: 24, gap: 16 },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  eyebrow: { color: colors.subtle },
   spacer: { width: 64 },
 
   headline: { color: colors.text, marginTop: 4 },
-  subhead: { color: colors.subtle, marginTop: -2 },
 
   section: { gap: 10, marginTop: 12 },
   sectionLabel: {
@@ -172,62 +158,18 @@ const styles = StyleSheet.create({
     letterSpacing: 1.6,
     color: colors.subtle,
   },
-  optional: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    letterSpacing: 0,
-    textTransform: 'none',
-    color: colors.subtle,
-  },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 9,
     minWidth: 48,
-    alignItems: 'center',
-    borderRadius: 3,
+    justifyContent: 'center',
   },
-  chipSelected: { backgroundColor: colors.periwinkle },
-  chipText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    letterSpacing: 1.2,
-    color: colors.text,
-  },
-  chipTextSelected: { color: colors.text, fontWeight: '700' },
 
-  fieldInput: {
-    fontFamily: fonts.body,
-    fontSize: 18,
-    color: colors.text,
-    paddingVertical: 6,
-    letterSpacing: 0.6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.25)',
-  },
+  field: { marginTop: 2 },
 
   footer: {
     paddingHorizontal: 24,
     paddingTop: 12,
-    backgroundColor: colors.bg,
-  },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: colors.accent,
-    paddingVertical: 14,
-  },
-  primaryBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
-  primaryBtnText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    color: colors.onAccent,
   },
 })

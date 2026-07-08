@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import {
-  View, Text, TextInput, Pressable, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions, ScrollView,
+  View, Text, Pressable, StyleSheet,
+  KeyboardAvoidingView, Platform, Dimensions, ScrollView,
 } from 'react-native'
 import * as AuthSession from 'expo-auth-session'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { supabase } from '../../lib/supabase'
-import { colors } from '../../lib/theme'
-import { fonts, type } from '../../lib/typography'
+import { colors, spacing } from '../../lib/theme'
+import { type } from '../../lib/typography'
 import { ProgressDashes } from '../../components/ProgressDashes'
+import { GlassInput, GlassButton } from '../../components/ui'
 import { EnrichmentRow, EnrichmentState } from '../../components/EnrichmentRow'
 import { haptics } from '../../lib/haptics'
 import {
@@ -239,33 +240,25 @@ export default function Extras() {
                 />
                 {row.key === 'email' && emailExpanded ? (
                   <View style={styles.emailPanel}>
-                    <TextInput
-                      style={styles.emailInput}
+                    <GlassInput
                       placeholder="you@school.edu"
-                      placeholderTextColor={colors.subtle}
                       value={emailInput}
                       onChangeText={setEmailInput}
                       autoFocus
                       autoCapitalize="none"
                       autoCorrect={false}
                       keyboardType="email-address"
-                      selectionColor={colors.accent}
                       onSubmitEditing={sendEmailLink}
                     />
-                    <Pressable
+                    <GlassButton
+                      label="Send link"
                       onPress={sendEmailLink}
+                      variant="primary"
                       disabled={states.email === 'connecting'}
-                      style={({ pressed }) => [
-                        styles.emailBtn,
-                        pressed && { opacity: 0.85 },
-                      ]}
-                    >
-                      {states.email === 'connecting' ? (
-                        <ActivityIndicator color={colors.onAccent} />
-                      ) : (
-                        <Text style={styles.emailBtnText}>Send link</Text>
-                      )}
-                    </Pressable>
+                      loading={states.email === 'connecting'}
+                      fullWidth={false}
+                      style={styles.emailBtn}
+                    />
                     {emailError ? (
                       <Text style={styles.emailError}>{emailError}</Text>
                     ) : null}
@@ -289,14 +282,14 @@ export default function Extras() {
             <Text style={styles.backText}>Back</Text>
           </Pressable>
 
-          <Pressable
+          <GlassButton
+            label={anyEngaged ? 'TO YOUR FLIGHT' : 'SKIP FOR NOW'}
             onPress={done}
-            style={({ pressed }) => [styles.doneBtn, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={styles.doneBtnText}>
-              {anyEngaged ? 'TO YOUR FLIGHT' : 'SKIP FOR NOW'}
-            </Text>
-          </Pressable>
+            variant="gradient"
+            size="lg"
+            fullWidth={false}
+            style={styles.doneBtn}
+          />
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -305,7 +298,7 @@ export default function Extras() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
+  container: { flex: 1, backgroundColor: 'transparent', paddingHorizontal: spacing.screenX },
   topChrome: { marginBottom: 24 },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 24 },
@@ -318,28 +311,9 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     gap: 12,
   },
-  emailInput: {
-    fontFamily: fonts.body,
-    fontSize: 18,
-    color: colors.text,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.text,
-    paddingVertical: 8,
-  },
   emailBtn: {
-    backgroundColor: colors.text,
-    paddingVertical: 12,
-    alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingHorizontal: 18,
-  },
-  emailBtnText: {
-    fontFamily: fonts.body,
-    color: colors.onAccent,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
+    minWidth: 140,
   },
   emailError: {
     ...type.body,
@@ -361,27 +335,10 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   backText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
+    ...type.hint,
     color: colors.subtle,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
   },
   doneBtn: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: 22,
-    paddingVertical: 14,
     minWidth: 160,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  doneBtnText: {
-    fontFamily: fonts.body,
-    color: colors.onAccent,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
   },
 })

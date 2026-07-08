@@ -82,7 +82,10 @@ function stylesFor(cellSize: number, cellWidth?: number) {
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
-      borderRadius: Math.max(1, Math.round(cellSize * 0.05)),
+      // Softer tile corners + a faint top-light inner edge, matching FlipCell.
+      borderRadius: Math.max(2, Math.round(cellSize * 0.1)),
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(255,255,255,0.06)',
     },
     cellChar: {
       color: colors.boardText,

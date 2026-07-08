@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { colors } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { OnboardingChrome } from '../../components/OnboardingChrome'
+import { GlassCard } from '../../components/ui'
 import { haptics } from '../../lib/haptics'
 
 const EXAMPLES = [
@@ -119,8 +120,7 @@ export default function Prompt() {
       continueLoading={loading}
       error={error}
     >
-      <View style={styles.frame}>
-        <View style={styles.rule} />
+      <GlassCard rounded="lg" padding={20} style={styles.frame}>
         <View style={styles.inputWrap}>
           {showExample ? (
             <Animated.Text
@@ -147,8 +147,7 @@ export default function Prompt() {
             maxLength={MAX_CHARS}
           />
         </View>
-        <View style={styles.rule} />
-      </View>
+      </GlassCard>
 
       {!valid && text.length > 0 ? (
         <Text style={styles.softHint}>A sentence or two is plenty.</Text>
@@ -160,11 +159,6 @@ export default function Prompt() {
 const styles = StyleSheet.create({
   frame: {
     marginTop: 8,
-    gap: 18,
-  },
-  rule: {
-    height: 1,
-    backgroundColor: 'rgba(0,0,0,0.18)',
   },
   inputWrap: {
     position: 'relative',
@@ -174,7 +168,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 20,
     lineHeight: 30,
-    color: colors.text,
+    color: colors.textPrimary,
     minHeight: 160,
     textAlignVertical: 'top',
     paddingVertical: 0,
@@ -187,7 +181,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 20,
     lineHeight: 30,
-    color: colors.subtle,
+    color: colors.textTertiary,
   },
   softHint: {
     ...type.body,

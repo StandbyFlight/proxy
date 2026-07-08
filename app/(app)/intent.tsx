@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import {
   View, Text, Pressable,
-  StyleSheet, ScrollView, ActivityIndicator,
+  StyleSheet, ScrollView,
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { colors } from '../../lib/theme'
-import { fonts, type } from '../../lib/typography'
+import { colors, radius, spacing } from '../../lib/theme'
+import { type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { createSession } from '../../lib/session'
 import { BackButton } from '../../components/BackButton'
+import { GradientBackground, GlassButton } from '../../components/ui'
 
 // Step 4 of session setup. Three options, nothing else. Creating the session
 // here goes through lib/session.createSession — the new session is inserted
@@ -80,7 +81,7 @@ export default function IntentScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <GradientBackground>
       <ScrollView
         contentContainerStyle={[styles.inner, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
@@ -112,73 +113,49 @@ export default function IntentScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            (!canContinue || loading) && styles.primaryBtnDisabled,
-            pressed && canContinue && { opacity: 0.85 },
-          ]}
-          onPress={() => { haptics.buttonTap(); proceed() }}
+        <GlassButton
+          label="Continue"
+          onPress={proceed}
+          variant="primary"
+          loading={loading}
           disabled={!canContinue || loading}
-        >
-          {loading
-            ? <ActivityIndicator color={colors.onAccent} />
-            : <Text style={styles.primaryBtnText}>Continue</Text>
-          }
-        </Pressable>
+        />
       </View>
-    </View>
+    </GradientBackground>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
   inner: { paddingHorizontal: 24, gap: 20 },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  eyebrow: { color: colors.subtle },
   spacer: { width: 64 },
   headline: { color: colors.text, marginTop: 4 },
-  section: { gap: 10, marginTop: 8 },
+  section: { gap: spacing.md, marginTop: 8 },
   option: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 3,
+    backgroundColor: colors.glassWhite,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: colors.borderGlass,
+    borderRadius: radius.md,
     padding: 18,
   },
-  optionSelected: { backgroundColor: colors.periwinkle },
+  optionSelected: {
+    backgroundColor: colors.glassSky,
+    borderColor: colors.skyBlue,
+  },
   optionLabel: {
-    fontFamily: fonts.bodyBold,
-    fontWeight: '700',
-    fontSize: 17,
-    color: colors.text,
+    ...type.title,
+    color: colors.textPrimary,
   },
   error: {
-    fontFamily: fonts.body,
-    fontSize: 14,
+    ...type.body,
     color: colors.error,
   },
   footer: {
     paddingHorizontal: 24,
     paddingTop: 12,
-    backgroundColor: colors.bg,
-  },
-  primaryBtn: {
-    backgroundColor: colors.accent,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  primaryBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
-  primaryBtnText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: colors.onAccent,
   },
 })

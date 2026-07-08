@@ -1,5 +1,5 @@
 import { View, StyleSheet } from 'react-native'
-import { colors } from '../lib/theme'
+import { colors, radius } from '../lib/theme'
 
 export function ProgressDashes({ step, total }: { step: number; total: number }) {
   return (
@@ -16,7 +16,7 @@ export function ProgressDashes({ step, total }: { step: number; total: number })
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 6 },
-  dash: { flex: 1, height: 2, borderRadius: 1 },
-  dashFilled: { backgroundColor: colors.text },
-  dashEmpty: { backgroundColor: colors.text, opacity: 0.15 },
+  dash: { flex: 1, height: 3, borderRadius: radius.pill },
+  dashFilled: { backgroundColor: colors.accent },
+  dashEmpty: { backgroundColor: colors.text, opacity: 0.12 },
 })

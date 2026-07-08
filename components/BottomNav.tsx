@@ -1,7 +1,8 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { BlurView } from 'expo-blur'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, usePathname } from 'expo-router'
-import { colors } from '../lib/theme'
+import { colors, blur } from '../lib/theme'
 import { fonts } from '../lib/typography'
 import { haptics } from '../lib/haptics'
 import { normalizePathname } from '../lib/routes'
@@ -83,6 +84,9 @@ export function BottomNav({
 
   return (
     <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+      <BlurView intensity={blur.panel} tint={blur.tint} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, styles.fill]} pointerEvents="none" />
+      <View style={styles.topBorder} pointerEvents="none" />
       <View style={styles.row}>
         {TABS.map(tab => {
           const active = isActive(tab)
@@ -126,7 +130,19 @@ export function BottomNav({
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: colors.bg,
+    overflow: 'hidden',
+  },
+  // Translucent frosted fill so the bar reads as glass over the screen glow.
+  fill: {
+    backgroundColor: colors.glassWhiteStrong,
+  },
+  topBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: StyleSheet.hairlineWidth * 2,
+    backgroundColor: colors.borderGlass,
   },
   row: {
     flexDirection: 'row',

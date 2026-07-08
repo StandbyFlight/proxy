@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
-import { colors } from '../../lib/theme'
+import { colors, radius } from '../../lib/theme'
+import { GradientBackground } from '../../components/ui'
 
 type UserInfo = {
   id: string
@@ -103,6 +104,7 @@ export default function DevScreen() {
   }
 
   return (
+    <GradientBackground>
     <ScrollView style={styles.container} contentContainerStyle={styles.inner}>
       <TouchableOpacity onPress={() => {
         if (router.canGoBack()) router.back()
@@ -159,6 +161,7 @@ export default function DevScreen() {
       {loading && <ActivityIndicator color={colors.subtle} style={{ marginTop: 16 }} />}
       {status ? <Text style={styles.status}>{status}</Text> : null}
     </ScrollView>
+    </GradientBackground>
   )
 }
 
@@ -191,12 +194,12 @@ function Action({ label, desc, onPress, disabled, danger }: {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
   inner: { paddingHorizontal: 28, paddingTop: 64, paddingBottom: 48, gap: 20 },
   back: { fontSize: 15, color: colors.subtle, marginBottom: 4 },
   badge: {
     backgroundColor: colors.accent,
-    borderRadius: 6,
+    borderRadius: radius.sm,
     paddingHorizontal: 10,
     paddingVertical: 6,
     alignSelf: 'flex-start',
@@ -204,10 +207,10 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 11, fontWeight: '600', color: colors.onAccent, letterSpacing: 0.3 },
   heading: { fontSize: 22, fontWeight: '700', color: colors.text, letterSpacing: -0.3 },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.15)',
+    backgroundColor: colors.glassWhite,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: colors.borderGlass,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
@@ -218,17 +221,17 @@ const styles = StyleSheet.create({
 })
 
 const rowStyles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.15)' },
+  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth * 2, borderBottomColor: colors.borderHair },
   label: { fontSize: 14, color: colors.subtle },
   value: { fontSize: 14, color: colors.text, fontWeight: '500', maxWidth: '60%', textAlign: 'right' },
 })
 
 const actionStyles = StyleSheet.create({
   item: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.15)',
+    backgroundColor: colors.glassWhite,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: colors.borderGlass,
     padding: 16,
     gap: 4,
   },

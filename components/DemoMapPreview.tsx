@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { colors } from '../lib/theme'
 import { fonts } from '../lib/typography'
+import { GlassCard, Badge } from './ui'
 
 // Pure React-Native stand-in for a live map, used only in the demo meetup
 // screen. No map SDK, no Mapbox, no native deps — a stylized "you → spot" route
@@ -22,80 +23,58 @@ export function DemoMapPreview({
   style?: StyleProp<ViewStyle>
 }) {
   return (
-    <View style={[styles.card, style]}>
-      {/* Top chrome: preview tag + terminal context */}
-      <View style={styles.header}>
-        <View style={styles.previewTag}>
-          <Text style={styles.previewTagText}>MAP PREVIEW</Text>
+    <GlassCard rounded="lg" padding={16} style={style}>
+      <View style={styles.card}>
+        {/* Top chrome: preview tag + terminal context */}
+        <View style={styles.header}>
+          <Badge label="MAP PREVIEW" tone="neutral" />
+          <Text style={styles.terminal}>{terminal}</Text>
         </View>
-        <Text style={styles.terminal}>{terminal}</Text>
+
+        {/* Stylized route: YOU dot → dashed line → destination dot */}
+        <View style={styles.route}>
+          <View style={styles.node}>
+            <View style={[styles.dot, styles.youDot]} />
+            <Text style={styles.nodeLabel}>YOU</Text>
+          </View>
+
+          <View style={styles.line}>
+            {Array.from({ length: 7 }).map((_, i) => (
+              <View key={i} style={styles.dash} />
+            ))}
+          </View>
+
+          <View style={styles.node}>
+            <View style={[styles.dot, styles.destDot]} />
+            <Text style={styles.nodeLabel} numberOfLines={1}>
+              {spotName}
+            </Text>
+          </View>
+        </View>
+
+        {/* Walking-time badge */}
+        <View style={styles.footer}>
+          <View style={styles.walkBadge}>
+            <Feather name="navigation" size={13} color={colors.onAccent} />
+            <Text style={styles.walkBadgeText}>{walkingMinutes} MIN WALK</Text>
+          </View>
+          <Text style={styles.nearGate}>near Gate {nearGate}</Text>
+        </View>
       </View>
-
-      {/* Stylized route: YOU dot → dashed line → destination dot */}
-      <View style={styles.route}>
-        <View style={styles.node}>
-          <View style={[styles.dot, styles.youDot]} />
-          <Text style={styles.nodeLabel}>YOU</Text>
-        </View>
-
-        <View style={styles.line}>
-          {Array.from({ length: 7 }).map((_, i) => (
-            <View key={i} style={styles.dash} />
-          ))}
-        </View>
-
-        <View style={styles.node}>
-          <View style={[styles.dot, styles.destDot]} />
-          <Text style={styles.nodeLabel} numberOfLines={1}>
-            {spotName}
-          </Text>
-        </View>
-      </View>
-
-      {/* Walking-time badge */}
-      <View style={styles.footer}>
-        <View style={styles.walkBadge}>
-          <Feather name="navigation" size={13} color={colors.onAccent} />
-          <Text style={styles.walkBadgeText}>{walkingMinutes} MIN WALK</Text>
-        </View>
-        <Text style={styles.nearGate}>near Gate {nearGate}</Text>
-      </View>
-    </View>
+    </GlassCard>
   )
 }
 
 const styles = StyleSheet.create({
   card: {
-    height: 190,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    height: 158,
     justifyContent: 'space-between',
-    overflow: 'hidden',
   },
 
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  previewTag: {
-    paddingVertical: 3,
-    paddingHorizontal: 7,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  previewTagText: {
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    fontSize: 9,
-    letterSpacing: 1.4,
-    color: colors.subtle,
   },
   terminal: {
     fontFamily: fonts.body,

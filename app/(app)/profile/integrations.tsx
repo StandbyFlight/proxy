@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { View, Text, StyleSheet } from 'react-native'
 import { colors } from '../../../lib/theme'
 import { type } from '../../../lib/typography'
 import { EnrichmentRow, type EnrichmentState } from '../../../components/EnrichmentRow'
 import { BackButton } from '../../../components/BackButton'
+import { Screen } from '../../../components/ui'
 
 // Per group_plan §"profile/integrations". Mirrors the duty-free enrichment list
 // shape from onboarding — same EnrichmentRow primitive, same "coming soon"
@@ -26,7 +26,6 @@ const PROVIDERS: Provider[] = [
 ]
 
 export default function Integrations() {
-  const insets = useSafeAreaInsets()
   const [states, setStates] = useState<Record<string, EnrichmentState>>({})
 
   function tap(key: string) {
@@ -34,41 +33,32 @@ export default function Integrations() {
   }
 
   return (
-    <View style={styles.root}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.inner,
-          { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 24 },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.topRow}>
-          <BackButton fallback="/(app)/settings" />
-          <View style={styles.spacer} />
-        </View>
+    <Screen scroll contentContainerStyle={styles.inner}>
+      <View style={styles.topRow}>
+        <BackButton fallback="/(app)/settings" />
+        <View style={styles.spacer} />
+      </View>
 
-        <Text style={[type.headline, styles.headline]}>Connect what's yours.</Text>
+      <Text style={[type.headline, styles.headline]}>Connect what's yours.</Text>
 
-        <View style={styles.list}>
-          {PROVIDERS.map(p => (
-            <EnrichmentRow
-              key={p.key}
-              provider={p.label}
-              tagline={p.tagline}
-              state={states[p.key] ?? 'idle'}
-              onPress={() => tap(p.key)}
-              note={states[p.key] === 'coming_soon' ? 'Wiring this up. Not live yet.' : undefined}
-            />
-          ))}
-        </View>
-      </ScrollView>
-    </View>
+      <View style={styles.list}>
+        {PROVIDERS.map(p => (
+          <EnrichmentRow
+            key={p.key}
+            provider={p.label}
+            tagline={p.tagline}
+            state={states[p.key] ?? 'idle'}
+            onPress={() => tap(p.key)}
+            note={states[p.key] === 'coming_soon' ? 'Wiring this up. Not live yet.' : undefined}
+          />
+        ))}
+      </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  inner: { paddingHorizontal: 24, gap: 14 },
+  inner: { gap: 14 },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',

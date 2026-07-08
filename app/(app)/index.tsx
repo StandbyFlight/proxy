@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { colors } from '../../lib/theme'
-import { fonts, type } from '../../lib/typography'
+import { type } from '../../lib/typography'
 import { supabase } from '../../lib/supabase'
 import { haptics } from '../../lib/haptics'
 import { getActiveSession, getActiveMatch, type Session, type MatchSummary } from '../../lib/session'
@@ -11,6 +11,7 @@ import { ManifestBoard } from '../../components/ManifestBoard'
 import { primaryIataForCity } from '../../lib/cities'
 import { isDemoMode, trackDemo } from '../../lib/demo'
 import { BetaDemoBanner } from '../../components/BetaDemoBanner'
+import { GradientBackground, GlassButton } from '../../components/ui'
 
 // Home has one job: the current live travel session and its status.
 //   no session   → "Start a session" CTA → /(app)/flight
@@ -90,10 +91,15 @@ export default function HomeScreen() {
   // data, buttons) is ready, so it all paints in one shot rather than the board
   // appearing first and the text/buttons popping in after.
   if (!loaded) {
-    return <View style={[styles.container, { paddingTop: insets.top + 14 }]} />
+    return (
+      <GradientBackground>
+        <View style={[styles.container, { paddingTop: insets.top + 14 }]} />
+      </GradientBackground>
+    )
   }
 
   return (
+    <GradientBackground>
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
       <BetaDemoBanner />
       <View style={styles.body}>
@@ -126,47 +132,44 @@ export default function HomeScreen() {
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         {showCTA ? (
-          <Pressable
+          <GlassButton
+            label="START A SESSION"
             onPress={startSession}
-            style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={styles.primaryBtnText}>START A SESSION</Text>
-          </Pressable>
+            variant="primary"
+            haptic={false}
+          />
         ) : showMatch && activeMatch ? (
-          <Pressable
+          <GlassButton
+            label={activeMatch.status === 'mutual' ? 'OPEN MEETUP' : 'OPEN MATCH'}
             onPress={openMatch}
-            style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={styles.primaryBtnText}>
-              {activeMatch.status === 'mutual' ? 'OPEN MEETUP' : 'OPEN MATCH'}
-            </Text>
-          </Pressable>
+            variant="primary"
+            haptic={false}
+          />
         ) : showSession ? (
           <View style={styles.pillStack}>
-            <Pressable
+            <GlassButton
+              label="OPEN SEARCHING"
               onPress={openSearching}
-              style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
-            >
-              <Text style={styles.primaryBtnText}>OPEN SEARCHING</Text>
-            </Pressable>
-            <Pressable
+              variant="primary"
+              haptic={false}
+            />
+            <GlassButton
+              label="CHANGE FLIGHT"
               onPress={startSession}
-              hitSlop={14}
-              style={({ pressed }) => [styles.ghostBtn, pressed && { opacity: 0.5 }]}
-            >
-              <Text style={styles.ghostText}>CHANGE FLIGHT</Text>
-            </Pressable>
+              variant="ghost"
+              haptic={false}
+            />
           </View>
         ) : null}
       </View>
     </View>
+    </GradientBackground>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
     paddingHorizontal: 24,
   },
   body: {
@@ -182,30 +185,4 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   pillStack: { gap: 10 },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: colors.accent,
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-  },
-  primaryBtnText: {
-    fontFamily: fonts.body,
-    color: colors.onAccent,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-  },
-  ghostBtn: {
-    alignSelf: 'center',
-    paddingVertical: 8,
-  },
-  ghostText: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    color: colors.subtle,
-  },
 })

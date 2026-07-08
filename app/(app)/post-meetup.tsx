@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView, Alert } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../lib/theme'
-import { fonts, type } from '../../lib/typography'
+import { type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
 import { completeMatchAndSession } from '../../lib/session'
 import { BackButton } from '../../components/BackButton'
+import { GradientBackground, GlassButton } from '../../components/ui'
 
 export default function PostMeetupScreen() {
   const { match_id } = useLocalSearchParams<{ match_id: string }>()
@@ -56,7 +57,7 @@ export default function PostMeetupScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <GradientBackground>
       <ScrollView
         contentContainerStyle={[styles.inner, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
@@ -66,62 +67,30 @@ export default function PostMeetupScreen() {
         <Text style={styles.headline}>Did you{'\n'}meet up?</Text>
 
         <View style={styles.actions}>
-          <Pressable
-            style={({ pressed }) => [styles.primaryBtn, saving && styles.disabled, pressed && { opacity: 0.85 }]}
+          <GlassButton
+            label="Yes, we met"
             onPress={() => respond(true)}
+            variant="primary"
+            loading={saving}
             disabled={saving}
-          >
-            {saving
-              ? <ActivityIndicator color={colors.onAccent} />
-              : <Text style={styles.primaryBtnText}>Yes, we met</Text>
-            }
-          </Pressable>
+            haptic={false}
+          />
 
-          <Pressable
-            style={({ pressed }) => [styles.secondaryBtn, saving && styles.disabled, pressed && { opacity: 0.7 }]}
+          <GlassButton
+            label="No, it didn't work out"
             onPress={() => respond(false)}
+            variant="secondary"
             disabled={saving}
-          >
-            <Text style={styles.secondaryBtnText}>No, it didn't work out</Text>
-          </Pressable>
+            haptic={false}
+          />
         </View>
       </ScrollView>
-    </View>
+    </GradientBackground>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
   inner: { paddingHorizontal: 24, gap: 16 },
-  eyebrow: { ...type.eyebrow, color: colors.subtle },
   headline: { ...type.headline, color: colors.text, marginTop: 4 },
   actions: { gap: 12, marginTop: 16 },
-  primaryBtn: {
-    backgroundColor: colors.accent,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  primaryBtnText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: colors.onAccent,
-  },
-  secondaryBtn: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  secondaryBtnText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.text,
-  },
-  disabled: { opacity: 0.5 },
 })

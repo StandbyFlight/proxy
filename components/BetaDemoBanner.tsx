@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native'
-import { colors } from '../lib/theme'
-import { fonts } from '../lib/typography'
+import { colors, radius, spacing } from '../lib/theme'
+import { type } from '../lib/typography'
+import { Badge } from './ui'
 import { isDemoMode, DEMO_BANNER_COPY } from '../lib/demo'
 
 // Slim, self-gating banner shown on demo screens. Renders nothing outside demo
@@ -12,9 +13,7 @@ export function BetaDemoBanner({ style }: { style?: StyleProp<ViewStyle> } = {})
 
   return (
     <View style={[styles.bar, style]}>
-      <View style={styles.chip}>
-        <Text style={styles.chipText}>DEMO</Text>
-      </View>
+      <Badge tone="sky" label="DEMO" />
       <Text style={styles.copy} numberOfLines={3}>
         {DEMO_BANNER_COPY}
       </Text>
@@ -26,33 +25,17 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(122,165,200,0.45)',
-    backgroundColor: 'rgba(122,165,200,0.14)',
-  },
-  chip: {
-    paddingVertical: 3,
-    paddingHorizontal: 7,
-    borderRadius: 4,
-    backgroundColor: colors.accent,
-  },
-  chipText: {
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    fontSize: 10,
-    letterSpacing: 1.4,
-    color: colors.onAccent,
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: 'rgba(151,208,227,0.5)',
+    backgroundColor: colors.glassSky,
   },
   copy: {
+    ...type.caption,
     flex: 1,
-    fontFamily: fonts.body,
-    fontSize: 11.5,
-    lineHeight: 15,
-    letterSpacing: 0.2,
-    color: colors.subtle,
+    color: colors.textSecondary,
   },
 })

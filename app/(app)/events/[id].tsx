@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, ScrollView } from 'react-native'
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../../lib/theme'
@@ -8,6 +8,7 @@ import { haptics } from '../../../lib/haptics'
 import { getActiveSession, attachEventToActiveSession } from '../../../lib/session'
 import { getEvent, type Event } from '../../../lib/events'
 import { BackButton } from '../../../components/BackButton'
+import { Screen, GlassCard, GlassButton, LoadingState } from '../../../components/ui'
 
 // Event detail — loaded from the events table. Attaching adds the event to
 // the current session as matching context; with no session, the event is
@@ -35,17 +36,19 @@ export default function EventDetail() {
 
   if (event === undefined) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
-        <ActivityIndicator color={colors.subtle} />
-      </View>
+      <Screen>
+        <LoadingState />
+      </Screen>
     )
   }
 
   if (event === null) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
-        <Text style={[type.subhead, { color: colors.text }]}>Event not found.</Text>
-      </View>
+      <Screen>
+        <View style={styles.center}>
+          <Text style={[type.subhead, { color: colors.text }]}>Event not found.</Text>
+        </View>
+      </Screen>
     )
   }
 
@@ -77,19 +80,20 @@ export default function EventDetail() {
   }
 
   return (
-    <View style={styles.root}>
+    <Screen padded={false} edges={[]}>
       <ScrollView
         contentContainerStyle={[
           styles.inner,
           { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 100 },
         ]}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <BackButton label="EVENTS" fallback="/(app)/events" />
 
         <Text style={[type.headline, styles.headline]}>{event.name}</Text>
 
-        <View style={styles.metaRow}>
+        <GlassCard rounded="lg" padding={16} style={styles.metaRow}>
           <View style={styles.metaCell}>
             <Text style={styles.metaLabel}>WHEN</Text>
             <Text style={styles.metaValue}>{event.dates_label}</Text>
@@ -98,7 +102,7 @@ export default function EventDetail() {
             <Text style={styles.metaLabel}>WHERE</Text>
             <Text style={styles.metaValue}>{event.city.toUpperCase()}</Text>
           </View>
-        </View>
+        </GlassCard>
 
         {event.blurb ? (
           <Text style={[type.subhead, styles.blurb]}>{event.blurb}</Text>
@@ -108,38 +112,28 @@ export default function EventDetail() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 18) }]}>
-        <Pressable
+        <GlassButton
+          label={hasActiveSession ? 'ATTACH TO YOUR SESSION' : 'START A SESSION'}
           onPress={hasActiveSession ? attach : startSession}
           disabled={attaching || hasActiveSession === null}
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            (attaching || hasActiveSession === null) && { opacity: 0.5 },
-            pressed && { opacity: 0.85 },
-          ]}
-        >
-          <Text style={styles.primaryBtnText}>
-            {hasActiveSession ? 'ATTACH TO YOUR SESSION' : 'START A SESSION'}
-          </Text>
-        </Pressable>
+          loading={attaching}
+          haptic={false}
+          variant="primary"
+          size="lg"
+        />
       </View>
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   inner: { paddingHorizontal: 24, gap: 16 },
 
   headline: { color: colors.text, marginTop: 4 },
 
   metaRow: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 4,
-    padding: 14,
     marginTop: 8,
   },
   metaCell: { flex: 1, gap: 6 },
@@ -169,21 +163,5 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 24,
     paddingTop: 12,
-    backgroundColor: colors.bg,
-  },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: colors.accent,
-    paddingVertical: 14,
-  },
-  primaryBtnText: {
-    fontFamily: fonts.bodyBold,
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 1.4,
-    color: colors.onAccent,
   },
 })

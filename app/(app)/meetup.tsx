@@ -6,7 +6,7 @@ import {
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { colors } from '../../lib/theme'
+import { colors, radius, shadow } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { passDate, passTime } from '../../lib/format'
@@ -24,6 +24,7 @@ import { Feather } from '@expo/vector-icons'
 import { BackButton } from '../../components/BackButton'
 import { BoardingPass } from '../../components/BoardingPass'
 import { MeetupMap } from '../../components/MeetupMap'
+import { GradientBackground, GlassButton, GlassCard } from '../../components/ui'
 
 // The confirmed-match screen. Both users land here at the same time once both
 // accept. Shows: the app-assigned meeting location, each side's identifying
@@ -331,9 +332,11 @@ export default function MeetupScreen() {
 
   if (loading || !their || iAmA === null) {
     return (
-      <View style={[styles.root, styles.center]}>
-        <ActivityIndicator color={colors.subtle} />
-      </View>
+      <GradientBackground>
+        <View style={[styles.root, styles.center]}>
+          <ActivityIndicator color={colors.subtle} />
+        </View>
+      </GradientBackground>
     )
   }
 
@@ -367,6 +370,7 @@ export default function MeetupScreen() {
   const theirPassTime = their.departureTime ? passTime(their.departureTime) : null
 
   return (
+    <GradientBackground>
     <View style={styles.root}>
       <ScrollView
         contentContainerStyle={[styles.inner, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 120 }]}
@@ -395,17 +399,17 @@ export default function MeetupScreen() {
         />
 
         {/* ── Suggested meet spot ── */}
-        <View style={styles.infoBox}>
+        <GlassCard rounded="lg" tint="sky">
           <Text style={styles.infoValue}>{spotName}</Text>
           {spotGuidance ? (
-            <Text style={styles.infoBody}>
+            <Text style={[styles.infoBody, styles.infoBodyGap]}>
               Meet near {spotGuidance} — a central place for both of you.
             </Text>
           ) : null}
           {arrivalText ? (
-            <Text style={styles.arrivalText}>{arrivalText}</Text>
+            <Text style={[styles.arrivalText, styles.infoBodyGap]}>{arrivalText}</Text>
           ) : null}
-        </View>
+        </GlassCard>
 
         {/* ── Embedded meetup map ── */}
         {mapDestination ? (
@@ -427,18 +431,12 @@ export default function MeetupScreen() {
         )}
 
         {/* ── Live-location sharing: primary-style button below the map ── */}
-        <Pressable
+        <GlassButton
+          label={isSharing ? 'STOP SHARING LOCATION' : 'SHARE LIVE LOCATION'}
+          variant={isSharing ? 'secondary' : 'primary'}
           onPress={toggleSharing}
-          style={({ pressed }) => [
-            styles.shareBtn,
-            isSharing && styles.shareBtnActive,
-            pressed && { opacity: 0.85 },
-          ]}
-        >
-          <Text style={[styles.shareBtnText, isSharing && styles.shareBtnTextActive]}>
-            {isSharing ? 'STOP SHARING LOCATION' : 'SHARE LIVE LOCATION'}
-          </Text>
-        </Pressable>
+          style={styles.shareBtn}
+        />
 
         {/* ── Actions: open in maps + open the logistics thread ── */}
         <View style={styles.actionRow}>
@@ -490,30 +488,30 @@ export default function MeetupScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-        <Pressable
-          style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
-          onPress={() => { haptics.buttonTap(); router.push({ pathname: '/(app)/post-meetup', params: { match_id } }) }}
-        >
-          <Text style={styles.primaryBtnText}>LOG HOW IT WENT</Text>
-        </Pressable>
+        <GlassButton
+          label="LOG HOW IT WENT"
+          variant="primary"
+          onPress={() => router.push({ pathname: '/(app)/post-meetup', params: { match_id } })}
+        />
 
-        <Pressable
+        <GlassButton
+          label="CANCEL"
+          variant="ghost"
           onPress={cancelMatch}
-          style={({ pressed }) => [styles.cancelBtn, pressed && { opacity: 0.5 }]}
-        >
-          <Text style={styles.cancelBtnText}>CANCEL</Text>
-        </Pressable>
+        />
       </View>
     </View>
+    </GradientBackground>
   )
 }
 
 
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  center: { alignItems: 'center', justifyContent: 'center' },
+  root: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   inner: { paddingHorizontal: 20, gap: 16 },
+  infoBodyGap: { marginTop: 6 },
 
   poc: {
     color: colors.text,
@@ -533,11 +531,12 @@ const styles = StyleSheet.create({
   // ── Embedded meetup map ──
   mapCard: {
     height: 220,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: colors.borderGlass,
     backgroundColor: colors.surface,
+    ...shadow.card,
   },
   mapFallback: {
     height: 120,
@@ -545,43 +544,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // ── Share live location — primary (OPEN MEETUP) button style, compact ──
-  shareBtn: {
-    backgroundColor: colors.accent,
-    paddingVertical: 11,
-    alignItems: 'center',
-    borderRadius: 0,
-    alignSelf: 'center',
-    paddingHorizontal: 28,
-  },
-  shareBtnActive: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.accent,
-  },
-  shareBtnText: {
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: colors.white,
-  },
-  shareBtnTextActive: {
-    color: colors.accent,
-  },
+  // ── Share live location — full-width glass button (style override) ──
+  shareBtn: {},
 
-  // ── Outlined info boxes (meet spot + identification) ──
+  // ── Info box (map fallback) ──
   infoBox: {
-    borderWidth: 1,
-    borderColor: colors.black,
-    borderRadius: 8,
-    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: colors.borderGlass,
+    borderRadius: radius.lg,
+    padding: 16,
     gap: 6,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.glassWhite,
   },
 
-  // ── Action row: two equal black-outlined buttons with hand-built glyphs ──
+  // ── Action row: two equal glass pill buttons with glyphs ──
   actionRow: {
     flexDirection: 'row',
     gap: 12,
@@ -592,19 +568,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderWidth: 1,
-    borderColor: colors.black,
-    borderRadius: 0,
-    paddingVertical: 13,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: colors.borderGlass,
+    borderRadius: radius.pill,
+    paddingVertical: 14,
     paddingHorizontal: 10,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.glassWhiteStrong,
+    ...shadow.sm,
   },
   actionBtnText: {
-    fontFamily: fonts.body,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     fontSize: 12,
     letterSpacing: 1.2,
-    color: colors.black,
+    color: colors.textPrimary,
   },
   actionGlyphWrap: {
     position: 'relative',
@@ -673,9 +649,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     gap: 12,
-    backgroundColor: colors.bg,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: 'transparent',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderHair,
   },
   footerLinks: {
     flexDirection: 'row',

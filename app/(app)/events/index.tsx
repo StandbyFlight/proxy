@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  View, Text, Pressable, TextInput,
-  StyleSheet, ScrollView, ActivityIndicator,
+  View, Text, Pressable,
+  StyleSheet,
 } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../../lib/theme'
 import { fonts, type } from '../../../lib/typography'
 import { haptics } from '../../../lib/haptics'
 import { listEvents, type Event } from '../../../lib/events'
+import { Screen, GlassCard, GlassInput, LoadingState } from '../../../components/ui'
 
 // Events browser — data-driven from the events table (lib/events.ts).
 // Attaching an event narrows who you match with; it is context on the normal
@@ -16,7 +16,6 @@ import { listEvents, type Event } from '../../../lib/events'
 
 export default function EventsIndex() {
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const [query, setQuery] = useState('')
   const [events, setEvents] = useState<Event[] | null>(null)
   const [error, setError] = useState('')
@@ -36,74 +35,55 @@ export default function EventsIndex() {
   }, [query, load])
 
   return (
-    <View style={styles.root}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.inner,
-          { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 24 },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={[type.headline, styles.headline]}>Worth flying for.</Text>
+    <Screen scroll contentContainerStyle={styles.inner}>
+      <Text style={[type.headline, styles.headline]}>Worth flying for.</Text>
 
-        <View style={styles.searchBlock}>
-          <TextInput
-            style={styles.fieldInput}
-            value={query}
-            onChangeText={setQuery}
-            placeholder="SXSW, Berkeley, AI…"
-            placeholderTextColor={colors.subtle}
-            autoCorrect={false}
-            selectionColor={colors.accent}
-          />
-        </View>
+      <GlassInput
+        containerStyle={styles.searchBlock}
+        value={query}
+        onChangeText={setQuery}
+        placeholder="SXSW, Berkeley, AI…"
+        autoCorrect={false}
+      />
 
-        {events === null ? (
-          <View style={styles.loader}><ActivityIndicator color={colors.subtle} /></View>
-        ) : error ? (
-          <Text style={styles.error}>{error}</Text>
-        ) : events.length === 0 ? (
-          <Text style={styles.empty}>No events match that search.</Text>
-        ) : (
-          <View style={styles.list}>
-            {events.map(ev => (
-              <Pressable
-                key={ev.id}
-                onPress={() => { haptics.selection(); router.push(`/(app)/events/${ev.id}`) }}
-                style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
-              >
+      {events === null ? (
+        <LoadingState style={styles.loader} />
+      ) : error ? (
+        <Text style={styles.error}>{error}</Text>
+      ) : events.length === 0 ? (
+        <Text style={styles.empty}>No events match that search.</Text>
+      ) : (
+        <View style={styles.list}>
+          {events.map(ev => (
+            <Pressable
+              key={ev.id}
+              onPress={() => { haptics.selection(); router.push(`/(app)/events/${ev.id}`) }}
+              style={({ pressed }) => pressed && { opacity: 0.85 }}
+            >
+              <GlassCard rounded="lg" padding={16} style={styles.row}>
                 <View style={styles.rowMain}>
                   <Text style={styles.rowName}>{ev.name}</Text>
                   <Text style={styles.rowMeta}>
                     {ev.dates_label}  ·  {ev.city.toUpperCase()}
                   </Text>
                 </View>
-              </Pressable>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-    </View>
+              </GlassCard>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  inner: { paddingHorizontal: 24, gap: 16 },
+  inner: { gap: 16 },
   headline: { color: colors.text, marginTop: 4 },
   subhead: { color: colors.subtle, marginTop: -4 },
 
   searchBlock: { marginTop: 8 },
-  fieldInput: {
-    fontFamily: fonts.body,
-    fontSize: 16,
-    color: colors.text,
-    paddingVertical: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.25)',
-  },
 
-  loader: { alignItems: 'center', paddingVertical: 32 },
+  loader: { minHeight: 120, flex: 0, paddingVertical: 32 },
   empty: {
     fontFamily: fonts.body,
     fontSize: 15,
@@ -117,17 +97,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 
-  list: { gap: 8, marginTop: 8 },
+  list: { gap: 10, marginTop: 8 },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
   },
   rowMain: { flex: 1, gap: 4 },
   rowName: {

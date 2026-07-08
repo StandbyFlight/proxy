@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { colors } from '../../lib/theme'
-import { fonts, type } from '../../lib/typography'
+import { colors, spacing } from '../../lib/theme'
+import { type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 import { supabase } from '../../lib/supabase'
 import { ProgressDashes } from '../../components/ProgressDashes'
+import { GlassCard, GlassButton } from '../../components/ui'
 
 // 5-question branching quiz writing to users.quiz_answers (JSONB) per
 // group_plan §"quiz". Tone is loose — meant to feel like a magazine quiz, not
@@ -137,15 +138,18 @@ export default function QuizScreen() {
               <Pressable
                 key={opt.value}
                 onPress={() => pick(opt.value)}
-                style={({ pressed }) => [
-                  styles.option,
-                  selected && styles.optionSelected,
-                  pressed && !selected && { opacity: 0.7 },
-                ]}
+                style={({ pressed }) => [pressed && !selected && { opacity: 0.7 }]}
               >
-                <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
-                  {opt.label}
-                </Text>
+                <GlassCard
+                  rounded="lg"
+                  padding={16}
+                  tint={selected ? 'scarlet' : 'none'}
+                  strong={selected}
+                >
+                  <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                    {opt.label}
+                  </Text>
+                </GlassCard>
               </Pressable>
             )
           })}
@@ -167,47 +171,39 @@ export default function QuizScreen() {
           <View style={styles.footerSpacer} />
         )}
 
-        <Pressable
+        <GlassButton
+          label={step < total - 1 ? 'NEXT' : 'FINISH'}
           onPress={next}
+          variant="primary"
+          size="lg"
           disabled={!picked || saving}
-          style={({ pressed }) => [
-            styles.continueBtn,
-            (!picked || saving) && styles.continueBtnDisabled,
-            pressed && picked && { opacity: 0.85 },
-          ]}
-        >
-          <Text style={styles.continueText}>{step < total - 1 ? 'NEXT' : 'FINISH'}</Text>
-        </Pressable>
+          haptic={false}
+          fullWidth={false}
+          style={styles.continueBtn}
+        />
       </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
+  root: { flex: 1, backgroundColor: 'transparent', paddingHorizontal: spacing.screenX },
   topChrome: { gap: 12, marginBottom: 24 },
   eyebrow: { color: colors.subtle },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 24, gap: 24 },
   headline: { color: colors.text },
   options: { gap: 12 },
-  option: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 3,
-    padding: 16,
-  },
-  optionSelected: { backgroundColor: colors.periwinkle },
   optionLabel: {
-    fontFamily: fonts.body,
-    fontSize: 16,
-    lineHeight: 23,
-    color: colors.text,
+    ...type.body,
+    color: colors.textPrimary,
   },
-  optionLabelSelected: { color: colors.text },
+  optionLabelSelected: {
+    ...type.bodyBold,
+    color: colors.scarletDeep,
+  },
   error: {
-    fontFamily: fonts.body,
+    ...type.body,
     fontSize: 14,
     color: colors.error,
   },
@@ -219,23 +215,8 @@ const styles = StyleSheet.create({
   },
   footerSpacer: { width: 64 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
-  backText: { fontFamily: fonts.body, fontSize: 12, color: colors.subtle, letterSpacing: 1.4 },
+  backText: { ...type.hint, color: colors.subtle },
   continueBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: colors.accent,
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    minWidth: 140,
-  },
-  continueBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
-  continueText: {
-    fontFamily: fonts.body,
-    color: colors.onAccent,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
+    minWidth: 150,
   },
 })

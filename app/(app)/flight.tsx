@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  View, Text, TextInput, Pressable,
+  View, Text, TextInput,
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -16,6 +16,7 @@ import { BackButton } from '../../components/BackButton'
 import { isDemoMode, trackDemo } from '../../lib/demo'
 import { DEMO_ROUTES } from '../../lib/demoData'
 import { BetaDemoBanner } from '../../components/BetaDemoBanner'
+import { GradientBackground, GlassButton } from '../../components/ui'
 
 function buildDepartureISO(date: string, time: string): string | null {
   if (!date || !time) return null
@@ -276,6 +277,7 @@ export default function FlightScreen() {
   }
 
   return (
+    <GradientBackground>
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -304,14 +306,16 @@ export default function FlightScreen() {
             </View>
 
             <View style={styles.landingActions}>
-              <Pressable
-                style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
-                onPress={() => { haptics.buttonTap(); setPhase('capturing') }}
-              >
-                <Text style={styles.primaryBtnText}>SCAN BOARDING PASS</Text>
-              </Pressable>
+              <GlassButton
+                label="SCAN BOARDING PASS"
+                variant="primary"
+                onPress={() => setPhase('capturing')}
+              />
 
-              <Pressable
+              <GlassButton
+                label="FILL IN BY HAND"
+                variant="ghost"
+                haptic={false}
                 onPress={() => {
                   haptics.selection()
                   setFields(makeEmptyFields())
@@ -320,25 +324,21 @@ export default function FlightScreen() {
                   setArrivalDate(null)
                   setPhase('edit')
                 }}
-                hitSlop={12}
-                style={({ pressed }) => [styles.ghostLink, pressed && { opacity: 0.5 }]}
-              >
-                <Text style={styles.ghostLinkText}>FILL IN BY HAND</Text>
-              </Pressable>
+              />
 
               {/* Demo-only: skip the boarding pass entirely and jump into the
                   simulated flow. Additive, gated, never touches real data. */}
               {isDemoMode() ? (
-                <Pressable
+                <GlassButton
+                  label="USE DEMO FLIGHT"
+                  variant="secondary"
+                  haptic={false}
                   onPress={() => {
                     haptics.selection()
                     trackDemo('demo_flight_selected')
                     router.push(DEMO_ROUTES.searching)
                   }}
-                  style={({ pressed }) => [styles.demoBtn, pressed && { opacity: 0.6 }]}
-                >
-                  <Text style={styles.demoBtnText}>USE DEMO FLIGHT</Text>
-                </Pressable>
+                />
               ) : null}
             </View>
           </View>
@@ -399,28 +399,18 @@ export default function FlightScreen() {
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <Pressable
-              onPress={() => { if (canConfirm && !loading) { haptics.buttonTap(); confirm() } }}
+            <GlassButton
+              label="ISSUE PASS"
+              onPress={() => { if (canConfirm && !loading) confirm() }}
+              variant="primary"
+              loading={loading}
               disabled={!canConfirm || loading}
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                (!canConfirm || loading) && styles.primaryBtnDisabled,
-                pressed && canConfirm && { opacity: 0.85 },
-              ]}
-            >
-              {loading
-                ? <ActivityIndicator color={colors.onAccent} />
-                : (
-                  <>
-                    <Text style={styles.primaryBtnText}>ISSUE PASS</Text>
-                  </>
-                )
-              }
-            </Pressable>
+            />
           </View>
         )}
       </ScrollView>
     </KeyboardAvoidingView>
+    </GradientBackground>
   )
 }
 
@@ -467,18 +457,16 @@ function FieldLine({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   inner: { paddingHorizontal: 24, gap: 18 },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  eyebrow: { color: colors.subtle },
   spacer: { width: 64 },
 
   headline: { color: colors.text, marginTop: 4 },
-  subhead: { color: colors.subtle, marginTop: -2 },
 
   landingBody: { gap: 16 },
   editBody: { gap: 16 },
@@ -486,51 +474,6 @@ const styles = StyleSheet.create({
   boardingPassWrap: { marginTop: 8 },
 
   landingActions: { gap: 12, marginTop: 12 },
-
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: colors.accent,
-    paddingVertical: 14,
-    paddingHorizontal: 22,
-  },
-  primaryBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
-  primaryBtnText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    color: colors.onAccent,
-  },
-
-  ghostLink: { alignItems: 'center', paddingVertical: 10 },
-  ghostLinkText: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    color: colors.subtle,
-  },
-
-  // Demo CTA — outlined secondary so it reads as an alternate path, not a
-  // competing primary against the red SCAN button.
-  demoBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 13,
-    paddingHorizontal: 22,
-    borderWidth: 1,
-    borderColor: colors.black,
-    backgroundColor: colors.surface,
-  },
-  demoBtnText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    color: colors.black,
-  },
 
   fieldList: { gap: 16 },
   fieldRow: { flexDirection: 'row', gap: 14 },
@@ -553,7 +496,7 @@ const styles = StyleSheet.create({
   },
   fieldLineRule: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: colors.borderHair,
   },
 
   error: {

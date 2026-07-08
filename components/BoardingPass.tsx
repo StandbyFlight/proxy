@@ -1,133 +1,171 @@
 import { ReactNode } from 'react'
-import { View, Text, StyleSheet, ViewStyle } from 'react-native'
-import { colors } from '../lib/theme'
+import { View, Text, StyleSheet, ViewStyle, Image } from 'react-native'
+import { colors, radius, shadow } from '../lib/theme'
 import { fonts } from '../lib/typography'
 
-// The boarding pass — a dark flip-board-style module. Monospace data on a
-// black surface, status readout in accent red, no decorative borders. All
-// fields optional; missing fields render as dim placeholders so an incomplete
-// pass still reads as a pass.
+// The boarding pass — a light "printed ticket" module. White card, charcoal
+// ink, the Standby logo + wordmark up top, a city→city route with big IATA
+// codes, printed field rows (FLIGHT / DATE / DOOR CLOSES, PASSENGER /
+// BOARDING / SERVICES), a large colored status word (blue when matched, red
+// when declined), and a full-height vertical barcode down the right edge.
+//
+// All data fields are optional; missing fields render as a dim placeholder so
+// an incomplete pass still reads as a pass.
 
 const DASH = '──'
 
+// The logo asset. Until the real origami-bird PNG exists, LOGO stays null and
+// the <StandbyMark> View fallback renders a brand-colored stand-in. Once you
+// drop the file in (e.g. assets/standby-logo.png), set:
+//   const LOGO = require('../assets/standby-logo.png')
+// and the header swaps to the real logo automatically.
+const LOGO: number | null = null
+
 export type BoardingPassProps = {
-  airline?: string            // header wordmark; defaults to 'STANDBY'
+  airline?: string            // header wordmark; defaults to 'Standby'
   classLabel?: string         // subheader — e.g. 'BOARDING PASS', 'MEETUP PASS'
   passenger?: string | null
-  origin?: string | null
-  destination?: string | null
+  origin?: string | null           // IATA, e.g. 'BOS'
+  destination?: string | null      // IATA, e.g. 'RDU'
+  originCity?: string | null       // small label above origin IATA, e.g. 'Boston'
+  destinationCity?: string | null  // small label above destination IATA
   flight?: string | null
   date?: string | null
-  time?: string | null
+  time?: string | null             // shown under DOOR CLOSES
+  boarding?: string | null         // shown under BOARDING (falls back to time)
   gate?: string | null
   terminal?: string | null
-  status?: string | null      // status readout in accent red, e.g. 'ON STANDBY'
-  stampSlot?: ReactNode
+  services?: string | null         // shown under SERVICES (falls back to gate/terminal)
+  status?: string | null           // big status word, colored by meaning
+  stampSlot?: ReactNode            // legacy; no longer rendered (status word replaces it)
   style?: ViewStyle
   compact?: boolean
 }
 
+// Map a status string to a printed tone: positive (matched → blue), negative
+// (declined/expired → red), or neutral (pending / standby → charcoal).
+function statusTone(status: string): string {
+  const s = status.toUpperCase()
+  const positive = ['MATCH', 'MEETUP', 'MET', 'COMPLETE', 'CONFIRM', 'ACCEPT']
+  const negative = ['DECLIN', 'PASS', 'EXPIR', 'CANCEL', 'NO MATCH', 'MISS']
+  if (negative.some(k => s.includes(k))) return colors.scarlet
+  if (positive.some(k => s.includes(k))) return colors.skyBlueDeep
+  return colors.textSecondary
+}
+
+// Turn an all-caps brand token like 'STANDBY' into the title-case wordmark.
+function wordmark(airline: string): string {
+  if (airline.toUpperCase() === 'STANDBY') return 'Standby'
+  return airline
+}
+
 export function BoardingPass({
-  airline = 'STANDBY',
-  classLabel = 'BOARDING PASS',
+  airline = 'Standby',
   passenger,
   origin,
   destination,
+  originCity,
+  destinationCity,
   flight,
   date,
   time,
+  boarding,
   gate,
   terminal,
+  services,
   status,
-  stampSlot,
   style,
   compact = false,
 }: BoardingPassProps) {
-  const iataSize = compact ? 30 : 40
+  const iataSize = compact ? 30 : 42
 
-  const fields: Array<{ label: string; value: string | null | undefined; flex?: number }> = [
-    { label: 'FLIGHT', value: flight, flex: 1.2 },
-    { label: 'DATE', value: date, flex: 1 },
-    { label: 'DEPART', value: time, flex: 1 },
-  ]
+  const servicesValue =
+    services ?? ([gate, terminal].filter(Boolean).join(', ') || null)
 
-  const stubFields: Array<{ label: string; value: string | null | undefined }> = [
-    { label: 'GATE', value: gate },
-    { label: 'TERM', value: terminal },
+  const topFields: Array<{ label: string; value: string | null | undefined; flex?: number }> = [
+    { label: 'FLIGHT', value: flight, flex: 1.1 },
+    { label: 'DATE', value: date, flex: 0.9 },
+    { label: 'DOOR CLOSES', value: time, flex: 1.2 },
   ]
 
   return (
     <View style={[styles.pass, style]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.airline}>{airline}</Text>
-        <Text style={styles.classLabel}>{classLabel}</Text>
-      </View>
-
-      <View style={[styles.body, compact && styles.bodyCompact]}>
-        <FieldLabel>PASSENGER</FieldLabel>
-        <Text style={styles.passengerName} numberOfLines={1}>
-          {(passenger && passenger.length > 0) ? passenger.toUpperCase() : DASH}
-        </Text>
-
-        {/* Route — big IATA codes */}
-        <View style={styles.routeRow}>
-          <View style={styles.routeCol}>
-            <FieldLabel>FROM</FieldLabel>
-            <Text style={[styles.iata, { fontSize: iataSize }]}>{origin || DASH}</Text>
+      <View style={styles.row}>
+        {/* ── Left: printed content ── */}
+        <View style={[styles.content, compact && styles.contentCompact]}>
+          {/* Header — logo + wordmark */}
+          <View style={styles.header}>
+            {LOGO ? (
+              <Image source={LOGO} style={styles.logoImg} resizeMode="contain" />
+            ) : (
+              <StandbyMark />
+            )}
+            <Text style={[styles.wordmark, compact && styles.wordmarkCompact]} numberOfLines={1}>
+              {wordmark(airline)}
+            </Text>
           </View>
-          <View style={[styles.routeCol, styles.routeColRight]}>
-            <FieldLabel>TO</FieldLabel>
-            <Text style={[styles.iata, { fontSize: iataSize }]}>{destination || DASH}</Text>
-          </View>
-        </View>
 
-        <View style={styles.fieldRow}>
-          {fields.map(f => (
-            <View key={f.label} style={[styles.fieldCell, { flex: f.flex ?? 1 }]}>
-              <FieldLabel>{f.label}</FieldLabel>
-              <Text style={styles.fieldValue}>{f.value || DASH}</Text>
+          {/* Route — city name over big IATA, plane glyph between */}
+          <View style={styles.routeRow}>
+            <View style={styles.routeCol}>
+              {originCity ? <Text style={styles.cityName} numberOfLines={1}>{originCity}</Text> : null}
+              <Text style={[styles.iata, { fontSize: iataSize }]}>{origin || DASH}</Text>
             </View>
-          ))}
-        </View>
-
-        <View style={styles.fieldRow}>
-          {stubFields.map(f => (
-            <View key={f.label} style={styles.fieldCell}>
-              <FieldLabel>{f.label}</FieldLabel>
-              <Text style={styles.fieldValue}>{f.value || DASH}</Text>
+            <Text style={[styles.plane, compact && styles.planeCompact]}>✈</Text>
+            <View style={[styles.routeCol, styles.routeColRight]}>
+              {destinationCity ? <Text style={[styles.cityName, styles.cityNameRight]} numberOfLines={1}>{destinationCity}</Text> : null}
+              <Text style={[styles.iata, { fontSize: iataSize }]}>{destination || DASH}</Text>
             </View>
-          ))}
+          </View>
+
+          {/* FLIGHT / DATE / DOOR CLOSES */}
+          <View style={styles.fieldRow}>
+            {topFields.map(f => (
+              <View key={f.label} style={[styles.fieldCell, { flex: f.flex ?? 1 }]}>
+                <FieldLabel>{f.label}</FieldLabel>
+                <Text style={styles.fieldValue}>{f.value || DASH}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* PASSENGER / BOARDING */}
+          <View style={styles.fieldRow}>
+            <View style={[styles.fieldCell, { flex: 2 }]}>
+              <FieldLabel>PASSENGER</FieldLabel>
+              <Text style={styles.fieldValue} numberOfLines={1}>
+                {(passenger && passenger.length > 0) ? passenger : DASH}
+              </Text>
+            </View>
+            <View style={[styles.fieldCell, { flex: 1.2 }]}>
+              <FieldLabel>BOARDING</FieldLabel>
+              <Text style={styles.fieldValue}>{boarding || time || DASH}</Text>
+            </View>
+          </View>
+
+          {/* SERVICES + big status word */}
+          <View style={styles.servicesRow}>
+            <View style={styles.fieldCell}>
+              <FieldLabel>SERVICES</FieldLabel>
+              <Text style={styles.fieldValue}>{servicesValue || DASH}</Text>
+            </View>
+            {status ? (
+              <Text
+                style={[styles.statusWord, compact && styles.statusWordCompact, { color: statusTone(status) }]}
+                numberOfLines={1}
+              >
+                {titleCase(status)}
+              </Text>
+            ) : null}
+          </View>
         </View>
 
-        {status ? (
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>STATUS</Text>
-            <Text style={styles.statusValue}>{status.toUpperCase()}</Text>
-          </View>
-        ) : null}
-      </View>
-
-      {/* Barcode strip */}
-      <View style={styles.barcodeRow}>
+        {/* ── Right: vertical barcode ── */}
         <View style={styles.barcode}>
-          {Array.from({ length: 38 }).map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.barcodeBar,
-                {
-                  width: i % 3 === 0 ? 3 : i % 4 === 0 ? 1 : 2,
-                  opacity: i % 5 === 0 ? 0.3 : 0.8,
-                },
-              ]}
-            />
+          {BARS.map((h, i) => (
+            <View key={i} style={{ height: h, backgroundColor: colors.charcoal, width: '100%' }} />
           ))}
         </View>
-        <Text style={styles.barcodeText}>STBY · {origin || '···'}{destination ? ` · ${destination}` : ''}</Text>
       </View>
-
-      {stampSlot ? <View style={styles.stampLayer} pointerEvents="none">{stampSlot}</View> : null}
     </View>
   )
 }
@@ -136,125 +174,175 @@ function FieldLabel({ children }: { children: string }) {
   return <Text style={styles.fieldLabel}>{children}</Text>
 }
 
+// Title-case a status token for the big word ('MATCHED' → 'Matched',
+// 'MEETUP · COMPLETE' → 'Meetup · Complete').
+function titleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\b[a-z]/g, c => c.toUpperCase())
+}
+
+// View-only stand-in for the logo until the PNG is dropped in. Two overlapping
+// paper-fold triangles in the brand blue + scarlet.
+function StandbyMark() {
+  return (
+    <View style={mark.wrap}>
+      <View style={[mark.tri, mark.triBlue]} />
+      <View style={[mark.tri, mark.triRed]} />
+    </View>
+  )
+}
+
+// Deterministic vertical barcode: a stack of horizontal bars with varying
+// heights and white gaps between them.
+const BARS: number[] = (() => {
+  const pattern = [3, 6, 2, 4, 2, 5, 3, 2, 6, 3, 4, 2, 3, 5, 2, 4, 3, 6, 2, 3, 4, 2, 5, 3, 2, 4, 6, 2, 3, 5, 2, 4, 3, 2]
+  return pattern
+})()
+
 const styles = StyleSheet.create({
   pass: {
-    backgroundColor: colors.board,
-    borderRadius: 6,
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderHair,
     alignSelf: 'stretch',
     overflow: 'hidden',
+    ...shadow.card,
+  },
+  row: {
+    flexDirection: 'row',
+  },
+  content: {
+    flex: 1,
+    paddingLeft: 22,
+    paddingRight: 16,
+    paddingVertical: 20,
+    gap: 18,
+  },
+  contentCompact: {
+    paddingLeft: 16,
+    paddingVertical: 14,
+    gap: 12,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 4,
-  },
-  airline: {
-    fontFamily: fonts.display,
-    color: colors.boardText,
-    fontSize: 18,
-    letterSpacing: 3,
-  },
-  classLabel: {
-    fontFamily: fonts.body,
-    color: colors.boardDim,
-    fontSize: 10,
-    letterSpacing: 2,
-  },
-  body: {
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 14,
-    gap: 14,
-  },
-  bodyCompact: {
-    paddingTop: 8,
-    paddingBottom: 10,
     gap: 10,
   },
-  fieldLabel: {
-    fontFamily: fonts.body,
-    fontSize: 9,
-    letterSpacing: 1.6,
-    color: colors.boardDim,
-    marginBottom: 3,
+  logoImg: {
+    width: 40,
+    height: 32,
   },
-  passengerName: {
-    fontFamily: fonts.body,
-    fontSize: 18,
-    color: colors.boardText,
-    letterSpacing: 1.2,
+  wordmark: {
+    fontFamily: fonts.extrabold,
+    color: colors.charcoal,
+    fontSize: 28,
+    letterSpacing: -0.5,
+  },
+  wordmarkCompact: {
+    fontSize: 22,
   },
   routeRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    marginTop: 2,
   },
   routeCol: { flex: 1 },
   routeColRight: { alignItems: 'flex-end' },
+  cityName: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    color: colors.charcoal,
+    marginBottom: 2,
+  },
+  cityNameRight: { textAlign: 'right' },
   iata: {
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    color: colors.boardText,
-    letterSpacing: 2,
+    fontFamily: fonts.extrabold,
+    color: colors.charcoal,
+    letterSpacing: 1,
+  },
+  plane: {
+    fontSize: 22,
+    color: colors.charcoal,
+    marginHorizontal: 10,
+    marginBottom: 4,
+  },
+  planeCompact: {
+    fontSize: 16,
   },
   fieldRow: {
     flexDirection: 'row',
-    marginTop: 2,
   },
-  fieldCell: { flex: 1, paddingRight: 8 },
-  fieldValue: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: colors.boardText,
-    letterSpacing: 0.6,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 10,
-    marginTop: 2,
-  },
-  statusLabel: {
-    fontFamily: fonts.body,
-    fontSize: 9,
-    letterSpacing: 1.6,
-    color: colors.boardDim,
-  },
-  statusValue: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 2,
-    color: colors.accent,
-  },
-  barcodeRow: {
-    paddingHorizontal: 18,
-    paddingBottom: 16,
-    gap: 6,
-  },
-  barcode: {
+  servicesRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    height: 26,
-    gap: 1,
+    justifyContent: 'space-between',
   },
-  barcodeBar: {
-    height: '100%',
-    backgroundColor: colors.boardText,
+  fieldCell: { flex: 1, paddingRight: 8 },
+  fieldLabel: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    color: colors.charcoal,
+    marginBottom: 3,
   },
-  barcodeText: {
-    fontFamily: fonts.body,
-    fontSize: 9,
-    color: colors.boardDim,
-    letterSpacing: 1.5,
+  fieldValue: {
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    color: colors.charcoal,
   },
-  stampLayer: {
+  statusWord: {
+    fontFamily: fonts.extrabold,
+    fontSize: 26,
+    letterSpacing: -0.4,
+    marginLeft: 8,
+  },
+  statusWordCompact: {
+    fontSize: 20,
+  },
+  barcode: {
+    width: 46,
+    marginVertical: 20,
+    marginRight: 18,
+    justifyContent: 'center',
+    gap: 3,
+  },
+})
+
+const mark = StyleSheet.create({
+  wrap: {
+    width: 40,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tri: {
     position: 'absolute',
-    top: 56,
-    right: 14,
-    pointerEvents: 'none',
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+  },
+  triBlue: {
+    borderTopWidth: 0,
+    borderRightWidth: 22,
+    borderBottomWidth: 16,
+    borderLeftWidth: 0,
+    borderRightColor: 'transparent',
+    borderBottomColor: colors.skyBlue,
+    top: 2,
+    left: 6,
+    transform: [{ rotate: '12deg' }],
+  },
+  triRed: {
+    borderTopWidth: 16,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
+    borderLeftWidth: 22,
+    borderLeftColor: 'transparent',
+    borderTopColor: colors.scarlet,
+    bottom: 2,
+    left: 2,
+    transform: [{ rotate: '12deg' }],
   },
 })

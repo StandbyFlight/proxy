@@ -11,6 +11,7 @@ import { requestMatch, type MatcherResult } from '../../../lib/matcher'
 import { haptics } from '../../../lib/haptics'
 import { ManifestBoard } from '../../../components/ManifestBoard'
 import { primaryIataForCity } from '../../../lib/cities'
+import { GradientBackground, GlassButton, GlassCard } from '../../../components/ui'
 import type Ably from 'ably'
 
 // The "actively searching" leaf.
@@ -271,17 +272,20 @@ export default function SearchingScreen() {
 
   if (state === 'no-session') {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-        <View style={styles.body}>
-          <Text style={[type.headline, styles.headline]}>You're not in a session.</Text>
-          <Pressable
-            onPress={() => { haptics.buttonTap(); router.replace('/(app)/flight') }}
-            style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={styles.primaryBtnText}>START A SESSION</Text>
-          </Pressable>
+      <GradientBackground>
+        <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
+          <View style={styles.body}>
+            <Text style={[type.headline, styles.headline]}>You're not in a session.</Text>
+            <GlassButton
+              label="START A SESSION"
+              variant="primary"
+              fullWidth={false}
+              onPress={() => router.replace('/(app)/flight')}
+              style={styles.startBtn}
+            />
+          </View>
         </View>
-      </View>
+      </GradientBackground>
     )
   }
 
@@ -291,6 +295,7 @@ export default function SearchingScreen() {
       : "Finding the person you would've walked past."
 
   return (
+    <GradientBackground>
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
       <View style={styles.body}>
         <Text style={[type.headline, styles.headline]}>{headline}</Text>
@@ -320,38 +325,42 @@ export default function SearchingScreen() {
         ) : null}
 
         {state === 'curiosity' && curiosity ? (
-          <View style={styles.curiosityPanel}>
+          <GlassCard rounded="lg" tint="lilac" style={styles.curiosityPanel}>
             <Text style={[type.subhead, styles.curiosityLine]}>
               Not your criteria — could still be worth it.
             </Text>
             <View style={styles.curiosityActions}>
-              <Pressable
+              <GlassButton
+                label="I'M IN"
+                variant="primary"
+                size="sm"
+                fullWidth={false}
                 onPress={openMatch}
-                style={({ pressed }) => [styles.meetBtn, pressed && { opacity: 0.85 }]}
-              >
-                <Text style={styles.meetBtnText}>I'M IN</Text>
-              </Pressable>
-              <Pressable
+                style={styles.meetBtn}
+              />
+              <GlassButton
+                label="KEEP WAITING"
+                variant="ghost"
+                size="sm"
+                fullWidth={false}
                 onPress={dismissCuriosity}
-                hitSlop={14}
-                style={({ pressed }) => [styles.dismissBtn, pressed && { opacity: 0.5 }]}
-              >
-                <Text style={styles.dismissText}>KEEP WAITING</Text>
-              </Pressable>
+              />
             </View>
-          </View>
+          </GlassCard>
         ) : null}
       </View>
     </View>
+    </GradientBackground>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
+  container: { flex: 1, backgroundColor: 'transparent', paddingHorizontal: 24 },
   eyebrow: { color: colors.subtle },
   body: { flex: 1, justifyContent: 'center', gap: 20 },
   headline: { color: colors.text },
   boardWrap: { marginTop: 8 },
+  startBtn: { marginTop: 20, alignSelf: 'flex-start' },
   errorLine: {
     fontFamily: fonts.body,
     fontSize: 12,
@@ -362,46 +371,7 @@ const styles = StyleSheet.create({
   curiosityActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 18,
+    gap: 12,
   },
-  meetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: colors.accent,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  meetBtnText: {
-    fontFamily: fonts.body,
-    color: colors.onAccent,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-  },
-  dismissBtn: { paddingVertical: 6 },
-  dismissText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.subtle,
-    letterSpacing: 1.4,
-  },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: colors.accent,
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    alignSelf: 'flex-start',
-  },
-  primaryBtnText: {
-    fontFamily: fonts.body,
-    color: colors.onAccent,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-  },
+  meetBtn: { flex: 1 },
 })

@@ -9,6 +9,7 @@ import { isDemoMode, trackDemo } from '../../../lib/demo'
 import { demoFlight, demoSearchSteps, DEMO_ROUTES } from '../../../lib/demoData'
 import { BetaDemoBanner } from '../../../components/BetaDemoBanner'
 import { ManifestBoard } from '../../../components/ManifestBoard'
+import { Screen } from '../../../components/ui'
 
 // Simulated searching leaf for the beta demo. This screen NEVER touches the real
 // matcher, Supabase, Ably, or session logic — it plays the searching animation
@@ -67,7 +68,7 @@ export default function DemoSearchingScreen() {
   const isFinal = stepIndex === demoSearchSteps.length - 1
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
+    <Screen edges={['top']}>
       <BetaDemoBanner style={styles.banner} />
 
       <View style={styles.body}>
@@ -106,12 +107,12 @@ export default function DemoSearchingScreen() {
       >
         <Text style={styles.cancelText}>CANCEL</Text>
       </Pressable>
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
+  container: { flex: 1, paddingHorizontal: 24 },
   banner: { marginTop: 6 },
   body: { flex: 1, justifyContent: 'center', gap: 20 },
   headline: { color: colors.text },

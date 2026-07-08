@@ -16,7 +16,7 @@ import { haptics } from '../lib/haptics'
 
 export function StandbyStamp({
   label,
-  color = colors.accent,
+  color = colors.scarlet,
   delayMs = 0,
   angle = -8,
   onLand,
@@ -96,9 +96,8 @@ const styles = StyleSheet.create({
     opacity: 0.92,
   },
   label: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.bold,
     fontSize: 16,
-    fontWeight: '700',
     letterSpacing: 3.5,
   },
 })

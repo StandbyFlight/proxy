@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, Animated } from 'react-native'
+import { Text, StyleSheet, Animated } from 'react-native'
 import { useRouter } from 'expo-router'
 import { FlipBoard } from '../components/FlipBoard'
+import { GradientBackground } from '../components/ui'
 import { supabase } from '../lib/supabase'
 import { colors } from '../lib/theme'
-import { fonts } from '../lib/typography'
+import { type } from '../lib/typography'
 
 const LABEL = 'STANDBY'
 const BIG_CELL = 58
@@ -124,7 +125,7 @@ export default function Loading() {
   }, [phase])
 
   return (
-    <View style={styles.container}>
+    <GradientBackground style={styles.container}>
       <Animated.View style={[styles.wrap, { opacity: fade }]}>
         <FlipBoard
           label={LABEL}
@@ -142,14 +143,12 @@ export default function Loading() {
         <Text style={styles.taglineLine}>{TAGLINE_LINE_2}</Text>
         <Text style={styles.taglineLine}>{TAGLINE_LINE_3}</Text>
       </Animated.View>
-    </View>
+    </GradientBackground>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -163,10 +162,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   taglineLine: {
-    fontFamily: fonts.body,
-    fontSize: 12,
+    ...type.caption,
     letterSpacing: 2.4,
-    color: colors.subtle,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 })

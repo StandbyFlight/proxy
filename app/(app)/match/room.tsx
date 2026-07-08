@@ -1,8 +1,7 @@
 import { useEffect } from 'react'
-import { View, ActivityIndicator, StyleSheet } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { colors } from '../../../lib/theme'
 import { supabase } from '../../../lib/supabase'
+import { Screen, LoadingState } from '../../../components/ui'
 
 // Smart redirect hub for active matches. Deep links from push notifications and
 // home pills land here; we read the current match status and forward to the
@@ -52,12 +51,8 @@ export default function MatchRoom() {
   }, [match_id])
 
   return (
-    <View style={styles.center}>
-      <ActivityIndicator color={colors.subtle} />
-    </View>
+    <Screen>
+      <LoadingState />
+    </Screen>
   )
 }
-
-const styles = StyleSheet.create({
-  center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-})

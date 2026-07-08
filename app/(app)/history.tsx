@@ -4,7 +4,8 @@ import {
 } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { colors } from '../../lib/theme'
+import { BlurView } from 'expo-blur'
+import { colors, radius, blur, shadow } from '../../lib/theme'
 import { fonts, type } from '../../lib/typography'
 import {
   getSessionHistory, archiveSession, deleteSession, type HistoryEntry,
@@ -13,6 +14,7 @@ import { supabase } from '../../lib/supabase'
 import { haptics } from '../../lib/haptics'
 import { passDate, passTime } from '../../lib/format'
 import { BoardingPass } from '../../components/BoardingPass'
+import { GradientBackground } from '../../components/ui'
 
 // Session History — every past and upcoming travel session as a boarding-pass
 // card: route, date/time, and a status readout derived from status + outcome.
@@ -124,7 +126,7 @@ export default function History() {
   const past = (rows ?? []).filter(r => !r.upcoming && r.outcome !== 'live')
 
   return (
-    <View style={styles.root}>
+    <GradientBackground>
       <ScrollView
         contentContainerStyle={[
           styles.inner,
@@ -138,8 +140,11 @@ export default function History() {
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Add a pass"
-            style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.7 }]}
+            style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] }]}
           >
+            <BlurView intensity={blur.subtle} tint={blur.tint} style={StyleSheet.absoluteFill} />
+            <View style={[StyleSheet.absoluteFill, styles.addBtnFill]} pointerEvents="none" />
+            <View style={styles.addBtnBorder} pointerEvents="none" />
             <Text style={styles.addBtnText}>+</Text>
           </Pressable>
         </View>
@@ -173,7 +178,7 @@ export default function History() {
           </>
         )}
       </ScrollView>
-    </View>
+    </GradientBackground>
   )
 }
 
@@ -264,19 +269,28 @@ const styles = StyleSheet.create({
   },
   headline: { color: colors.text, flexShrink: 1, paddingRight: 12 },
   addBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadow.sm,
+  },
+  addBtnFill: {
+    backgroundColor: colors.glassWhiteStrong,
+  },
+  addBtnBorder: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: colors.borderGlass,
   },
   addBtnText: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.regular,
     fontSize: 24,
     lineHeight: 26,
-    color: colors.text,
+    color: colors.scarlet,
   },
 
   loader: { alignItems: 'center', paddingVertical: 32 },

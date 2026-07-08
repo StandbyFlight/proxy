@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { colors } from '../../lib/theme'
+import { colors, radius, shadow } from '../../lib/theme'
 import { fonts } from '../../lib/typography'
 import { supabase } from '../../lib/supabase'
 import { haptics } from '../../lib/haptics'
@@ -14,6 +14,7 @@ import { passDate, passTime } from '../../lib/format'
 import { BoardingPass } from '../../components/BoardingPass'
 import { StandbyStamp } from '../../components/StandbyStamp'
 import { primaryIataForCity, searchCities, type CityEntry } from '../../lib/cities'
+import { GradientBackground, GlassButton, GlassCard } from '../../components/ui'
 
 // Profile is edited right here — pass on top, editable fields below.
 // Settings holds account-level actions only.
@@ -217,6 +218,7 @@ export default function ProfileScreen() {
   const iata = profile.base_city ? primaryIataForCity(profile.base_city) : '···'
 
   return (
+    <GradientBackground>
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -275,7 +277,7 @@ export default function ProfileScreen() {
                   onFocus={() => setCityFocused(true)}
                   onBlur={() => setTimeout(() => setCityFocused(false), 150)} />
                 {cityFocused && citySuggestions.length > 0 ? (
-                  <View style={styles.suggestions}>
+                  <GlassCard rounded="md" padding={4} style={styles.suggestions}>
                     {citySuggestions.map(s => (
                       <Pressable
                         key={`${s.name}-${s.state}`}
@@ -290,7 +292,7 @@ export default function ProfileScreen() {
                         <Text style={styles.suggestionIata}>{s.airports[0] ?? ''}</Text>
                       </Pressable>
                     ))}
-                  </View>
+                  </GlassCard>
                 ) : null}
               </View>
 
@@ -373,24 +375,19 @@ export default function ProfileScreen() {
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <Pressable
+            <GlassButton
+              label={dirty ? 'SAVE CHANGES' : 'SAVED'}
               onPress={save}
+              variant="primary"
+              loading={saving}
               disabled={!dirty || saving}
-              style={({ pressed }) => [
-                styles.saveBtn,
-                (!dirty || saving) && styles.saveBtnDisabled,
-                pressed && dirty && { opacity: 0.85 },
-              ]}
-            >
-              {saving
-                ? <ActivityIndicator color={colors.onAccent} />
-                : <Text style={styles.saveBtnText}>{dirty ? 'SAVE CHANGES' : 'SAVED'}</Text>
-              }
-            </Pressable>
+              style={styles.saveBtn}
+            />
           </>
         )}
       </ScrollView>
     </KeyboardAvoidingView>
+    </GradientBackground>
   )
 }
 
@@ -455,7 +452,7 @@ function FieldLine({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   inner: { paddingHorizontal: 24, gap: 18 },
   topRow: {
     flexDirection: 'row',
@@ -495,7 +492,7 @@ const styles = StyleSheet.create({
   },
   fieldLineRule: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: colors.borderHair,
   },
 
   suggestions: { marginTop: 6 },
@@ -503,6 +500,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 10,
+    paddingHorizontal: 12,
   },
   suggestionLabel: {
     fontFamily: fonts.body,
@@ -530,36 +528,25 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 3,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: colors.glassWhiteStrong,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: colors.borderHair,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    ...shadow.sm,
   },
-  chipSelected: { backgroundColor: colors.periwinkle },
+  chipSelected: { backgroundColor: colors.scarlet, borderColor: colors.scarlet },
   chipDisabled: { opacity: 0.35 },
   chipText: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.medium,
     fontSize: 13,
     color: colors.text,
   },
-  chipTextSelected: { fontWeight: '700' },
+  chipTextSelected: { fontFamily: fonts.bold, color: colors.onAccent },
 
   saveBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.accent,
-    paddingVertical: 14,
     marginTop: 8,
-  },
-  saveBtnDisabled: { backgroundColor: colors.text, opacity: 0.18 },
-  saveBtnText: {
-    fontFamily: fonts.bodyBold,
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 1.4,
-    color: colors.onAccent,
   },
 
   error: {

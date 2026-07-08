@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../../lib/theme'
 import { fonts } from '../../../lib/typography'
 import { haptics } from '../../../lib/haptics'
@@ -12,6 +11,7 @@ import { FeedbackButton } from '../../../components/FeedbackButton'
 import { DemoMapPreview } from '../../../components/DemoMapPreview'
 import { BoardingPass } from '../../../components/BoardingPass'
 import { BackButton } from '../../../components/BackButton'
+import { Screen, GlassCard, GlassButton } from '../../../components/ui'
 
 // Demo meetup preview. Entirely simulated — no live location, no maps SDK, no
 // supabase. Uses a static DemoMapPreview card in place of the real MeetupMap.
@@ -19,103 +19,91 @@ import { BackButton } from '../../../components/BackButton'
 
 export default function DemoMeetupScreen() {
   const router = useRouter()
-  const insets = useSafeAreaInsets()
 
   useEffect(() => {
     trackDemo('demo_meetup_opened')
   }, [])
 
   return (
-    <View style={styles.root}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.inner,
-          { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 40 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <BackButton />
-        <BetaDemoBanner />
+    <Screen scroll padded={false} contentContainerStyle={styles.inner}>
+      <BackButton />
+      <BetaDemoBanner />
 
-        {/* The other person's pass. */}
-        <BoardingPass
-          classLabel="MEETUP PASS"
-          passenger={demoMatch.firstName}
-          origin={demoMatch.originIata}
-          destination={demoMatch.destinationIata}
-          flight={demoMatch.flightIata}
-          date={demoMatch.date}
-          time={demoMatch.time}
-          gate={demoMatch.gate}
-          terminal={demoMatch.terminal}
-          status="MATCHED"
-        />
+      {/* The other person's pass. */}
+      <BoardingPass
+        classLabel="MEETUP PASS"
+        passenger={demoMatch.firstName}
+        origin={demoMatch.originIata}
+        destination={demoMatch.destinationIata}
+        originCity="San Francisco"
+        destinationCity={demoMatch.destinationName}
+        flight={demoMatch.flightIata}
+        date={demoMatch.date}
+        time={demoMatch.time}
+        gate={demoMatch.gate}
+        terminal={demoMatch.terminal}
+        status="MATCHED"
+      />
 
-        {/* Suggested meet spot. */}
-        <View style={styles.infoBox}>
-          <Text style={styles.infoValue}>{demoMeetup.spotName}</Text>
-          <Text style={styles.infoBody}>
-            Meet near {demoMeetup.spotContext} — a central place for both of you.
-          </Text>
-          <Text style={styles.walkText}>
-            {demoMeetup.walkingMinutes} min walk from Gate {demoMeetup.gate}
-          </Text>
-        </View>
+      {/* Suggested meet spot. */}
+      <GlassCard rounded="lg" padding={16} style={styles.infoBox}>
+        <Text style={styles.infoValue}>{demoMeetup.spotName}</Text>
+        <Text style={styles.infoBody}>
+          Meet near {demoMeetup.spotContext} — a central place for both of you.
+        </Text>
+        <Text style={styles.walkText}>
+          {demoMeetup.walkingMinutes} min walk from Gate {demoMeetup.gate}
+        </Text>
+      </GlassCard>
 
-        {/* Static, no-SDK map preview stand-in. */}
-        <DemoMapPreview
-          spotName={demoMeetup.spotName}
-          nearGate={demoMeetup.nearGate}
-          walkingMinutes={demoMeetup.walkingMinutes}
-          terminal={demoMeetup.terminal}
-        />
+      {/* Static, no-SDK map preview stand-in. */}
+      <DemoMapPreview
+        spotName={demoMeetup.spotName}
+        nearGate={demoMeetup.nearGate}
+        walkingMinutes={demoMeetup.walkingMinutes}
+        terminal={demoMeetup.terminal}
+      />
 
-        {/* Airport / terminal / gate context. */}
-        <View style={styles.contextRow}>
-          <ContextCell label="AIRPORT" value={demoMeetup.airport} />
-          <ContextCell label="TERMINAL" value={demoMeetup.terminal} />
-          <ContextCell label="YOUR GATE" value={demoMeetup.gate} />
-        </View>
+      {/* Airport / terminal / gate context. */}
+      <View style={styles.contextRow}>
+        <ContextCell label="AIRPORT" value={demoMeetup.airport} />
+        <ContextCell label="TERMINAL" value={demoMeetup.terminal} />
+        <ContextCell label="YOUR GATE" value={demoMeetup.gate} />
+      </View>
 
-        {/* Safety / location copy. */}
-        <View style={styles.safetyBox}>
-          <Text style={styles.safetyPrimary}>{demoMeetup.safetyPrimary}</Text>
-          <Text style={styles.safetySecondary}>{demoMeetup.safetySecondary}</Text>
-        </View>
+      {/* Safety / location copy. */}
+      <GlassCard rounded="lg" padding={16} tint="sky" style={styles.safetyBox}>
+        <Text style={styles.safetyPrimary}>{demoMeetup.safetyPrimary}</Text>
+        <Text style={styles.safetySecondary}>{demoMeetup.safetySecondary}</Text>
+      </GlassCard>
 
-        <FeedbackButton variant="button" label="REPORT CONFUSION / BUG" />
+      <FeedbackButton variant="button" label="REPORT CONFUSION / BUG" />
 
-        <Pressable
-          onPress={() => { haptics.selection(); router.replace('/(app)/') }}
-          style={({ pressed }) => [styles.homeBtn, pressed && { opacity: 0.5 }]}
-        >
-          <Text style={styles.homeBtnText}>BACK TO HOME</Text>
-        </Pressable>
-      </ScrollView>
-    </View>
+      <GlassButton
+        label="BACK TO HOME"
+        onPress={() => { haptics.selection(); router.replace('/(app)/') }}
+        variant="ghost"
+        haptic={false}
+        style={styles.homeBtn}
+      />
+    </Screen>
   )
 }
 
 function ContextCell({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.contextCell}>
+    <GlassCard rounded="md" padding={12} style={styles.contextCell}>
       <Text style={styles.contextLabel}>{label}</Text>
       <Text style={styles.contextValue}>{value}</Text>
-    </View>
+    </GlassCard>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  inner: { paddingHorizontal: 20, gap: 16 },
+  inner: { paddingHorizontal: 20, paddingBottom: 40, gap: 16 },
 
   infoBox: {
-    borderWidth: 1,
-    borderColor: colors.black,
-    borderRadius: 8,
-    padding: 14,
     gap: 6,
-    backgroundColor: colors.surface,
   },
   infoValue: {
     fontFamily: fonts.display,
@@ -144,13 +132,7 @@ const styles = StyleSheet.create({
   },
   contextCell: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
     gap: 4,
-    backgroundColor: colors.surface,
   },
   contextLabel: {
     fontFamily: fonts.body,
@@ -167,12 +149,7 @@ const styles = StyleSheet.create({
   },
 
   safetyBox: {
-    borderRadius: 8,
-    padding: 14,
     gap: 6,
-    backgroundColor: 'rgba(122,165,200,0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(122,165,200,0.4)',
   },
   safetyPrimary: {
     fontFamily: fonts.body,
@@ -188,11 +165,5 @@ const styles = StyleSheet.create({
     color: colors.subtle,
   },
 
-  homeBtn: { alignSelf: 'center', paddingVertical: 8 },
-  homeBtnText: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    color: colors.subtle,
-  },
+  homeBtn: { alignSelf: 'center', marginTop: 4 },
 })

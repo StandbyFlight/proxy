@@ -136,7 +136,11 @@ function stylesFor(cellSize: number, cellWidth?: number) {
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
-      borderRadius: Math.max(1, Math.round(cellSize * 0.034)),
+      // Softer tile corners + a faint top-light inner edge so each flap reads
+      // as its own glass tile against the slate board.
+      borderRadius: Math.max(2, Math.round(cellSize * 0.1)),
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(255,255,255,0.06)',
     },
     cellChar: {
       color: colors.boardText,
