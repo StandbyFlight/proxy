@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
-import { colors, radius, shadow, blur, opacity, gradients, gradientDirection } from '../../lib/theme'
+import { colors, shadow, blur, opacity, gradients, gradientDirection } from '../../lib/theme'
 import { type } from '../../lib/typography'
 import { haptics } from '../../lib/haptics'
 
@@ -170,7 +170,7 @@ export function GlassButton({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: radius.pill,
+    borderRadius: 0,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   },
   glassRim: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: radius.pill,
+    borderRadius: 0,
     borderWidth: StyleSheet.hairlineWidth * 2,
     borderTopColor: 'rgba(255,255,255,0.85)',
     borderLeftColor: 'rgba(255,255,255,0.55)',

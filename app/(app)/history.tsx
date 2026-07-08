@@ -289,7 +289,10 @@ const styles = StyleSheet.create({
   addBtnText: {
     fontFamily: fonts.regular,
     fontSize: 24,
-    lineHeight: 26,
+    lineHeight: 24,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
     color: colors.scarlet,
   },
 

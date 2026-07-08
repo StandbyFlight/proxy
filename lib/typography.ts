@@ -1,34 +1,35 @@
 import { Platform, TextStyle } from 'react-native'
 
-// STANDBY typography — one centralized system, Elms Sans everywhere.
+// STANDBY typography — one centralized system, Zalando Sans SemiExpanded everywhere.
 //
-//   Elms Sans (@expo-google-fonts/elms-sans) is the single brand family for
-//   ALL UI text — headings, titles, body, labels, captions, buttons, tabs.
-//   Weights are loaded in app/_layout.tsx.
+//   Zalando Sans SemiExpanded (@expo-google-fonts/zalando-sans-semiexpanded) is
+//   the single brand family for ALL UI text — headings, titles, body, labels,
+//   captions, buttons, tabs. Weights are loaded in app/_layout.tsx.
 //
 //   mono — DepartureMono / Menlo: the split-flap flip-board components ONLY
 //   (FlipCell, InputFlipCell, ManifestBoard, EnrichmentRow). This is the
 //   "airport board" character and is intentionally kept.
 
 export const fonts = {
-  // Weighted Elms Sans families.
-  thin: 'ElmsSans_100Thin',
-  light: 'ElmsSans_300Light',
-  regular: 'ElmsSans_400Regular',
-  medium: 'ElmsSans_500Medium',
-  semibold: 'ElmsSans_600SemiBold',
-  bold: 'ElmsSans_700Bold',
-  extrabold: 'ElmsSans_800ExtraBold',
-  black: 'ElmsSans_900Black',
+  // Weighted Zalando Sans SemiExpanded families. (No 100 Thin — nearest is
+  // 200 ExtraLight.)
+  thin: 'ZalandoSansSemiExpanded_200ExtraLight',
+  light: 'ZalandoSansSemiExpanded_300Light',
+  regular: 'ZalandoSansSemiExpanded_400Regular',
+  medium: 'ZalandoSansSemiExpanded_500Medium',
+  semibold: 'ZalandoSansSemiExpanded_600SemiBold',
+  bold: 'ZalandoSansSemiExpanded_700Bold',
+  extrabold: 'ZalandoSansSemiExpanded_800ExtraBold',
+  black: 'ZalandoSansSemiExpanded_900Black',
 
   // Semantic roles (what most styles reference).
   display: 'Anton_400Regular',      // big page titles / headlines — Anton
-  heading: 'ElmsSans_700Bold',
-  title: 'ElmsSans_600SemiBold',
-  body: 'ElmsSans_400Regular',
-  bodyMedium: 'ElmsSans_500Medium',
-  bodyBold: 'ElmsSans_700Bold',
-  label: 'ElmsSans_600SemiBold',
+  heading: 'ZalandoSansSemiExpanded_700Bold',
+  title: 'ZalandoSansSemiExpanded_600SemiBold',
+  body: 'ZalandoSansSemiExpanded_400Regular',
+  bodyMedium: 'ZalandoSansSemiExpanded_500Medium',
+  bodyBold: 'ZalandoSansSemiExpanded_700Bold',
+  label: 'ZalandoSansSemiExpanded_600SemiBold',
 
   mono: Platform.select({
     ios: 'Menlo',
@@ -40,7 +41,8 @@ export const fonts = {
 // Centralized type scale. Existing keys (eyebrow, display, headline,
 // sectionTitle, subhead, body, bodyBold, hint, monoSmall) are preserved so no
 // screen breaks; the requested roles (heading, title, label, caption) are
-// added. Headings are Elms Sans in sentence case for a modern, softer feel —
+// added. Headings are Zalando Sans SemiExpanded in sentence case for a modern,
+// softer feel —
 // uppercase is reserved for eyebrow/label/hint chips.
 export const type: Record<string, TextStyle> = {
   // Small uppercase kicker above titles.

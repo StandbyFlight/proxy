@@ -4,27 +4,28 @@ import { Slot, useRouter } from 'expo-router'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
-import { useFonts } from '@expo-google-fonts/elms-sans'
+import { useFonts } from '@expo-google-fonts/zalando-sans-semiexpanded'
 // Anton — the display family for big page titles (type.display / headline).
 import { Anton_400Regular } from '@expo-google-fonts/anton'
-// Elms Sans — the single brand family for all UI text. Per-weight subpath
-// imports pull ONLY the weights the type system references, not the whole
-// package index.
-import { ElmsSans_100Thin } from '@expo-google-fonts/elms-sans/100Thin'
-import { ElmsSans_300Light } from '@expo-google-fonts/elms-sans/300Light'
-import { ElmsSans_400Regular } from '@expo-google-fonts/elms-sans/400Regular'
-import { ElmsSans_500Medium } from '@expo-google-fonts/elms-sans/500Medium'
-import { ElmsSans_600SemiBold } from '@expo-google-fonts/elms-sans/600SemiBold'
-import { ElmsSans_700Bold } from '@expo-google-fonts/elms-sans/700Bold'
-import { ElmsSans_800ExtraBold } from '@expo-google-fonts/elms-sans/800ExtraBold'
-import { ElmsSans_900Black } from '@expo-google-fonts/elms-sans/900Black'
+// Zalando Sans SemiExpanded — the single brand family for all UI text.
+// Per-weight subpath imports pull ONLY the weights the type system references,
+// not the whole package index.
+import { ZalandoSansSemiExpanded_200ExtraLight } from '@expo-google-fonts/zalando-sans-semiexpanded/200ExtraLight'
+import { ZalandoSansSemiExpanded_300Light } from '@expo-google-fonts/zalando-sans-semiexpanded/300Light'
+import { ZalandoSansSemiExpanded_400Regular } from '@expo-google-fonts/zalando-sans-semiexpanded/400Regular'
+import { ZalandoSansSemiExpanded_500Medium } from '@expo-google-fonts/zalando-sans-semiexpanded/500Medium'
+import { ZalandoSansSemiExpanded_600SemiBold } from '@expo-google-fonts/zalando-sans-semiexpanded/600SemiBold'
+import { ZalandoSansSemiExpanded_700Bold } from '@expo-google-fonts/zalando-sans-semiexpanded/700Bold'
+import { ZalandoSansSemiExpanded_800ExtraBold } from '@expo-google-fonts/zalando-sans-semiexpanded/800ExtraBold'
+import { ZalandoSansSemiExpanded_900Black } from '@expo-google-fonts/zalando-sans-semiexpanded/900Black'
 import { supabase } from '../lib/supabase'
 import { connectAbly, disconnectAbly } from '../lib/ably'
 import { colors } from '../lib/theme'
 
 // Fonts load here before the app renders (the overlay stays up until they're
-// ready). Elms Sans (all UI text) comes from @expo-google-fonts; Menlo (mono,
-// flip-board components only) is an iOS system font and needs no loading.
+// ready). Zalando Sans SemiExpanded (all UI text) comes from @expo-google-fonts;
+// Menlo (mono, flip-board components only) is an iOS system font and needs no
+// loading.
 
 SplashScreen.preventAutoHideAsync()
 
@@ -34,14 +35,14 @@ export default function RootLayout() {
   const [overlayVisible, setOverlayVisible] = useState(true)
 
   const [fontsLoaded] = useFonts({
-    ElmsSans_100Thin,
-    ElmsSans_300Light,
-    ElmsSans_400Regular,
-    ElmsSans_500Medium,
-    ElmsSans_600SemiBold,
-    ElmsSans_700Bold,
-    ElmsSans_800ExtraBold,
-    ElmsSans_900Black,
+    ZalandoSansSemiExpanded_200ExtraLight,
+    ZalandoSansSemiExpanded_300Light,
+    ZalandoSansSemiExpanded_400Regular,
+    ZalandoSansSemiExpanded_500Medium,
+    ZalandoSansSemiExpanded_600SemiBold,
+    ZalandoSansSemiExpanded_700Bold,
+    ZalandoSansSemiExpanded_800ExtraBold,
+    ZalandoSansSemiExpanded_900Black,
     Anton_400Regular,
   })
 

@@ -5,7 +5,7 @@ import { fonts } from '../lib/typography'
 import { haptics } from '../lib/haptics'
 
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-const BOARD_FONT = fonts.mono
+const BOARD_FONT = fonts.bold
 
 export function FlipCell({
   targetChar,

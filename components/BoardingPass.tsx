@@ -264,10 +264,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: colors.charcoal,
     marginHorizontal: 10,
-    marginBottom: 4,
+    marginBottom: 12,
   },
   planeCompact: {
     fontSize: 16,
+    marginBottom: 8,
   },
   fieldRow: {
     flexDirection: 'row',
